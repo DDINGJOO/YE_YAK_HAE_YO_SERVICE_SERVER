@@ -47,11 +47,12 @@ docs/
 **목적:** 완료된 기능의 상세한 구현 내용, 플로우, 설계 결정을 문서화합니다.
 
 **현재 문서:**
-- **pricing-policy/**: 가격 정책 기능 (Issue #7, #8, #9)
-  - [README.md](features/pricing-policy/README.md) - 기능 개요
-  - [domain.md](features/pricing-policy/domain.md) - 도메인 모델 상세
-  - [flow.md](features/pricing-policy/flow.md) - 플로우 및 시퀀스 다이어그램
+- **pricing-policy/**: 가격 정책 기능 (Issue #7, #8, #9, #10) 
+  - [README.md](features/pricing-policy/README.md) - 기능 개요 및 완료된 이슈
+  - [domain.md](features/pricing-policy/domain.md) - 도메인 모델 상세 (Aggregate, Value Objects, Use Cases)
+  - [flow.md](features/pricing-policy/flow.md) - 플로우 및 시퀀스 다이어그램 (생성, 계산, 수정, 복사)
   - [database.md](features/pricing-policy/database.md) - DB 스키마 및 JPA 매핑
+  - [API.md](features/pricing-policy/API.md) - REST API 명세 및 사용 예시
 
 - **event-handling/**: 이벤트 처리 기능 (Issue #9)
   - [README.md](features/event-handling/README.md) - 기능 개요 및 아키텍처 원칙
@@ -303,11 +304,13 @@ docs/
 ### 특정 개념 찾기
 
 #### "시간대별 가격"에 대해 알고 싶다면?
-1. requirements/PROJECT_REQUIREMENTS.md (기능 1)
-2. architecture/DOMAIN_MODEL_DESIGN.md (PricingPolicy Aggregate)
-3. **features/pricing-policy/domain.md** (도메인 모델 상세) NEW
-4. **features/pricing-policy/flow.md** (실제 플로우) NEW
-5. adr/ADR_001_ARCHITECTURE_DECISION.md (설계 결정)
+1. requirements/PROJECT_REQUIREMENTS.md (기능 1 - 요구사항)
+2. architecture/DOMAIN_MODEL_DESIGN.md (PricingPolicy Aggregate 설계)
+3. **features/pricing-policy/README.md** (기능 개요) ✅
+4. **features/pricing-policy/domain.md** (도메인 모델 상세) ✅
+5. **features/pricing-policy/flow.md** (실제 플로우) ✅
+6. **features/pricing-policy/API.md** (REST API 사용법) ✅
+7. adr/ADR_001_ARCHITECTURE_DECISION.md (설계 결정)
 
 #### "재고 관리"에 대해 알고 싶다면?
 1. requirements/PROJECT_REQUIREMENTS.md (기능 2)
@@ -354,6 +357,13 @@ docs/
 
 ## 최근 업데이트
 
+### 2025-11-09
+- **가격 정책 API 문서 추가 및 보완** (Issue #10)
+  - API.md: REST API 4개 엔드포인트 명세 및 사용 예시
+  - README.md: API Layer 섹션 추가, 완료 이슈 체크
+  - domain.md: 복사 기능, Use Cases, 테스트 커버리지 업데이트
+  - flow.md: 가격 수정/복사 플로우 시퀀스 다이어그램 추가
+
 ### 2025-11-08
 - **features/** 폴더 신규 추가
 - 가격 정책 기능 문서 작성 완료 (Issue #7, #8, #9)
@@ -364,4 +374,4 @@ docs/
   - architecture.md: 계층별 설계, 디자인 패턴, 확장 전략
   - events.md: RoomCreatedEvent 스키마 및 처리 흐름
 
-**Last Updated:** 2025-11-08
+**Last Updated:** 2025-11-09
