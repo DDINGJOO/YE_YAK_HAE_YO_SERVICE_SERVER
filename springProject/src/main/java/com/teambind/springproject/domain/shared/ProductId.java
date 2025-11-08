@@ -19,10 +19,7 @@ public class ProductId {
   }
 
   private void validateValue(final Long value) {
-    if (value == null) {
-      throw new IllegalArgumentException("Product ID cannot be null");
-    }
-    if (value <= 0) {
+    if (value != null && value <= 0) {
       throw new IllegalArgumentException("Product ID must be positive: " + value);
     }
   }
