@@ -1,16 +1,16 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.7'
+    id 'org.springframework.boot' version '3.2.5'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.teambind'
 version = '0.0.1-SNAPSHOT'
-description = 'teambind reservation service server'
+description = 'Reservation Pricing Service - Hexagonal Architecture with DDD'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -25,13 +25,29 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter'
-    // cause -> ObjectMapper
+    // Spring Boot Starters
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Database
+    runtimeOnly 'org.postgresql:postgresql'
+    implementation 'org.flywaydb:flyway-core'
+
+    // Kafka
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+
+    // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Test - H2 for integration tests
+    testImplementation 'com.h2database:h2'
 }
 
 tasks.named('test') {
