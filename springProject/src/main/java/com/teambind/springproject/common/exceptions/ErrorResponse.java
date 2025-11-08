@@ -37,17 +37,6 @@ public class ErrorResponse {
 				.build();
 	}
 
-	public static ErrorResponse of(CustomException ex, String path) {
-		return ErrorResponse.builder()
-				.timestamp(LocalDateTime.now())
-				.status(ex.getHttpStatus().value())
-				.code(ex.getErrorCode().getErrCode())
-				.message(ex.getMessage())
-				.path(path)
-				.exceptionType(ex.getExceptionType())
-				.build();
-	}
-
 	public static ErrorResponse ofValidation(int status, String code, String message, String path, List<FieldError> errors) {
 		List<FieldErrorDetail> fieldErrors = errors.stream()
 				.map(error -> new FieldErrorDetail(
