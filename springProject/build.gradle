@@ -2,6 +2,9 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.2.5'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'checkstyle'
+    id 'pmd'
+    id 'com.github.spotbugs' version '6.0.26'
 }
 
 group = 'com.teambind'
@@ -52,4 +55,84 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+// CheckStyle Configuration
+checkstyle {
+    toolVersion = '10.21.1'
+    configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
+    configDirectory = file("${rootDir}/config/checkstyle")
+    ignoreFailures = true
+    maxWarnings = Integer.MAX_VALUE
+    showViolations = true
+}
+
+checkstyleMain {
+    source = 'src/main/java'
+}
+
+checkstyleTest {
+    source = 'src/test/java'
+}
+
+// PMD Configuration
+pmd {
+    toolVersion = '7.0.0'
+    consoleOutput = true
+    ignoreFailures = true
+    ruleSets = []
+    ruleSetFiles = files("${rootDir}/config/pmd/pmd-ruleset.xml")
+}
+
+pmdMain {
+    source = 'src/main/java'
+}
+
+pmdTest {
+    source = 'src/test/java'
+}
+
+// SpotBugs Configuration
+spotbugs {
+    toolVersion = '4.8.3'
+    ignoreFailures = true
+    effort = 'max'
+    reportLevel = 'medium'
+    excludeFilter = file("${rootDir}/config/spotbugs/excludeFilter.xml")
+}
+
+spotbugsMain {
+    reports {
+        html {
+            required = true
+            outputLocation = file("${buildDir}/reports/spotbugs/main/spotbugs.html")
+        }
+        xml {
+            required = false
+        }
+    }
+}
+
+spotbugsTest {
+    reports {
+        html {
+            required = true
+            outputLocation = file("${buildDir}/reports/spotbugs/test/spotbugs.html")
+        }
+        xml {
+            required = false
+        }
+    }
+}
+
+// Code Quality Task
+task codeQuality {
+    group = 'verification'
+    description = 'Run all code quality checks (CheckStyle, PMD, SpotBugs)'
+    dependsOn checkstyleMain, checkstyleTest, pmdMain, pmdTest, spotbugsMain, spotbugsTest
+}
+
+// Build task depends on code quality
+tasks.named('build') {
+    dependsOn codeQuality
 }

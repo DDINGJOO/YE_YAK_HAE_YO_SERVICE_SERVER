@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter
+    xmlns="https://github.com/spotbugs/filter/3.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/3.1.0/spotbugs/etc/findbugsfilter.xsd">
+
+    <!-- Exclude generated code -->
+    <Match>
+        <Source name="~.*[\\/]generated[\\/].*"/>
+    </Match>
+
+    <!-- Exclude test classes from certain checks -->
+    <Match>
+        <Class name="~.*Test"/>
+        <Bug pattern="DM_DEFAULT_ENCODING"/>
+    </Match>
+
+    <!-- Spring Boot specific exclusions -->
+    <Match>
+        <Class name="~.*Application"/>
+        <Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD"/>
+    </Match>
+
+    <!-- JPA Entity exclusions -->
+    <Match>
+        <Or>
+            <Class name="~.*\.domain\..*"/>
+            <Class name="~.*\.entity\..*"/>
+        </Or>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- Exclude serialization warnings for DTOs -->
+    <Match>
+        <Or>
+            <Class name="~.*\.dto\..*"/>
+            <Class name="~.*\.request\..*"/>
+            <Class name="~.*\.response\..*"/>
+        </Or>
+        <Bug pattern="SE_NO_SERIALVERSIONID"/>
+    </Match>
+
+</FindBugsFilter>
