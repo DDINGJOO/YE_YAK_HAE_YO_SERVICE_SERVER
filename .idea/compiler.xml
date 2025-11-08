@@ -7,15 +7,23 @@
         <processorPath useClasspath="false">
           <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.projectlombok/lombok/1.18.42/8365263844ebb62398e0dc33057ba10ba472d3b8/lombok-1.18.42.jar" />
         </processorPath>
-        <module name="springProject.main" />
+        <module name="ye-yak-hae-yo-server.main" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="springProject" target="17" />
+      <module name="springProject.main" target="17" />
+      <module name="springProject.test" target="17" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="springProject" options="-parameters" />
       <module name="springProject.main" options="-parameters" />
       <module name="springProject.test" options="-parameters" />
+      <module name="ye-yak-hae-yo-server" options="-parameters" />
+      <module name="ye-yak-hae-yo-server.main" options="-parameters" />
+      <module name="ye-yak-hae-yo-server.test" options="-parameters" />
     </option>
   </component>
 </project>
