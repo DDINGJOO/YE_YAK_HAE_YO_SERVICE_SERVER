@@ -1,27 +1,62 @@
-# 프로젝트 자동화 시스템
+# 예약 가격 관리 서비스 - 프로젝트 정보
 
-이 프로젝트는 GitHub Issues, Pull Requests, 그리고 라벨링을 자동화하는 시스템입니다.
+## 프로젝트 개요
+
+**예약 가격 관리 서비스 (Reservation Pricing Service)** 는 MSA 아키텍처 환경에서 시간대별 가격 정책, 추가상품 관리, 예약 총 가격 계산을 담당하는 독립적인 마이크로서비스입니다.
+
+### 핵심 기능
+1. **시간대별 예약 가격 세팅 및 계산**
+2. **추가상품 관리** (플레이스/룸/예약 범위별)
+3. **예약 총 가격 정보 저장 및 계산** (형상관리)
+
+### 아키텍처
+- **Hexagonal Architecture + Domain-Driven Design (DDD)**
+- **Java 21 + Spring Boot 3.2 + PostgreSQL 16 + Kafka 3.6**
+
+---
+
+## 📚 문서 구조
+
+### 빠른 시작
+- **[INDEX.md](INDEX.md)** - 전체 문서 인덱스 및 읽기 가이드
+
+### 주요 문서
+- **[requirements/](requirements/)** - 요구사항 분석
+- **[architecture/](architecture/)** - 아키텍처 설계
+- **[adr/](adr/)** - Architecture Decision Records
+
+### 프로젝트 자동화
+- **[ISSUE_GUIDE.md](ISSUE_GUIDE.md)** - 이슈 작성 가이드
+- **[PROJECT_SETUP.md](PROJECT_SETUP.md)** - 프로젝트 설정 및 워크플로우 가이드
+
+---
 
 ## 📋 목차
 
-- [주요 기능](#주요-기능)
+- [GitHub 자동화 시스템](#github-자동화-시스템)
 - [자동 라벨링 시스템](#자동-라벨링-시스템)
 - [이슈 관리](#이슈-관리)
 - [PR 자동화](#pr-자동화)
 - [사용 가이드](#사용-가이드)
+- [문서 참조](#문서-참조)
 
 ---
 
-## 🎯 주요 기능
+## GitHub 자동화 시스템
+
+이 프로젝트는 GitHub Issues, Pull Requests, 그리고 라벨링을 자동화하는 시스템을 갖추고 있습니다.
+
+---
+
+## 주요 기능
 
 1. **자동 라벨링**: PR 생성 시 변경된 파일 경로에 따라 자동으로 라벨 부여
 2. **이슈 템플릿**: Epic, Story, Task, Spike, Change Request 템플릿 제공
 3. **이슈 자동 닫기**: PR 머지 시 연결된 이슈 자동으로 닫힘
-4. **AI 어시스턴트 지원**: Claude Code가 커밋 분석 후 자동으로 관련 이슈 찾아서 PR 생성
 
 ---
 
-## 🏷️ 자동 라벨링 시스템
+## 자동 라벨링 시스템
 
 PR이 생성되거나 업데이트되면 변경된 파일 경로를 분석하여 자동으로 라벨을 부여합니다.
 
@@ -72,7 +107,7 @@ PR이 생성되거나 업데이트되면 변경된 파일 경로를 분석하여
 
 ---
 
-## 📝 이슈 관리
+##  이슈 관리
 
 ### 이슈 타입
 
@@ -99,7 +134,7 @@ Task #4: 로그인 화면 개발
 
 ---
 
-## 🔄 PR 자동화
+##  PR 자동화
 
 ### 1. 이슈 자동 닫기
 
@@ -118,30 +153,9 @@ Resolves #67
 - 해당 이슈들을 자동으로 닫고
 - "Closed by PR #N" 코멘트를 추가합니다
 
-### 2. AI 어시스턴트를 통한 PR 생성
-
-Claude Code를 사용하면 자동으로 관련 이슈를 찾아서 PR을 생성합니다:
-
-```bash
-# 1. 작업 브랜치에서 개발
-git checkout -b feature/user-login
-# 코딩...
-git commit -m "로그인 API 구현"
-git push
-
-# 2. Claude Code에게 요청
-"PR 만들어줘"
-
-# 3. AI가 자동으로:
-# - 커밋 메시지 분석: "로그인 API 구현"
-# - 열린 이슈 검색
-# - 관련 이슈 매칭: #45 [TASK] 로그인 API 개발
-# - PR 생성 with "Closes #45"
-```
-
 ---
 
-## 📖 사용 가이드
+##  사용 가이드
 
 ### 처음 시작하기
 
@@ -160,9 +174,9 @@ git push
    ```
 
 3. **PR 생성**
-   - Claude Code 사용: "PR 만들어줘"
-   - 또는 수동: GitHub에서 New Pull Request
+   - GitHub에서 New Pull Request 클릭
    - PR 본문에 `Closes #이슈번호` 포함
+   - 또는 GitHub CLI 사용: `gh pr create --title "제목" --body "내용"`
 
 4. **코드 리뷰 & 머지**
    - 리뷰어가 승인
@@ -189,7 +203,7 @@ git push
 
 ---
 
-## 🔧 설정 파일
+##  설정 파일
 
 ### 워크플로우
 - `.github/workflows/auto-label.yml` - 자동 라벨링
@@ -210,7 +224,27 @@ git push
 
 ---
 
-## 💡 팁
+##  문서 참조
+
+### 프로젝트 이해를 위한 문서
+
+**처음 시작한다면:**
+1. [INDEX.md](INDEX.md) - 문서 읽기 가이드
+2. [requirements/PROJECT_REQUIREMENTS.md](requirements/PROJECT_REQUIREMENTS.md) - 요구사항
+3. [adr/ADR_001_ARCHITECTURE_DECISION.md](adr/ADR_001_ARCHITECTURE_DECISION.md) - 아키텍처 결정
+
+**아키텍처를 이해하고 싶다면:**
+- [architecture/ARCHITECTURE_ANALYSIS.md](architecture/ARCHITECTURE_ANALYSIS.md) - 아키텍처 패턴 비교
+- [architecture/DOMAIN_MODEL_DESIGN.md](architecture/DOMAIN_MODEL_DESIGN.md) - 도메인 모델 설계
+- [architecture/TECH_STACK_ANALYSIS.md](architecture/TECH_STACK_ANALYSIS.md) - 기술 스택 분석
+
+**GitHub 자동화를 사용하고 싶다면:**
+- [ISSUE_GUIDE.md](ISSUE_GUIDE.md) - 이슈 작성 가이드
+- [PROJECT_SETUP.md](PROJECT_SETUP.md) - 프로젝트 워크플로우 가이드
+
+---
+
+##  팁
 
 1. **라벨 커스터마이징**
    - `.github/labeler.yml` 수정하여 라벨 규칙 추가/변경 가능
@@ -220,8 +254,8 @@ git push
    - 추적성을 위해 `#이슈번호` 형식으로 참조
 
 3. **커밋 메시지**
-   - 명확하게 작성하면 AI가 관련 이슈를 더 잘 찾음
-   - 예: "로그인 API 구현" > "코드 수정"
+   - 명확하게 작성하면 코드 리뷰 시 이해하기 쉬움
+   - 예: "FEAT 로그인 API 구현" > "코드 수정"
 
 4. **브랜치 네이밍**
    - `feature/기능명` 형식 권장
@@ -229,13 +263,13 @@ git push
 
 ---
 
-## 📚 추가 문서
+##  추가 문서
 
 - [프로젝트 설정 가이드](PROJECT_SETUP.md) - AI 어시스턴트용 상세 가이드
 - [이슈 작성 가이드](ISSUE_GUIDE.md) - 이슈 타입별 작성 예시
 
 ---
 
-## 🤝 기여
+##  기여
 
 이슈나 개선 사항이 있으시면 GitHub Issues로 등록해주세요!
