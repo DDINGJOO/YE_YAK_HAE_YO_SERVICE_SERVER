@@ -1,0 +1,27 @@
+# Environment files
+.env
+*.env
+!.env.example
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Claude Code
+.claude/
+
+# Build outputs
+target/
+build/
+out/
+*.class
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
