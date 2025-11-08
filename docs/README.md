@@ -32,7 +32,7 @@ docs/
 │   ├── README.md
 │   └── ADR_001_ARCHITECTURE_DECISION.md (최종 아키텍처 결정)
 │
-└── features/                          (기능별 상세 문서) ✅
+└── features/                          (기능별 상세 문서) 
     ├── pricing-policy/                (가격 정책 기능)
     │   ├── README.md                  (기능 개요)
     │   ├── domain.md                  (도메인 모델)
@@ -113,15 +113,15 @@ docs/
 - **빌드**: Gradle 8.5 (Kotlin DSL)
 
 ### 핵심 도메인 모델
-- **PricingPolicy** (시간대별 가격 정책) ✅ 구현 완료
+- **PricingPolicy** (시간대별 가격 정책) 구현 완료
 - **Product** (추가상품)
 - **ReservationPricing** (예약 가격 스냅샷)
 
 ### 구현 완료된 기능
-- ✅ PricingPolicy Aggregate (Issue #7)
-- ✅ PricingPolicy Repository (Issue #8)
-- ✅ RoomCreatedEvent 처리 (Issue #9)
-- ✅ 가격 정책 관리 REST API (Issue #10)
+-  PricingPolicy Aggregate (Issue #7)
+-  PricingPolicy Repository (Issue #8)
+-  RoomCreatedEvent 처리 (Issue #9)
+-  가격 정책 관리 REST API (Issue #10)
 
 ---
 
