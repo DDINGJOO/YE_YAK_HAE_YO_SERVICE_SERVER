@@ -25,18 +25,32 @@ docs/
 │   ├── README.md
 │   ├── ARCHITECTURE_ANALYSIS.md       (아키텍처 패턴 비교)
 │   ├── DOMAIN_MODEL_DESIGN.md         (도메인 모델 설계)
-│   └── TECH_STACK_ANALYSIS.md         (기술 스택 분석)
+│   ├── TECH_STACK_ANALYSIS.md         (기술 스택 분석)
+│   └── HEXAGONAL_ARCHITECTURE.md      (헥사고날 아키텍처 구현)
 │
-└── adr/                               (Architecture Decision Records)
-    ├── README.md
-    └── ADR_001_ARCHITECTURE_DECISION.md (최종 아키텍처 결정)
+├── adr/                               (Architecture Decision Records)
+│   ├── README.md
+│   └── ADR_001_ARCHITECTURE_DECISION.md (최종 아키텍처 결정)
+│
+└── features/                          (기능별 상세 문서) ✅
+    ├── pricing-policy/                (가격 정책 기능)
+    │   ├── README.md                  (기능 개요)
+    │   ├── domain.md                  (도메인 모델)
+    │   ├── flow.md                    (플로우 및 시퀀스)
+    │   ├── database.md                (DB 스키마)
+    │   └── API.md                     (REST API 명세)
+    │
+    └── event-handling/                (이벤트 처리)
+        ├── README.md                  (개요)
+        ├── architecture.md            (아키텍처)
+        └── events.md                  (이벤트 스키마)
 ```
 
 ---
 
 ## 빠른 시작 (Quick Start)
 
-### 신규 팀원 온보딩 (3시간)
+### 신규 팀원 온보딩 (4.5시간)
 
 #### 1단계: 프로젝트 이해 (30분)
 1. **[INFO.md](INFO.md)** - 프로젝트 개요
@@ -50,9 +64,13 @@ docs/
 5. **[architecture/DOMAIN_MODEL_DESIGN.md](architecture/DOMAIN_MODEL_DESIGN.md)** - 도메인 모델
 6. **[architecture/TECH_STACK_ANALYSIS.md](architecture/TECH_STACK_ANALYSIS.md)** - 기술 스택
 
-#### 4단계: 프로젝트 관리 (30분)
-7. **[ISSUE_GUIDE.md](ISSUE_GUIDE.md)** - 이슈 작성법
-8. **[PROJECT_SETUP.md](PROJECT_SETUP.md)** - 워크플로우 가이드
+#### 4단계: 구현된 기능 이해 (1시간)
+7. **[features/pricing-policy/README.md](features/pricing-policy/README.md)** - 가격 정책 기능
+8. **[features/pricing-policy/API.md](features/pricing-policy/API.md)** - REST API 사용법
+
+#### 5단계: 프로젝트 관리 (30분)
+9. **[ISSUE_GUIDE.md](ISSUE_GUIDE.md)** - 이슈 작성법
+10. **[PROJECT_SETUP.md](PROJECT_SETUP.md)** - 워크플로우 가이드
 
 ---
 
@@ -62,7 +80,9 @@ docs/
 -  [requirements/PROJECT_REQUIREMENTS.md](requirements/PROJECT_REQUIREMENTS.md)
 -  [adr/ADR_001_ARCHITECTURE_DECISION.md](adr/ADR_001_ARCHITECTURE_DECISION.md)
 -  [architecture/DOMAIN_MODEL_DESIGN.md](architecture/DOMAIN_MODEL_DESIGN.md)
+-  [architecture/HEXAGONAL_ARCHITECTURE.md](architecture/HEXAGONAL_ARCHITECTURE.md)
 -  [architecture/TECH_STACK_ANALYSIS.md](architecture/TECH_STACK_ANALYSIS.md)
+-  [features/pricing-policy/](features/pricing-policy/) - 구현된 기능 참고
 
 ### 프로젝트 매니저
 -  [INFO.md](INFO.md)
@@ -93,9 +113,15 @@ docs/
 - **빌드**: Gradle 8.5 (Kotlin DSL)
 
 ### 핵심 도메인 모델
-- **PricingPolicy** (시간대별 가격 정책)
+- **PricingPolicy** (시간대별 가격 정책) ✅ 구현 완료
 - **Product** (추가상품)
 - **ReservationPricing** (예약 가격 스냅샷)
+
+### 구현 완료된 기능
+- ✅ PricingPolicy Aggregate (Issue #7)
+- ✅ PricingPolicy Repository (Issue #8)
+- ✅ RoomCreatedEvent 처리 (Issue #9)
+- ✅ 가격 정책 관리 REST API (Issue #10)
 
 ---
 
@@ -131,4 +157,4 @@ docs/
 
 **문서에 대한 질문이나 개선 사항은 GitHub Issues로 등록해주세요.**
 
-**Last Updated:** 2025-11-08
+**Last Updated:** 2025-11-09
