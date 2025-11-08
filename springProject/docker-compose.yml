@@ -1,0 +1,89 @@
+services:
+  # PostgreSQL 16
+  postgres:
+    image: postgres:16-alpine
+    container_name: reservation-pricing-postgres
+    environment:
+      POSTGRES_DB: reservation_pricing_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      TZ: Asia/Seoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - reservation-pricing-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Zookeeper (Kafka 의존성)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: reservation-pricing-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      TZ: Asia/Seoul
+    ports:
+      - "2181:2181"
+    networks:
+      - reservation-pricing-network
+    restart: unless-stopped
+
+  # Kafka 3.6
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: reservation-pricing-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      TZ: Asia/Seoul
+    ports:
+      - "9092:9092"
+    networks:
+      - reservation-pricing-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Kafka UI (Optional, for development)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: reservation-pricing-kafka-ui
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      TZ: Asia/Seoul
+    ports:
+      - "8090:8080"
+    networks:
+      - reservation-pricing-network
+    restart: unless-stopped
+
+networks:
+  reservation-pricing-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
