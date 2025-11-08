@@ -39,7 +39,18 @@
 - [플로우 및 시퀀스](./flow.md)
 - [데이터베이스 스키마](./database.md)
 
+### API Layer (Issue #10)
+- **PricingPolicyController**: REST API 컨트롤러
+  - GET /api/pricing-policies/{roomId}: 가격 정책 조회
+  - PUT /api/pricing-policies/{roomId}/default-price: 기본 가격 업데이트
+  - PUT /api/pricing-policies/{roomId}/time-range-prices: 시간대별 가격 업데이트
+  - POST /api/pricing-policies/{targetRoomId}/copy: 가격 정책 복사
+- **UpdatePricingPolicyUseCase**: 가격 업데이트 Use Case
+- **GetPricingPolicyUseCase**: 가격 조회 Use Case
+- **CopyPricingPolicyUseCase**: 가격 정책 복사 Use Case
+
 ## 관련 Issues
-- Issue #7: PricingPolicy Aggregate 구현
-- Issue #8: PricingPolicy Repository 구현
-- Issue #9: RoomCreatedEvent 리스너 및 가격 정책 자동 생성
+- Issue #7: PricingPolicy Aggregate 구현 ✅
+- Issue #8: PricingPolicy Repository 구현 ✅
+- Issue #9: RoomCreatedEvent 리스너 및 가격 정책 자동 생성 ✅
+- Issue #10: 가격 정책 관리 API 구현 ✅

@@ -107,7 +107,7 @@ src/main/java/com/teambind/springproject/
 - `PUT /{roomId}/time-range-prices`: 시간대별 가격 업데이트
 - `POST /{targetRoomId}/copy`: 가격 정책 복사
 
-자세한 API 문서는 [API 문서](docs/features/pricing-policy/API.md) 참조
+자세한 API 문서는 [API 문서](../docs/features/pricing-policy/API.md) 참조
 
 ## 테스트
 
@@ -199,7 +199,7 @@ open build/reports/spotbugs/main.html
 
 - [아키텍처 개요](docs/architecture/ARCHITECTURE.md)
 - [도메인 모델](docs/architecture/DOMAIN_MODEL.md)
-- [API 문서](docs/features/pricing-policy/API.md)
+- [API 문서](../docs/features/pricing-policy/API.md)
 
 ## 개발 가이드
 

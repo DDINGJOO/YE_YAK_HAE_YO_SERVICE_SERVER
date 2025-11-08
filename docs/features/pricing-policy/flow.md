@@ -112,17 +112,118 @@ Client              Application          PricingPolicy         TimeRangePrices  
 - PriceBreakdown 객체 반환
 - 클라이언트는 이를 바탕으로 예약 금액 표시
 
-## 3. 가격 정책 수정 플로우 (Future: Issue #10)
+## 3. 가격 정책 수정 플로우 (Issue #10)
 
-### 기본 가격 수정
+### 3.1 기본 가격 수정
+
+**엔드포인트**: `PUT /api/pricing-policies/{roomId}/default-price`
+
+#### 시퀀스 다이어그램
 ```
-Client --> API --> UseCase --> PricingPolicy.updateDefaultPrice() --> Repository.save()
+Client       Controller      UpdateUseCase      PricingPolicy     Repository
+  |               |                 |                 |                 |
+  |-- PUT ------->|                 |                 |                 |
+  |   {price}     |                 |                 |                 |
+  |               |-- update ------>|                 |                 |
+  |               |  (roomId,       |                 |                 |
+  |               |   Money)        |                 |                 |
+  |               |                 |                 |                 |
+  |               |                 |-- findById -------------------->|
+  |               |                 |<-- policy ----------------------|
+  |               |                 |                 |                 |
+  |               |                 |-- updateDefaultPrice() -->|      |
+  |               |                 |                 |         |      |
+  |               |                 |                 |<--------|      |
+  |               |                 |                 |                 |
+  |               |                 |-- save(policy) ---------------->|
+  |               |                 |<-- saved ------------------------|
+  |               |                 |                 |                 |
+  |               |<-- policy ------|                 |                 |
+  |               |                 |                 |                 |
+  |<-- 200 OK ----|                 |                 |                 |
+  |   Response    |                 |                 |                 |
+  |               |                 |                 |                 |
 ```
 
-### 시간대별 가격 재설정
+### 3.2 시간대별 가격 재설정
+
+**엔드포인트**: `PUT /api/pricing-policies/{roomId}/time-range-prices`
+
+#### 시퀀스 다이어그램
 ```
-Client --> API --> UseCase --> PricingPolicy.resetPrices(newPrices) --> Repository.save()
+Client       Controller      UpdateUseCase      PricingPolicy     Repository
+  |               |                 |                 |                 |
+  |-- PUT ------->|                 |                 |                 |
+  |   {prices[]}  |                 |                 |                 |
+  |               |                 |                 |                 |
+  |               |-- DTO to Domain -->                |                 |
+  |               |  TimeRangePrice[]                 |                 |
+  |               |                 |                 |                 |
+  |               |-- update ------>|                 |                 |
+  |               |  (roomId,       |                 |                 |
+  |               |   prices)       |                 |                 |
+  |               |                 |                 |                 |
+  |               |                 |-- findById -------------------->|
+  |               |                 |<-- policy ----------------------|
+  |               |                 |                 |                 |
+  |               |                 |-- resetPrices() ---------->|      |
+  |               |                 |  (new TimeRangePrices)    |      |
+  |               |                 |<--------------------------|      |
+  |               |                 |                 |                 |
+  |               |                 |-- save(policy) ---------------->|
+  |               |                 |<-- saved ------------------------|
+  |               |                 |                 |                 |
+  |               |<-- policy ------|                 |                 |
+  |               |                 |                 |                 |
+  |<-- 200 OK ----|                 |                 |                 |
+  |   Response    |                 |                 |                 |
+  |               |                 |                 |                 |
 ```
+
+### 3.3 가격 정책 복사
+
+**엔드포인트**: `POST /api/pricing-policies/{targetRoomId}/copy`
+
+#### 시퀀스 다이어그램
+```
+Client       Controller      CopyUseCase     PricingPolicy     Repository
+  |               |                |                |                |
+  |-- POST ------>|                |                |                |
+  | {sourceRoomId}|                |                |                |
+  |               |                |                |                |
+  |               |-- copy ------->|                |                |
+  |               | (target, src)  |                |                |
+  |               |                |                |                |
+  |               |                |-- findById(source) ----------->|
+  |               |                |<-- sourcePolicy ---------------|
+  |               |                |                |                |
+  |               |                |-- findById(target) ----------->|
+  |               |                |<-- targetPolicy ---------------|
+  |               |                |                |                |
+  |               |                |-- validate placeId -->|         |
+  |               |                |  (same place check)   |         |
+  |               |                |                       |         |
+  |               |                |   if different:       |         |
+  |               |                |   throw Exception     |         |
+  |               |                |                       |         |
+  |               |                |-- copy prices ------->|         |
+  |               |                | updateDefaultPrice()  |         |
+  |               |                | resetPrices()         |         |
+  |               |                |<----------------------|         |
+  |               |                |                |                |
+  |               |                |-- save(target) --------------->|
+  |               |                |<-- saved ----------------------|
+  |               |                |                |                |
+  |               |<-- policy -----|                |                |
+  |               |                |                |                |
+  |<-- 200 OK ----|                |                |                |
+  |   Response    |                |                |                |
+  |               |                |                |                |
+```
+
+#### 복사 제약사항
+- 같은 `placeId`를 가진 룸 간에만 복사 가능
+- 다른 플레이스 간 복사 시도 시 `CannotCopyDifferentPlaceException` 발생 (400 Bad Request)
 
 ## 플로우 특징
 

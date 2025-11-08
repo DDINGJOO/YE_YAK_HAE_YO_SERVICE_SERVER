@@ -20,6 +20,7 @@ PricingPolicy (Aggregate Root)
 1. **가격 정책 관리**
    - 기본 가격 설정/변경
    - 시간대별 가격 설정/재설정
+   - 다른 룸의 정책 복사 (같은 플레이스 내에서만)
 
 2. **가격 계산**
    - 예약 기간에 대한 슬롯별 가격 계산
@@ -29,6 +30,7 @@ PricingPolicy (Aggregate Root)
 3. **불변식 유지**
    - 시간대별 가격 중복 방지
    - 음수 가격 방지
+   - 같은 플레이스 제약 (복사 시)
 
 ## Value Objects
 
@@ -86,6 +88,11 @@ PricingPolicy (Aggregate Root)
 - `updateDefaultPrice()`: 기본 가격만 변경
 - `resetPrices()`: 시간대별 가격 전체 재설정 (기존 삭제 후 새로 추가)
 
+### 4. 가격 정책 복사
+- 같은 `placeId`를 가진 룸 간에만 복사 가능
+- 원본 룸의 기본 가격 및 시간대별 가격을 대상 룸으로 복사
+- 다른 플레이스 간 복사 시 `CannotCopyDifferentPlaceException` 발생
+
 ## 예시
 
 ### 기본 가격만 있는 정책
@@ -140,6 +147,52 @@ PriceBreakdown breakdown = policy.calculatePriceBreakdown(start, end);
 // slotCount: 2
 ```
 
+### 가격 정책 복사 예시
+```java
+// 원본 정책 (Room 1)
+PricingPolicy sourcePolicy = PricingPolicy.createWithTimeRangePrices(
+    RoomId.of(1L),
+    PlaceId.of(100L),  // 같은 placeId
+    TimeSlot.HOUR,
+    Money.of(new BigDecimal("30000")),
+    timeRangePrices
+);
+
+// 대상 정책 (Room 2)
+PricingPolicy targetPolicy = PricingPolicy.create(
+    RoomId.of(2L),
+    PlaceId.of(100L),  // 같은 placeId (필수)
+    TimeSlot.HOUR,
+    Money.of(BigDecimal.ZERO)
+);
+
+// 복사 실행
+targetPolicy.updateDefaultPrice(sourcePolicy.getDefaultPrice());
+targetPolicy.resetPrices(sourcePolicy.getTimeRangePrices());
+// Room 2는 이제 Room 1과 동일한 가격 정책을 가짐
+```
+
+## Use Cases (Issue #10)
+
+### CreatePricingPolicyUseCase
+- RoomCreatedEvent 수신 시 기본 정책 자동 생성
+- 기본 가격 0원으로 초기화
+
+### GetPricingPolicyUseCase
+- RoomId로 가격 정책 조회
+- 정책이 없으면 `PricingPolicyNotFoundException` 발생
+
+### UpdatePricingPolicyUseCase
+- 기본 가격 업데이트: `updateDefaultPrice(roomId, money)`
+- 시간대별 가격 재설정: `updateTimeRangePrices(roomId, prices)`
+
+### CopyPricingPolicyUseCase
+- 가격 정책 복사: `copyFromRoom(targetRoomId, sourceRoomId)`
+- 같은 PlaceId 검증
+- 원본 및 대상 정책 존재 확인
+
 ## 테스트 커버리지
-- 158개 단위 테스트
-- 생성, 가격 변경, 가격 계산, 검증 로직 모두 커버
+- 도메인: 158개 단위 테스트
+- 서비스: 12개 단위 테스트 (생성, 조회, 업데이트, 복사)
+- 컨트롤러: 11개 통합 테스트 (API 엔드포인트)
+- 생성, 가격 변경, 가격 계산, 복사, 검증 로직 모두 커버
