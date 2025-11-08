@@ -47,12 +47,17 @@ docs/
 **목적:** 완료된 기능의 상세한 구현 내용, 플로우, 설계 결정을 문서화합니다.
 
 **현재 문서:**
-- **pricing-policy/**: 가격 정책 기능 (Issue #7, #8, #9, #10) 
+- **pricing-policy/**: 가격 정책 기능 (Issue #7, #8, #9, #10)
   - [README.md](features/pricing-policy/README.md) - 기능 개요 및 완료된 이슈
   - [domain.md](features/pricing-policy/domain.md) - 도메인 모델 상세 (Aggregate, Value Objects, Use Cases)
   - [flow.md](features/pricing-policy/flow.md) - 플로우 및 시퀀스 다이어그램 (생성, 계산, 수정, 복사)
   - [database.md](features/pricing-policy/database.md) - DB 스키마 및 JPA 매핑
   - [API.md](features/pricing-policy/API.md) - REST API 명세 및 사용 예시
+
+- **product/**: 추가상품 기능 (Issue #11, #13)
+  - [README.md](features/product/README.md) - 기능 개요 및 완료된 이슈
+  - [domain.md](features/product/domain.md) - 도메인 모델 상세 (Aggregate, Value Objects, PricingStrategy)
+  - [database.md](features/product/database.md) - DB 스키마 및 JPA 매핑
 
 - **event-handling/**: 이벤트 처리 기능 (Issue #9)
   - [README.md](features/event-handling/README.md) - 기능 개요 및 아키텍처 원칙
@@ -87,11 +92,12 @@ docs/
 
 #### 4단계: 구현된 기능 이해 (1시간)
 7. **features/pricing-policy/README.md** - 가격 정책 기능 개요
-8. **features/event-handling/README.md** - 이벤트 처리 아키텍처
+8. **features/product/README.md** - 추가상품 기능 개요
+9. **features/event-handling/README.md** - 이벤트 처리 아키텍처
 
 #### 5단계: 프로젝트 관리 (30분)
-9. **ISSUE_GUIDE.md** - 이슈 작성 방법
-10. **PROJECT_SETUP.md** - 프로젝트 워크플로우 가이드
+10. **ISSUE_GUIDE.md** - 이슈 작성 방법
+11. **PROJECT_SETUP.md** - 프로젝트 워크플로우 가이드
 
 **총 소요 시간: 약 4시간**
 
@@ -105,6 +111,7 @@ docs/
 - architecture/DOMAIN_MODEL_DESIGN.md
 - architecture/TECH_STACK_ANALYSIS.md
 - features/pricing-policy/README.md
+- features/product/README.md
 - features/event-handling/architecture.md
 
 #### 프로젝트 매니저
@@ -312,10 +319,13 @@ docs/
 6. **features/pricing-policy/API.md** (REST API 사용법) 
 7. adr/ADR_001_ARCHITECTURE_DECISION.md (설계 결정)
 
-#### "재고 관리"에 대해 알고 싶다면?
-1. requirements/PROJECT_REQUIREMENTS.md (기능 2)
-2. architecture/DOMAIN_MODEL_DESIGN.md (Product Aggregate)
-3. adr/ADR_001_ARCHITECTURE_DECISION.md (Domain Service)
+#### "재고 관리" 또는 "추가상품"에 대해 알고 싶다면?
+1. requirements/PROJECT_REQUIREMENTS.md (기능 2 - 요구사항)
+2. architecture/DOMAIN_MODEL_DESIGN.md (Product Aggregate 설계)
+3. **features/product/README.md** (기능 개요)
+4. **features/product/domain.md** (도메인 모델 상세)
+5. **features/product/database.md** (DB 스키마 및 JPA 매핑)
+6. adr/ADR_001_ARCHITECTURE_DECISION.md (설계 결정)
 
 #### "예약 가격 계산"에 대해 알고 싶다면?
 1. requirements/PROJECT_REQUIREMENTS.md (기능 3)
@@ -358,6 +368,13 @@ docs/
 ## 최근 업데이트
 
 ### 2025-11-09
+- **추가상품 기능 문서 작성 완료** (Issue #11, #13)
+  - README.md: 기능 개요, Scope 및 PricingType 설명, 가격 계산 예시
+  - domain.md: Product Aggregate, PricingStrategy, ProductPriceBreakdown 상세 설계
+  - database.md: ERD, JPA 매핑, Flyway 마이그레이션, 성능 최적화 전략
+  - Product Aggregate 구현 (도메인 모델, 테스트 67개)
+  - Product Repository 구현 (영속성 계층, 통합 테스트 13개)
+
 - **가격 정책 API 문서 추가 및 보완** (Issue #10)
   - API.md: REST API 4개 엔드포인트 명세 및 사용 예시
   - README.md: API Layer 섹션 추가, 완료 이슈 체크
