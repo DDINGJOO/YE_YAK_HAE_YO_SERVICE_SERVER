@@ -1,0 +1,31 @@
+name: Epic
+description: 큰 기능(여러 Story로 쪼개질 수 있음)
+title: "[EPIC] 제목"
+labels: ["epic"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: 목표
+      description: 해결하려는 문제와 성공 지표
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 범위 / Not-in-scope
+  - type: textarea
+    id: design
+    attributes:
+      label: 디자인/문서 링크
+  - type: textarea
+    id: breakdown
+    attributes:
+      label: 하위 스토리(체크리스트)
+      value: |
+        - [ ] Story 1
+        - [ ] Story 2
+  - type: input
+    id: milestone
+    attributes:
+      label: 마일스톤

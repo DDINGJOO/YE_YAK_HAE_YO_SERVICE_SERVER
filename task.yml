@@ -1,0 +1,25 @@
+name: Task
+description: 개발/테스트/데브옵스 단위 작업
+title: "[TASK] 제목"
+labels: ["task"]
+body:
+  - type: input
+    id: parent
+    attributes:
+      label: 연결된 Story/Epic
+      placeholder: #123
+  - type: textarea
+    id: scope
+    attributes:
+      label: 작업 범위
+    validations:
+      required: true
+  - type: checkboxes
+    id: done
+    attributes:
+      label: Done 기준
+      options:
+        - label: 테스트 작성
+        - label: 문서/스키마 업데이트
+        - label: 린트/빌드/CI 통과
+        - label: PR 리뷰/머지

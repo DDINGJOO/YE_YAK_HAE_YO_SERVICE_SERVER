@@ -1,0 +1,64 @@
+backend:
+  - "**/src/main/java/**"
+
+docs:
+  - "docs/**"
+  - "*.md"
+  - "README*"
+
+infra:
+  - ".github/**"
+  - "Dockerfile"
+  - "docker-compose*.yml"
+  - ".dockerignore"
+  - "k8s/**"
+  - "kubernetes/**"
+
+database:
+  - "src/main/resources/db/**"
+  - "src/main/resources/migration/**"
+  - "**/*migration*.sql"
+  - "**/*schema*.sql"
+
+# 백엔드 레이어별 라벨
+layer:entity:
+  - "**/src/main/java/**/entity/**"
+  - "**/src/main/java/**/domain/**"
+  - "**/src/main/java/**/model/**"
+
+layer:controller:
+  - "**/src/main/java/**/controller/**"
+  - "**/src/main/java/**/api/**"
+
+layer:dto:
+  - "**/src/main/java/**/dto/**"
+  - "**/src/main/java/**/request/**"
+  - "**/src/main/java/**/response/**"
+
+layer:repository:
+  - "**/src/main/java/**/repository/**"
+  - "**/src/main/java/**/dao/**"
+
+layer:service:
+  - "**/src/main/java/**/service/**"
+
+layer:util:
+  - "**/src/main/java/**/util/**"
+  - "**/src/main/java/**/helper/**"
+  - "**/src/main/java/**/common/**"
+
+layer:config:
+  - "**/src/main/java/**/config/**"
+  - "**/src/main/java/**/configuration/**"
+
+layer:test:
+  - "**/src/test/**"
+  - "**/*Test.java"
+  - "**/*Tests.java"
+
+layer:resource:
+  - "**/src/main/resources/**/*.yml"
+  - "**/src/main/resources/**/*.yaml"
+  - "**/src/main/resources/**/*.properties"
+  - "**/src/main/resources/**/*.xml"
+  - "**/src/main/resources/**/*.json"

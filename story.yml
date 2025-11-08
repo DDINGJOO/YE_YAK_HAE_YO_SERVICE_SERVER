@@ -1,0 +1,30 @@
+name: Story
+description: 사용자 시나리오와 수용 기준
+title: "[STORY] 제목"
+labels: ["story"]
+body:
+  - type: textarea
+    id: background
+    attributes:
+      label: 배경
+  - type: textarea
+    id: ac
+    attributes:
+      label: 수용 기준(AC)
+      value: |
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: 디자인/계약 링크
+  - type: textarea
+    id: notes
+    attributes:
+      label: 구현 메모/리스크
+  - type: input
+    id: epic
+    attributes:
+      label: 연결된 Epic
+      placeholder: #123

@@ -1,0 +1,25 @@
+name: Change Request
+description: 설계/AC 변경 제안
+title: "[CR] 제목"
+labels: ["change-request"]
+body:
+  - type: input
+    id: related
+    attributes:
+      label: 영향받는 Epic/Story/Task
+      placeholder: #123, #456
+  - type: textarea
+    id: change
+    attributes:
+      label: 제안 변경 사항
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: 영향도
+      placeholder: BE/FE/DB/마이그레이션
+  - type: textarea
+    id: decision
+    attributes:
+      label: 결정/대안/근거(ADR 링크)
