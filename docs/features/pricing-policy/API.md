@@ -276,5 +276,5 @@ curl -X POST http://localhost:8080/api/pricing-policies/2/copy \
 
 ## 관련 문서
 
-- [도메인 모델](../../../springProject/docs/architecture/DOMAIN_MODEL.md)
-- [아키텍처 개요](../../../springProject/docs/architecture/ARCHITECTURE.md)
+- [도메인 모델](../../../docs/architecture/DOMAIN_MODEL_DESIGN.md)
+- [아키텍처 개요](../../../docs/architecture/ARCHITECTURE_ANALYSIS.md)

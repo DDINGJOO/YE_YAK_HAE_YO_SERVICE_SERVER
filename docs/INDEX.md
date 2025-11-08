@@ -306,10 +306,10 @@ docs/
 #### "시간대별 가격"에 대해 알고 싶다면?
 1. requirements/PROJECT_REQUIREMENTS.md (기능 1 - 요구사항)
 2. architecture/DOMAIN_MODEL_DESIGN.md (PricingPolicy Aggregate 설계)
-3. **features/pricing-policy/README.md** (기능 개요) ✅
-4. **features/pricing-policy/domain.md** (도메인 모델 상세) ✅
-5. **features/pricing-policy/flow.md** (실제 플로우) ✅
-6. **features/pricing-policy/API.md** (REST API 사용법) ✅
+3. **features/pricing-policy/README.md** (기능 개요) 
+4. **features/pricing-policy/domain.md** (도메인 모델 상세) 
+5. **features/pricing-policy/flow.md** (실제 플로우) 
+6. **features/pricing-policy/API.md** (REST API 사용법) 
 7. adr/ADR_001_ARCHITECTURE_DECISION.md (설계 결정)
 
 #### "재고 관리"에 대해 알고 싶다면?
