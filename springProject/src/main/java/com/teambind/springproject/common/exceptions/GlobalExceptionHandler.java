@@ -1,6 +1,7 @@
 package com.teambind.springproject.common.exceptions;
 
 
+import com.teambind.springproject.domain.pricingpolicy.exception.PricingPolicyException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -23,6 +24,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		log.warn("PlaceException [{}]: {}", ex.getExceptionType(), ex.getMessage());
 
 		ErrorResponse errorResponse = ErrorResponse.of(ex, request.getRequestURI());
+		return ResponseEntity.status(ex.getHttpStatus()).body(errorResponse);
+	}
+
+	@ExceptionHandler(PricingPolicyException.class)
+	public ResponseEntity<ErrorResponse> handlePricingPolicyException(
+			PricingPolicyException ex, HttpServletRequest request) {
+		log.warn("PricingPolicyException [{}]: {}", ex.getExceptionType(), ex.getMessage());
+
+		ErrorResponse errorResponse = ErrorResponse.builder()
+				.timestamp(java.time.LocalDateTime.now())
+				.status(ex.getHttpStatus().value())
+				.code(ex.getErrorCode().getErrCode())
+				.message(ex.getMessage())
+				.path(request.getRequestURI())
+				.exceptionType(ex.getExceptionType())
+				.build();
 		return ResponseEntity.status(ex.getHttpStatus()).body(errorResponse);
 	}
 
