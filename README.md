@@ -384,11 +384,6 @@ docker-compose up -d
 
 이 프로젝트는 상어 프로젝트입니다.
 
-## 연락처
-
-- GitHub Issues: 버그 리포트 및 기능 요청
-- Pull Requests: 코드 기여
-
 ---
 
 **Last Updated**: 2025-11-08
