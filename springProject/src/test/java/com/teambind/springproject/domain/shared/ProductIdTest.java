@@ -46,12 +46,14 @@ class ProductIdTest {
   class ValidationTests {
 
     @Test
-    @DisplayName("null 값으로 생성 시 예외 발생")
-    void throwExceptionWhenValueIsNull() {
-      // when & then
-      assertThatThrownBy(() -> ProductId.of(null))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage("Product ID cannot be null");
+    @DisplayName("null 값으로 생성 가능 (신규 엔티티용)")
+    void createWithNullForNewEntity() {
+      // when
+      final ProductId productId = ProductId.of(null);
+
+      // then
+      assertThat(productId).isNotNull();
+      assertThat(productId.getValue()).isNull();
     }
 
     @Test
