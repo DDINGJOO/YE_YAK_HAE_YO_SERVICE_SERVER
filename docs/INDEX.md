@@ -21,10 +21,48 @@ docs/
 │   ├── DOMAIN_MODEL_DESIGN.md        (도메인 모델 설계)
 │   └── TECH_STACK_ANALYSIS.md        (기술 스택 분석)
 │
-└── adr/                              (Architecture Decision Records)
-    ├── README.md
-    └── ADR_001_ARCHITECTURE_DECISION.md (최종 아키텍처 결정)
+├── adr/                              (Architecture Decision Records)
+│   ├── README.md
+│   └── ADR_001_ARCHITECTURE_DECISION.md (최종 아키텍처 결정)
+│
+└── features/                         (기능별 상세 문서)
+    ├── pricing-policy/               (가격 정책 기능)
+    │   ├── README.md                 (개요)
+    │   ├── domain.md                 (도메인 모델)
+    │   ├── flow.md                   (플로우 및 시퀀스)
+    │   └── database.md               (DB 스키마)
+    │
+    └── event-handling/               (이벤트 처리 기능)
+        ├── README.md                 (개요)
+        ├── architecture.md           (아키텍처 상세)
+        └── events.md                 (이벤트 타입 및 스키마)
 ```
+
+---
+
+##  새로 추가: 기능별 상세 문서 (Features)
+
+**위치:** `features/`
+
+**목적:** 완료된 기능의 상세한 구현 내용, 플로우, 설계 결정을 문서화합니다.
+
+**현재 문서:**
+- **pricing-policy/**: 가격 정책 기능 (Issue #7, #8, #9)
+  - [README.md](features/pricing-policy/README.md) - 기능 개요
+  - [domain.md](features/pricing-policy/domain.md) - 도메인 모델 상세
+  - [flow.md](features/pricing-policy/flow.md) - 플로우 및 시퀀스 다이어그램
+  - [database.md](features/pricing-policy/database.md) - DB 스키마 및 JPA 매핑
+
+- **event-handling/**: 이벤트 처리 기능 (Issue #9)
+  - [README.md](features/event-handling/README.md) - 기능 개요 및 아키텍처 원칙
+  - [architecture.md](features/event-handling/architecture.md) - 계층별 상세 설계
+  - [events.md](features/event-handling/events.md) - 이벤트 타입 및 스키마
+
+**언제 읽나요?**
+- 특정 기능 구현 방법 이해 필요 시
+- 유사한 기능 개발 시 참고용
+- 코드 리뷰 시
+- 버그 분석 시
 
 ---
 
@@ -46,45 +84,51 @@ docs/
 5. **architecture/DOMAIN_MODEL_DESIGN.md** - 도메인 모델 설계
 6. **architecture/TECH_STACK_ANALYSIS.md** - 기술 스택
 
-#### 4단계: 프로젝트 관리 (30분)
-7. **ISSUE_GUIDE.md** - 이슈 작성 방법
-8. **PROJECT_SETUP.md** - 프로젝트 워크플로우 가이드
+#### 4단계: 구현된 기능 이해 (1시간)
+7. **features/pricing-policy/README.md** - 가격 정책 기능 개요
+8. **features/event-handling/README.md** - 이벤트 처리 아키텍처
 
-**총 소요 시간: 약 3시간**
+#### 5단계: 프로젝트 관리 (30분)
+9. **ISSUE_GUIDE.md** - 이슈 작성 방법
+10. **PROJECT_SETUP.md** - 프로젝트 워크플로우 가이드
+
+**총 소요 시간: 약 4시간**
 
 ---
 
 ### 역할별 필독 문서
 
 #### 개발자 (Backend)
-- ✅ requirements/PROJECT_REQUIREMENTS.md
-- ✅ adr/ADR_001_ARCHITECTURE_DECISION.md
-- ✅ architecture/DOMAIN_MODEL_DESIGN.md
-- ✅ architecture/TECH_STACK_ANALYSIS.md
+- requirements/PROJECT_REQUIREMENTS.md
+- adr/ADR_001_ARCHITECTURE_DECISION.md
+- architecture/DOMAIN_MODEL_DESIGN.md
+- architecture/TECH_STACK_ANALYSIS.md
+- features/pricing-policy/README.md
+- features/event-handling/architecture.md
 
 #### 프로젝트 매니저
-- ✅ INFO.md
-- ✅ requirements/PROJECT_REQUIREMENTS.md
-- ✅ ISSUE_GUIDE.md
-- ⚠️ adr/ADR_001_ARCHITECTURE_DECISION.md (Context, Decision만)
+- INFO.md
+- requirements/PROJECT_REQUIREMENTS.md
+- ISSUE_GUIDE.md
+- adr/ADR_001_ARCHITECTURE_DECISION.md (Context, Decision만)
 
 #### QA 엔지니어
-- ✅ requirements/PROJECT_REQUIREMENTS.md
-- ✅ architecture/DOMAIN_MODEL_DESIGN.md (도메인 규칙)
-- ✅ ISSUE_GUIDE.md
+- requirements/PROJECT_REQUIREMENTS.md
+- architecture/DOMAIN_MODEL_DESIGN.md (도메인 규칙)
+- ISSUE_GUIDE.md
 
 #### DevOps 엔지니어
-- ✅ architecture/TECH_STACK_ANALYSIS.md
-- ✅ adr/ADR_001_ARCHITECTURE_DECISION.md (기술 스택 부분)
+- architecture/TECH_STACK_ANALYSIS.md
+- adr/ADR_001_ARCHITECTURE_DECISION.md (기술 스택 부분)
 
 #### 아키텍트
-- ✅ 모든 문서
+- 모든 문서
 
 ---
 
 ## 문서 카테고리별 안내
 
-### 📋 요구사항 분석 (Requirements)
+### 요구사항 분석 (Requirements)
 
 **위치:** `requirements/`
 
@@ -104,7 +148,7 @@ docs/
 
 ---
 
-### 🏗️ 아키텍처 설계 (Architecture)
+### 아키텍처 설계 (Architecture)
 
 **위치:** `architecture/`
 
@@ -138,7 +182,7 @@ docs/
 
 ---
 
-### 📝 Architecture Decision Records (ADR)
+### Architecture Decision Records (ADR)
 
 **위치:** `adr/`
 
@@ -173,7 +217,7 @@ docs/
 
 ---
 
-### 🤖 프로젝트 자동화 (Project Automation)
+### 프로젝트 자동화 (Project Automation)
 
 **위치:** `docs/` (최상위)
 
@@ -261,7 +305,9 @@ docs/
 #### "시간대별 가격"에 대해 알고 싶다면?
 1. requirements/PROJECT_REQUIREMENTS.md (기능 1)
 2. architecture/DOMAIN_MODEL_DESIGN.md (PricingPolicy Aggregate)
-3. adr/ADR_001_ARCHITECTURE_DECISION.md (설계 결정)
+3. **features/pricing-policy/domain.md** (도메인 모델 상세) NEW
+4. **features/pricing-policy/flow.md** (실제 플로우) NEW
+5. adr/ADR_001_ARCHITECTURE_DECISION.md (설계 결정)
 
 #### "재고 관리"에 대해 알고 싶다면?
 1. requirements/PROJECT_REQUIREMENTS.md (기능 2)
@@ -303,5 +349,19 @@ docs/
 - `question`: 질문
 
 ---
+
+---
+
+## 최근 업데이트
+
+### 2025-11-08
+- **features/** 폴더 신규 추가
+- 가격 정책 기능 문서 작성 완료 (Issue #7, #8, #9)
+  - domain.md: 도메인 모델 상세 (Aggregate, Value Objects, 비즈니스 규칙)
+  - flow.md: 가격 정책 자동 생성 및 가격 계산 플로우
+  - database.md: ERD, JPA 매핑, Flyway 마이그레이션
+- 이벤트 처리 아키텍처 문서 작성 완료
+  - architecture.md: 계층별 설계, 디자인 패턴, 확장 전략
+  - events.md: RoomCreatedEvent 스키마 및 처리 흐름
 
 **Last Updated:** 2025-11-08

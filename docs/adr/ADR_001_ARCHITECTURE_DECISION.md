@@ -260,7 +260,7 @@ public record Money(BigDecimal amount) {
 ```
 
 **이점:**
-- 도메인 개념 명시 (BigDecimal ❌ → Money ✅)
+- 도메인 개념 명시 (BigDecimal → Money)
 - 불변성 보장
 - 비즈니스 로직 캡슐화 (음수 방지)
 
@@ -275,7 +275,7 @@ public record Money(BigDecimal amount) {
 |------|------|------|------|
 | Separate Entity | 조회 성능 우수 | 도메인 로직 유출 | 14/20 |
 | Embedded Collection | 단순 | 성능 이슈 | 15/20 |
-| **VO Collection** | **도메인 캡슐화** | **코드 증가** | **16/20** ✅ |
+| **VO Collection** | **도메인 캡슐화** | **코드 증가** | **16/20** (선택) |
 
 **선택 이유:**
 - Room당 최대 10개 정책 → 성능 이슈 없음
@@ -307,7 +307,7 @@ class TimeRangePrices {
 | 대안 | 장점 | 단점 | 점수 |
 |------|------|------|------|
 | Scope별 별도 Aggregate | 타입 안전 | 코드 중복 | 11/20 |
-| **단일 Aggregate + Strategy** | **OCP 준수** | **범용 타입** | **18/20** ✅ |
+| **단일 Aggregate + Strategy** | **OCP 준수** | **범용 타입** | **18/20** (선택) |
 
 **선택 이유:**
 - 3가지 Scope의 본질은 "재고 확인 방식"과 "가격 계산 방식"의 차이
@@ -346,7 +346,7 @@ class PricingStrategy {
 | 대안 | 장점 | 단점 | 점수 |
 |------|------|------|------|
 | Flat Structure (BigDecimal) | 단순 | 타입 안전성 없음 | 12/20 |
-| **VO Snapshot** | **도메인 표현력** | **JPA 매핑 복잡** | **18/20** ✅ |
+| **VO Snapshot** | **도메인 표현력** | **JPA 매핑 복잡** | **18/20** (선택) |
 
 **선택 이유:**
 - 가격 정보는 **형상관리** 대상 (불변성 필수)
@@ -505,45 +505,45 @@ EXCLUDE USING GIST (day_of_week WITH =, time_range WITH &&);
 
 #### 기능 요구사항
 
-- ✅ 시간대별 가격 정책 설정 및 계산
+- 시간대별 가격 정책 설정 및 계산
   - `PricingPolicy` Aggregate로 구현
   - `TimeRangePrices` VO로 중복 검증
 
-- ✅ 추가상품 관리 (3가지 Scope)
+- 추가상품 관리 (3가지 Scope)
   - `Product` Aggregate + `ProductScope` Enum
   - `ProductAvailabilityService`로 재고 검증
 
-- ✅ 예약 가격 형상관리
+- 예약 가격 형상관리
   - `ReservationPricing` Aggregate
   - `TimeSlotPriceBreakdown`, `ProductPriceBreakdown` VO
 
 #### 비기능 요구사항
 
-- ✅ 가격 계산 정확도 100%
+- 가격 계산 정확도 100%
   - Money VO (타입 안전)
   - BigDecimal 사용 (부동소수점 오차 방지)
   - Aggregate 불변식
 
-- ✅ 응답 시간 P95 500ms 이하
+- 응답 시간 P95 500ms 이하
   - PostgreSQL 인덱스
   - HikariCP Connection Pool
   - Kafka 비동기 처리
 
-- ✅ OCP 준수
+- OCP 준수
   - Strategy Pattern
   - Port/Adapter 분리
 
-- ✅ 테스트 커버리지 80%+
+- 테스트 커버리지 80%+
   - 순수 도메인 로직 단위 테스트
   - Testcontainers 통합 테스트
 
 #### SOLID 원칙
 
-- ✅ **SRP**: 각 Aggregate는 단일 책임
-- ✅ **OCP**: Strategy Pattern으로 확장
-- ✅ **LSP**: VO는 모두 불변 객체
-- ✅ **ISP**: Repository Port는 Aggregate별 분리
-- ✅ **DIP**: Domain이 Infrastructure에 의존하지 않음
+- **SRP**: 각 Aggregate는 단일 책임
+- **OCP**: Strategy Pattern으로 확장
+- **LSP**: VO는 모두 불변 객체
+- **ISP**: Repository Port는 Aggregate별 분리
+- **DIP**: Domain이 Infrastructure에 의존하지 않음
 
 ---
 

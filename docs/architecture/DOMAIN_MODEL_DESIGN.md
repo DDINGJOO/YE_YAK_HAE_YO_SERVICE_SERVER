@@ -244,7 +244,7 @@ record TimeRangePrice(
 | 코드 복잡도 | 4/5 | 명확한 책임 분리 |
 | **총점** | **16/20** | |
 
-### ✅ 선택: 대안 C (Value Object Collection)
+### 선택: 대안 C (Value Object Collection)
 
 **선정 이유:**
 1. 도메인 규칙을 Value Object에 완벽히 캡슐화
@@ -475,7 +475,7 @@ class ProductAvailabilityService {
 - 대안 B와 동일한 **18/20점**
 - 재고 검증 로직의 복잡도에 따라 선택
 
-### ✅ 선택: 대안 B/C (단일 Aggregate + Strategy/Domain Service)
+### 선택: 대안 B/C (단일 Aggregate + Strategy/Domain Service)
 
 **선정 이유:**
 1. 3가지 Scope의 본질은 "재고 확인 방식"과 "가격 계산 방식"의 차이
@@ -707,7 +707,7 @@ record ProductPriceBreakdown(
 | 코드 복잡도 | 3/5 | JPA 매핑 복잡 |
 | **총점** | **18/20** | |
 
-### ✅ 선택: 대안 B (Value Object 활용)
+### 선택: 대안 B (Value Object 활용)
 
 **선정 이유:**
 1. **형상관리 정확성**: 불변 VO로 가격 변경 방지
@@ -760,25 +760,25 @@ ReservationId (예약 식별자)
 ### SOLID 원칙 준수 확인
 
 #### Single Responsibility Principle
-- ✅ PricingPolicy: 시간대별 가격 정책 관리
-- ✅ Product: 추가상품 정보 관리
-- ✅ ReservationPricing: 예약 가격 스냅샷 관리
-- ✅ ProductAvailabilityService: 재고 가용성 검증
+- PricingPolicy: 시간대별 가격 정책 관리
+- Product: 추가상품 정보 관리
+- ReservationPricing: 예약 가격 스냅샷 관리
+- ProductAvailabilityService: 재고 가용성 검증
 
 #### Open-Closed Principle
-- ✅ PricingStrategy: 새로운 가격 정책 추가 시 Enum 확장
-- ✅ ProductScope: 새로운 Scope 추가 시 Enum 확장
-- ✅ Domain Service: switch expression으로 확장 가능
+- PricingStrategy: 새로운 가격 정책 추가 시 Enum 확장
+- ProductScope: 새로운 Scope 추가 시 Enum 확장
+- Domain Service: switch expression으로 확장 가능
 
 #### Liskov Substitution Principle
-- ✅ Value Object: 모두 불변 객체로 대체 가능
+- Value Object: 모두 불변 객체로 대체 가능
 
 #### Interface Segregation Principle
-- ✅ Repository Port: 각 Aggregate별 독립적 인터페이스
+- Repository Port: 각 Aggregate별 독립적 인터페이스
 
 #### Dependency Inversion Principle
-- ✅ Domain이 Infrastructure에 의존하지 않음
-- ✅ Repository Port를 통한 의존성 역전
+- Domain이 Infrastructure에 의존하지 않음
+- Repository Port를 통한 의존성 역전
 
 ---
 

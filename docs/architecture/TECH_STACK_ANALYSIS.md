@@ -23,7 +23,7 @@ Hexagonal Architecture + DDD 아키텍처와 도메인 모델 설계를 바탕�
 **단점:**
 - Java 21 대비 최신 기능 부족
 
-#### Java 21 (LTS) ✅ 추천
+#### Java 21 (LTS)
 
 **장점:**
 - **Record Pattern**: Value Object 분해 용이
@@ -57,7 +57,7 @@ return switch (scope) {
 
 ### Spring Boot 버전
 
-#### Spring Boot 3.2.x ✅ 추천
+#### Spring Boot 3.2.x
 
 **장점:**
 - Java 17+ 필수 (Java 21 지원)
@@ -80,7 +80,7 @@ return switch (scope) {
 
 ### JPA 구현체
 
-#### Hibernate 6.4.x ✅ 추천
+#### Hibernate 6.4.x
 
 **장점:**
 - Spring Boot 3.2 기본 JPA 구현체
@@ -106,7 +106,7 @@ public record Money(BigDecimal amount) {
 
 ### Database
 
-#### PostgreSQL 16 ✅ 추천
+#### PostgreSQL 16
 
 **장점:**
 - **JSON/JSONB 지원**: 향후 확장 시 유연성
@@ -145,7 +145,7 @@ EXCLUDE USING GIST (day_of_week WITH =, time_range WITH &&);
 
 ### 이벤트 브로커
 
-#### Apache Kafka ✅ 추천
+#### Apache Kafka
 
 **장점:**
 - **높은 처리량**: 100,000+ msg/sec
@@ -179,7 +179,7 @@ public void handleRoomCreated(RoomCreatedEvent event) {
 
 ### 단위 테스트
 
-#### JUnit 5 + AssertJ ✅
+#### JUnit 5 + AssertJ
 
 ```java
 @Test
@@ -201,7 +201,7 @@ void 시간대_중복_시_예외_발생() {
 
 ### 통합 테스트
 
-#### Testcontainers ✅ 추천
+#### Testcontainers
 
 **장점:**
 - 실제 PostgreSQL 컨테이너 사용
@@ -272,7 +272,7 @@ void 예약_생성_플로우() {
 
 ## 5. API 문서화
 
-### OpenAPI 3.0 (Springdoc) ✅ 추천
+### OpenAPI 3.0 (Springdoc)
 
 ```java
 @Operation(summary = "예약 가격 계산", description = "시간대와 추가상품을 기반으로 총 가격 계산")
@@ -299,7 +299,7 @@ public ResponseEntity<ReservationPricingResponse> calculatePricing(
 
 ## 6. 빌드 도구
 
-### Gradle 8.x (Kotlin DSL) ✅ 추천
+### Gradle 8.x (Kotlin DSL)
 
 ```kotlin
 plugins {
