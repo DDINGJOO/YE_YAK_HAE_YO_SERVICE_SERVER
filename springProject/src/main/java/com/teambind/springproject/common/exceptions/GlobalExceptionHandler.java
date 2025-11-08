@@ -18,15 +18,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 
-	@ExceptionHandler(CustomException.class)
-	public ResponseEntity<ErrorResponse> handlePlaceException(
-			CustomException ex, HttpServletRequest request) {
-		log.warn("PlaceException [{}]: {}", ex.getExceptionType(), ex.getMessage());
-
-		ErrorResponse errorResponse = ErrorResponse.of(ex, request.getRequestURI());
-		return ResponseEntity.status(ex.getHttpStatus()).body(errorResponse);
-	}
-
 	@ExceptionHandler(PricingPolicyException.class)
 	public ResponseEntity<ErrorResponse> handlePricingPolicyException(
 			PricingPolicyException ex, HttpServletRequest request) {
@@ -77,7 +68,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 		ErrorResponse errorResponse = ErrorResponse.of(
 				HttpStatus.INTERNAL_SERVER_ERROR.value(),
-				ErrorCode.INTERNAL_SERVER_ERROR.getErrCode(),
+				"INTERNAL_SERVER_ERROR",
 				"서버 내부 오류가 발생했습니다.",
 				request.getRequestURI()
 		);
