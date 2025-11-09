@@ -21,11 +21,12 @@
 
 - **Language**: Java 21
 - **Framework**: Spring Boot 3.2.5
-- **Database**: PostgreSQL
+- **Database**: PostgreSQL 16
 - **Migration**: Flyway
-- **Messaging**: Kafka
+- **Messaging**: Kafka 3.6
 - **Build Tool**: Gradle 8.14.3
 - **Testing**: JUnit 5, Mockito, AssertJ
+- **ID Generation**: Snowflake ID Algorithm
 
 ## 시작하기
 
@@ -75,6 +76,24 @@ spring:
     consumer:
       group-id: pricing-policy-service
 ```
+
+## 주요 특징
+
+### Snowflake ID Generator
+- **분산 ID 생성**: 여러 노드에서 충돌 없이 고유 ID 생성
+- **시간 기반 정렬**: ID 생성 순서 보장으로 인덱싱 성능 향상
+- **높은 처리량**: 단일 노드에서 초당 최대 400만개 ID 생성
+- **Custom Epoch**: 2024-01-01 기준으로 69년간 사용 가능
+
+### Hexagonal Architecture
+- 도메인 로직과 인프라 완전 분리
+- 테스트 가능한 설계
+- 외부 기술 변경에 유연한 대응
+
+### Event-Driven Architecture
+- Kafka를 통한 비동기 이벤트 처리
+- 마이크로서비스 간 느슨한 결합
+- 이벤트 소싱 및 CQRS 패턴 준비
 
 ## 프로젝트 구조
 

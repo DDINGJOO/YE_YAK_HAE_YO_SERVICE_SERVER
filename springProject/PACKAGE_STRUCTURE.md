@@ -42,6 +42,8 @@ com.teambind.springproject/
     ├── config/                      # Spring Configuration
     ├── exceptions/                  # 예외 처리
     └── util/                        # 유틸리티 클래스
+        ├── generator/               # ID 생성기
+        └── json/                    # JSON 처리
 ```
 
 ---
@@ -276,6 +278,39 @@ public class PricingPolicyController {
 - ✅ **Application Layer**: Domain Layer에만 의존
 - ✅ **Adapter Layer**: Application Layer (Port)에만 의존
 - ❌ **절대 금지**: 안쪽 레이어가 바깥쪽 레이어를 의존하는 것
+
+---
+
+## Common Layer (공통 레이어)
+
+### ID 생성 전략
+
+**위치:** `com.teambind.springproject.common.util.generator`
+
+**구성 요소:**
+- `PrimaryKeyGenerator`: ID 생성 인터페이스
+- `Snowflake`: Snowflake 알고리즘 구현체 (@Primary)
+- `SnowflakeIdGenerator`: Hibernate IdentifierGenerator 어댑터
+
+**Snowflake ID 특징:**
+- **분산 ID 생성**: 여러 노드에서 동시에 고유 ID 생성
+- **시간 기반 정렬**: ID 생성 순서 보장
+- **64-bit Long**: Custom Epoch (2024-01-01) 기준
+- **높은 처리량**: 초당 최대 400만개 ID 생성
+
+**사용 예시:**
+```java
+@Entity
+public class ProductEntity {
+  @Id
+  @GeneratedValue(generator = "snowflake-id")
+  @GenericGenerator(
+      name = "snowflake-id",
+      type = SnowflakeIdGenerator.class
+  )
+  private Long id;
+}
+```
 
 ---
 

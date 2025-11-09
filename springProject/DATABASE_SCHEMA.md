@@ -4,6 +4,49 @@
 
 ---
 
+## ID 생성 전략
+
+본 프로젝트는 **Snowflake ID Generator**를 사용하여 분산 환경에서 고유한 ID를 생성합니다.
+
+### Snowflake ID 구조
+
+```
+[Sign Bit 1bit] [Timestamp 41bits] [Node ID 10bits] [Sequence 12bits]
+```
+
+- **Timestamp (41 bits)**: Custom Epoch (2024-01-01T00:00:00Z) 기준 밀리초
+- **Node ID (10 bits)**: 노드 식별자 (최대 1024개 노드 지원)
+- **Sequence (12 bits)**: 밀리초당 순차 번호 (밀리초당 최대 4096개 ID 생성)
+
+### 주요 특징
+
+- **고유성 보장**: 분산 시스템에서 충돌 없이 고유 ID 생성
+- **시간 기반 정렬**: ID 자체로 생성 순서 파악 가능
+- **높은 처리량**: 단일 노드에서 초당 최대 400만개 ID 생성 가능
+- **64-bit Long**: Java Long 타입으로 표현 가능
+
+### 적용 대상
+
+- `products.product_id`: BIGINT (Snowflake ID)
+- `reservation_pricings.reservation_id`: BIGINT (Snowflake ID)
+
+### 구현
+
+```java
+@Entity
+public class ProductEntity {
+  @Id
+  @GeneratedValue(generator = "snowflake-id")
+  @GenericGenerator(
+      name = "snowflake-id",
+      type = SnowflakeIdGenerator.class
+  )
+  private Long id;
+}
+```
+
+---
+
 ## ERD (Entity Relationship Diagram)
 
 ```
@@ -418,6 +461,7 @@ INSERT INTO reservation_pricing_products (reservation_id, product_id, product_na
 | V2 | PricingPolicy Aggregate 추가 | 2025-11-08 |
 | V3 | Product Aggregate 추가 | 2025-11-08 |
 | V4 | ReservationPricing Aggregate 추가 | 2025-11-08 |
+| V5 | ID 생성 전략 변경 (BIGSERIAL -> Snowflake ID) | 2025-11-09 |
 
 ---
 
