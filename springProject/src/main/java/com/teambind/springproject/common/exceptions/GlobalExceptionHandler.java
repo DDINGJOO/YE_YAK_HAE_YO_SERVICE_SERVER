@@ -34,7 +34,41 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return ResponseEntity.status(ex.getHttpStatus()).body(errorResponse);
 	}
 
-	
+	/**
+	 * NoSuchElementException 처리 (리소스 없음)
+	 */
+	@ExceptionHandler(java.util.NoSuchElementException.class)
+	public ResponseEntity<ErrorResponse> handleNoSuchElementException(
+			java.util.NoSuchElementException ex, HttpServletRequest request) {
+		log.warn("Resource not found: {}", ex.getMessage());
+
+		ErrorResponse errorResponse = ErrorResponse.of(
+				HttpStatus.NOT_FOUND.value(),
+				"RESOURCE_NOT_FOUND",
+				ex.getMessage() != null ? ex.getMessage() : "요청한 리소스를 찾을 수 없습니다.",
+				request.getRequestURI()
+		);
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+	}
+
+	/**
+	 * ConstraintViolationException 처리 (@PathVariable, @RequestParam validation 실패)
+	 */
+	@ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+	public ResponseEntity<ErrorResponse> handleConstraintViolationException(
+			jakarta.validation.ConstraintViolationException ex, HttpServletRequest request) {
+		log.warn("Constraint violation: {}", ex.getMessage());
+
+		ErrorResponse errorResponse = ErrorResponse.of(
+				HttpStatus.BAD_REQUEST.value(),
+				"CONSTRAINT_VIOLATION",
+				ex.getMessage(),
+				request.getRequestURI()
+		);
+		return ResponseEntity.badRequest().body(errorResponse);
+	}
+
+
 
 
 	/**
