@@ -54,10 +54,11 @@ docs/
   - [database.md](features/pricing-policy/database.md) - DB 스키마 및 JPA 매핑
   - [API.md](features/pricing-policy/API.md) - REST API 명세 및 사용 예시
 
-- **product/**: 추가상품 기능 (Issue #11, #13)
+- **product/**: 추가상품 기능 (Issue #11, #13, #14)
   - [README.md](features/product/README.md) - 기능 개요 및 완료된 이슈
   - [domain.md](features/product/domain.md) - 도메인 모델 상세 (Aggregate, Value Objects, PricingStrategy)
   - [database.md](features/product/database.md) - DB 스키마 및 JPA 매핑
+  - [API.md](features/product/API.md) - REST API 명세 및 사용 예시
 
 - **event-handling/**: 이벤트 처리 기능 (Issue #9)
   - [README.md](features/event-handling/README.md) - 기능 개요 및 아키텍처 원칙
@@ -368,12 +369,16 @@ docs/
 ## 최근 업데이트
 
 ### 2025-11-09
-- **추가상품 기능 문서 작성 완료** (Issue #11, #13)
-  - README.md: 기능 개요, Scope 및 PricingType 설명, 가격 계산 예시
+- **추가상품 기능 완료** (Issue #11, #13, #14)
+  - Issue #11: Product Aggregate 구현 (도메인 모델, 테스트 67개) ✅
+  - Issue #13: Product Repository 구현 (영속성 계층, 통합 테스트 13개) ✅
+  - Issue #14: Product API 구현 (Application Layer, Controller, 통합 테스트 16개) ✅
+
+- **추가상품 기능 문서 작성 완료**
+  - README.md: 기능 개요, Scope 및 PricingType 설명, 가격 계산 예시, 완료 이슈 체크
   - domain.md: Product Aggregate, PricingStrategy, ProductPriceBreakdown 상세 설계
   - database.md: ERD, JPA 매핑, Flyway 마이그레이션, 성능 최적화 전략
-  - Product Aggregate 구현 (도메인 모델, 테스트 67개)
-  - Product Repository 구현 (영속성 계층, 통합 테스트 13개)
+  - API.md: REST API 5개 엔드포인트 명세 및 사용 예시 (652 lines)
 
 - **가격 정책 API 문서 추가 및 보완** (Issue #10)
   - API.md: REST API 4개 엔드포인트 명세 및 사용 예시

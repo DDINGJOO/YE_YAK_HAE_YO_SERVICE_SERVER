@@ -79,10 +79,11 @@ docs/
 ### 백엔드 개발자
 -  [requirements/PROJECT_REQUIREMENTS.md](requirements/PROJECT_REQUIREMENTS.md)
 -  [adr/ADR_001_ARCHITECTURE_DECISION.md](adr/ADR_001_ARCHITECTURE_DECISION.md)
+-  [architecture/ARCHITECTURE_ANALYSIS.md](architecture/ARCHITECTURE_ANALYSIS.md)
 -  [architecture/DOMAIN_MODEL_DESIGN.md](architecture/DOMAIN_MODEL_DESIGN.md)
--  [architecture/HEXAGONAL_ARCHITECTURE.md](architecture/HEXAGONAL_ARCHITECTURE.md)
 -  [architecture/TECH_STACK_ANALYSIS.md](architecture/TECH_STACK_ANALYSIS.md)
 -  [features/pricing-policy/](features/pricing-policy/) - 구현된 기능 참고
+-  [features/product/](features/product/) - 구현된 기능 참고
 
 ### 프로젝트 매니저
 -  [INFO.md](INFO.md)
