@@ -9,8 +9,10 @@
 **주요 기능**:
 - 룸별 가격 정책 관리
 - 시간대별 차등 가격 설정
-- 추가상품 관리 (예정)
-- 예약 가격 계산 (예정)
+- 추가상품 관리 (PLACE/ROOM/RESERVATION scope)
+- 예약 가격 계산 및 저장
+- 상품 재고 가용성 조회
+- 예약 가격 미리보기
 
 **아키텍처**: Hexagonal Architecture (Ports & Adapters)
 **설계 원칙**: Domain-Driven Design (DDD)
@@ -59,12 +61,12 @@ curl http://localhost:8080/actuator/health
 
 ### 환경 변수
 
-`application.yml`에서 설정 가능:
+`application.yml` 또는 `application.properties` 파일 생성 후 설정:
 
 ```yaml
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/pricing_db
+    url: jdbc:postgresql://localhost:5432/reservation_pricing_db
     username: postgres
     password: postgres
 
@@ -78,22 +80,35 @@ spring:
 
 ```
 src/main/java/com/teambind/springproject/
-├── domain/                    # 도메인 계층
-│   ├── pricingpolicy/        # 가격 정책 Aggregate
-│   └── shared/               # 공유 Value Objects
-├── application/              # 애플리케이션 계층
-│   ├── port/in/              # Use Case 인터페이스
-│   ├── port/out/             # Repository 인터페이스
-│   ├── service/              # Use Case 구현
-│   └── dto/                  # DTO
-├── adapter/                  # 어댑터 계층
-│   ├── in/web/              # REST Controller
-│   ├── in/messaging/        # Event Listener
-│   └── out/persistence/     # JPA Repository
-└── common/                   # 공통 인프라
+├── domain/                          # 도메인 계층
+│   ├── pricingpolicy/              # 가격 정책 Aggregate
+│   ├── product/                    # 추가상품 Aggregate
+│   ├── reservationpricing/         # 예약 가격 Aggregate
+│   └── shared/                     # 공유 Value Objects
+├── application/                    # 애플리케이션 계층
+│   ├── port/in/                    # Use Case 인터페이스
+│   ├── port/out/                   # Repository 인터페이스
+│   ├── service/                    # Use Case 구현
+│   │   ├── pricingpolicy/
+│   │   ├── product/
+│   │   └── reservationpricing/
+│   └── dto/                        # DTO
+│       ├── request/
+│       └── response/
+├── adapter/                        # 어댑터 계층
+│   ├── in/web/                     # REST Controller
+│   │   ├── pricingpolicy/
+│   │   ├── product/
+│   │   └── reservationpricing/
+│   └── out/persistence/            # JPA Repository
+│       ├── pricingpolicy/
+│       ├── product/
+│       └── reservationpricing/
+└── common/                         # 공통 인프라
+    └── exceptions/                 # 예외 처리
 ```
 
-자세한 내용은 [아키텍처 문서](docs/architecture/ARCHITECTURE.md) 참조
+자세한 내용은 [패키지 구조 문서](PACKAGE_STRUCTURE.md) 참조
 
 ## API 문서
 
@@ -107,7 +122,24 @@ src/main/java/com/teambind/springproject/
 - `PUT /{roomId}/time-range-prices`: 시간대별 가격 업데이트
 - `POST /{targetRoomId}/copy`: 가격 정책 복사
 
-자세한 API 문서는 [API 문서](../docs/features/pricing-policy/API.md) 참조
+### 상품 관리 API
+
+**Base URL**: `http://localhost:8080/api/products`
+
+주요 엔드포인트:
+- `GET /availability`: 상품 재고 가용성 조회
+  - Query Parameters: roomId, placeId, timeSlots (LocalDateTime 배열)
+  - Response: 접근 가능한 상품 목록 + 가용 수량
+
+### 예약 가격 관리 API
+
+**Base URL**: `http://localhost:8080/api/reservations/pricing`
+
+주요 엔드포인트:
+- `POST /`: 예약 생성 (가격 계산 및 저장)
+- `POST /preview`: 가격 미리보기 (예약 생성 없이 계산만)
+- `PUT /{reservationId}/confirm`: 예약 확정
+- `PUT /{reservationId}/cancel`: 예약 취소
 
 ## 테스트
 
@@ -115,6 +147,8 @@ src/main/java/com/teambind/springproject/
 ```bash
 ./gradlew test
 ```
+
+**테스트 통계**: 411 tests passing
 
 ### 특정 테스트 실행
 ```bash
@@ -150,7 +184,7 @@ open build/reports/jacoco/test/html/index.html
 java -jar build/libs/springProject-0.0.1-SNAPSHOT.jar
 ```
 
-### Docker 이미지 생성 (예정)
+### Docker 이미지 생성
 ```bash
 ./gradlew bootBuildImage
 ```
@@ -190,16 +224,25 @@ open build/reports/spotbugs/main.html
 }
 ```
 
-### 발행 이벤트 (예정)
+### 발행 이벤트
 
-- PricingPolicyUpdatedEvent
-- ProductStockChangedEvent
+**ReservationCreatedEvent**
+- **Topic**: `reservation-events`
+- **발행 시점**: 예약 생성 완료 시
+
+**ReservationConfirmedEvent**
+- **Topic**: `reservation-events`
+- **발행 시점**: 예약 확정 시
+
+**ReservationCancelledEvent**
+- **Topic**: `reservation-events`
+- **발행 시점**: 예약 취소 시
 
 ## 주요 문서
 
-- [아키텍처 개요](docs/architecture/ARCHITECTURE.md)
-- [도메인 모델](docs/architecture/DOMAIN_MODEL.md)
-- [API 문서](../docs/features/pricing-policy/API.md)
+- [패키지 구조](PACKAGE_STRUCTURE.md)
+- [데이터베이스 스키마](DATABASE_SCHEMA.md)
+- [Docker 설정 가이드](DOCKER_SETUP.md)
 
 ## 개발 가이드
 
@@ -253,7 +296,7 @@ docker-compose logs postgres
 docker-compose restart kafka
 
 # Topic 확인
-docker-compose exec kafka kafka-topics --list --bootstrap-server localhost:9092
+docker exec -it reservation-pricing-kafka kafka-topics --list --bootstrap-server localhost:9092
 ```
 
 ### 빌드 실패

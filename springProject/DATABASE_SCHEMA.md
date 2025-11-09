@@ -44,29 +44,31 @@ Indexes:
 ┌──────────────────────────┐
 │       products           │
 ├──────────────────────────┤
-│ PK  id                   │ BIGSERIAL
-│     name                 │ VARCHAR(100)
-│     description          │ TEXT
-│     price                │ DECIMAL(10,2)
-│     scope_type           │ VARCHAR(20) [PLACE/ROOM/RESERVATION]
-│     scope_id             │ BIGINT
-│     total_quantity       │ INTEGER
-│     used_quantity        │ INTEGER
-│     is_active            │ BOOLEAN
-│     created_at           │ TIMESTAMP
-│     updated_at           │ TIMESTAMP
+│ PK  product_id           │ BIGSERIAL
+│     scope                │ VARCHAR(20) [PLACE/ROOM/RESERVATION]
+│     place_id             │ BIGINT (nullable)
+│     room_id              │ BIGINT (nullable)
+│     name                 │ VARCHAR(255)
+│     pricing_type         │ VARCHAR(50) [INITIAL_PLUS_ADDITIONAL/ONE_TIME/SIMPLE_STOCK]
+│     initial_price        │ DECIMAL(19,2)
+│     additional_price     │ DECIMAL(19,2) (nullable)
+│     total_quantity       │ INTEGER DEFAULT 0
 └──────────────────────────┘
 
 Constraints:
-- CHECK: price >= 0
-- CHECK: total_quantity >= 0
-- CHECK: used_quantity >= 0
-- CHECK: used_quantity <= total_quantity
-- CHECK: scope_type IN ('PLACE', 'ROOM', 'RESERVATION')
+- CHECK: scope IN ('PLACE', 'ROOM', 'RESERVATION')
+- CHECK: pricing_type IN ('INITIAL_PLUS_ADDITIONAL', 'ONE_TIME', 'SIMPLE_STOCK')
+- CHECK: (scope = 'PLACE' AND place_id IS NOT NULL AND room_id IS NULL) OR
+         (scope = 'ROOM' AND place_id IS NOT NULL AND room_id IS NOT NULL) OR
+         (scope = 'RESERVATION' AND place_id IS NULL AND room_id IS NULL)
+- CHECK: (pricing_type = 'INITIAL_PLUS_ADDITIONAL' AND additional_price IS NOT NULL) OR
+         (pricing_type IN ('ONE_TIME', 'SIMPLE_STOCK') AND additional_price IS NULL)
 
 Indexes:
-- idx_products_scope (scope_type, scope_id)
-- idx_products_active (is_active) WHERE is_active = TRUE
+- idx_products_scope (scope)
+- idx_products_place_id (place_id) WHERE place_id IS NOT NULL
+- idx_products_room_id (room_id) WHERE room_id IS NOT NULL
+- idx_products_scope_place_id (scope, place_id) WHERE place_id IS NOT NULL
 
 ---
 
@@ -75,35 +77,50 @@ Indexes:
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────┐         ┌──────────────────────────────┐
-│ reservation_pricings     │ 1     * │ reservation_pricing_items    │
+│ reservation_pricings     │ 1     * │ reservation_pricing_slots    │
 ├──────────────────────────┤◄────────├──────────────────────────────┤
-│ PK  id                   │         │ PK  id                       │
-│ UQ  reservation_id       │         │ FK  reservation_pricing_id   │
-│     room_id              │         │     product_id               │
-│     place_id             │         │     product_name             │
-│     base_price           │         │     product_price            │
-│     total_price          │         │     quantity                 │
-│     created_at           │         │     item_total_price         │
-└──────────────────────────┘         │     created_at               │
+│ PK  reservation_id       │         │ FK  reservation_id           │
+│     room_id              │         │     slot_time                │
+│     place_id             │         │     slot_price               │
+│     status               │         └──────────────────────────────┘
+│     time_slot            │
+│     total_price          │         ┌──────────────────────────────┐
+│     calculated_at        │ 1     * │ reservation_pricing_products │
+└──────────────────────────┘◄────────├──────────────────────────────┤
+                                     │ FK  reservation_id           │
+                                     │     product_id               │
+                                     │     product_name             │
+                                     │     quantity                 │
+                                     │     unit_price               │
+                                     │     total_price              │
+                                     │     pricing_type             │
                                      └──────────────────────────────┘
 
 reservation_pricings:
-- Immutable (No updated_at)
-- CHECK: base_price >= 0
-- CHECK: total_price >= 0
-- UNIQUE: reservation_id
+- Immutable snapshot of pricing at reservation time
+- CHECK: status IN ('PENDING', 'CONFIRMED', 'CANCELLED')
+- CHECK: time_slot IN ('HOUR', 'HALFHOUR')
 
-reservation_pricing_items:
-- Immutable (No updated_at)
-- CHECK: product_price >= 0
-- CHECK: quantity > 0
-- CHECK: item_total_price >= 0
+reservation_pricing_slots:
+- Stores time-slot prices (ElementCollection)
+- PK: (reservation_id, slot_time)
+- ON DELETE CASCADE
+
+reservation_pricing_products:
+- Stores product prices (ElementCollection)
+- Snapshot of product info at reservation time
 - ON DELETE CASCADE
 
 Indexes:
-- idx_reservation_pricings_reservation_id (reservation_id)
 - idx_reservation_pricings_room_id (room_id)
-- idx_pricing_items_reservation_pricing_id (reservation_pricing_id)
+- idx_reservation_pricings_place_id (place_id)
+- idx_reservation_pricings_status (status)
+- idx_reservation_pricings_calculated_at (calculated_at)
+- idx_reservation_pricings_room_status (room_id, status)
+- idx_reservation_pricings_place_status (place_id, status)
+- idx_reservation_pricing_slots_time (slot_time)
+- idx_reservation_pricing_slots_reservation_time (reservation_id, slot_time)
+- idx_reservation_pricing_products_product_id (product_id)
 ```
 
 ---
@@ -137,32 +154,31 @@ Indexes:
 **목적**: 추가상품 정보 및 재고를 관리합니다.
 
 **도메인 규칙**:
-- 사용 수량은 총 수량을 초과할 수 없습니다
-- 가격은 0원 이상이어야 합니다
+- scope와 place_id/room_id의 조합이 일관성을 유지해야 합니다
+  - PLACE: place_id NOT NULL, room_id NULL
+  - ROOM: place_id NOT NULL, room_id NOT NULL
+  - RESERVATION: place_id NULL, room_id NULL
+- pricing_type에 따라 additional_price 필수 여부가 결정됩니다
+  - INITIAL_PLUS_ADDITIONAL: additional_price 필수
+  - ONE_TIME, SIMPLE_STOCK: additional_price NULL
 
 **주요 컬럼**:
-- `scope_type`: 적용 범위 타입 (PLACE, ROOM, RESERVATION)
+- `scope`: 적용 범위 타입 (PLACE, ROOM, RESERVATION)
   - PLACE: 플레이스 전체에 적용
   - ROOM: 특정 룸에만 적용
-  - RESERVATION: 예약별로 적용
-- `scope_id`: 적용 범위 ID (scope_type이 PLACE/ROOM일 때)
+  - RESERVATION: 예약별로 적용 (시간 독립적)
+- `place_id`: 플레이스 ID (PLACE, ROOM scope일 때 사용)
+- `room_id`: 룸 ID (ROOM scope일 때만 사용)
+- `pricing_type`: 가격 책정 전략
+  - INITIAL_PLUS_ADDITIONAL: 초기 가격 + 추가 가격 (1개 초과 시)
+  - ONE_TIME: 1회 대여 가격 (수량 무관)
+  - SIMPLE_STOCK: 단순 재고 기반 가격 (단가 × 수량)
+- `initial_price`: 초기 가격 또는 단가
+- `additional_price`: 추가 가격 (INITIAL_PLUS_ADDITIONAL만 사용)
 - `total_quantity`: 총 재고 수량
-- `used_quantity`: 현재 사용 중인 수량
-- `is_active`: 활성 상태 (삭제 대신 비활성화)
 
 **재고 관리**:
-```sql
--- 재고 차감
-UPDATE products
-SET used_quantity = used_quantity + :quantity
-WHERE id = :product_id
-  AND (total_quantity - used_quantity) >= :quantity;
-
--- 재고 복구
-UPDATE products
-SET used_quantity = used_quantity - :quantity
-WHERE id = :product_id;
-```
+재고는 ReservationPricing을 통해 관리되며, PENDING/CONFIRMED 상태의 예약만 재고에 영향을 줍니다.
 
 ---
 
@@ -172,32 +188,60 @@ WHERE id = :product_id;
 
 **도메인 규칙**:
 - 예약 가격은 생성 후 변경 불가 (Immutable)
-- 총 가격 = 기본 가격 + 모든 추가상품 가격의 합
+- 총 가격 = 모든 시간대 가격 합계 + 모든 추가상품 가격의 합
 - 모든 금액은 0원 이상
 
 **주요 컬럼**:
-- `reservation_id`: 외부 서비스(예약 서비스)의 예약 ID (Unique)
-- `base_price`: 룸 기본 가격 (예약 시점의 가격 정책 기준)
-- `total_price`: 총 가격 (base_price + 추가상품 합계)
+- `reservation_id`: 예약 ID (PK, Auto Increment)
+- `room_id`: 룸 ID
+- `place_id`: 플레이스 ID (쿼리 효율성을 위한 비정규화)
+- `status`: 예약 상태
+  - PENDING: 대기 중
+  - CONFIRMED: 확정됨
+  - CANCELLED: 취소됨
+- `time_slot`: 시간 단위 (HOUR: 1시간, HALFHOUR: 30분)
+- `total_price`: 총 가격 (시간대 가격 합계 + 상품 가격 합계)
+- `calculated_at`: 가격 계산 시각 (생성 시각)
 
 **특징**:
 - `updated_at` 컬럼 없음 (불변 객체)
 - 예약 취소 시에도 데이터 유지 (이력 관리)
+- status만 CANCELLED로 변경 가능
 
 ---
 
-### 4. reservation_pricing_items (예약 가격 항목)
+### 4. reservation_pricing_slots (예약 시간대별 가격)
+
+**목적**: 예약에 포함된 시간대별 가격을 스냅샷으로 저장합니다.
+
+**주요 컬럼**:
+- `reservation_id`: 예약 ID (FK)
+- `slot_time`: 시간 슬롯 (예: 2025-01-15 10:00:00)
+- `slot_price`: 해당 슬롯의 가격
+
+**특징**:
+- ElementCollection 매핑 (JPA)
+- 복합 기본키 (reservation_id, slot_time)
+- 예약 삭제 시 CASCADE로 함께 삭제
+- 스냅샷이므로 pricing_policies 테이블과 FK 관계 없음
+
+---
+
+### 5. reservation_pricing_products (예약 상품별 가격)
 
 **목적**: 예약에 포함된 추가상품 정보를 스냅샷으로 저장합니다.
 
 **주요 컬럼**:
-- `product_id`: 상품 ID (참조용, FK 아님)
+- `reservation_id`: 예약 ID (FK)
+- `product_id`: 상품 ID (스냅샷, 참조용)
 - `product_name`: 상품명 스냅샷 (상품 이름 변경되어도 유지)
-- `product_price`: 상품 단가 스냅샷
 - `quantity`: 수량
-- `item_total_price`: 항목 총 가격 (product_price × quantity)
+- `unit_price`: 단가 (스냅샷)
+- `total_price`: 총 가격 (가격 전략에 따라 계산된 값)
+- `pricing_type`: 가격 책정 방식 (스냅샷)
 
 **특징**:
+- ElementCollection 매핑 (JPA)
 - 스냅샷이므로 products 테이블과 FK 관계 없음
 - `ON DELETE CASCADE`: 예약 가격 삭제 시 함께 삭제
 
@@ -219,25 +263,33 @@ CONSTRAINT CHECK (price >= 0)
 
 ### Product
 ```sql
--- 규칙 1: 사용 수량 <= 총 수량
-CONSTRAINT chk_quantity CHECK (used_quantity <= total_quantity)
+-- 규칙 1: scope 타입에 따른 place_id/room_id 제약
+CONSTRAINT chk_place_scope CHECK (
+    (scope = 'PLACE' AND place_id IS NOT NULL AND room_id IS NULL) OR
+    (scope = 'ROOM' AND place_id IS NOT NULL AND room_id IS NOT NULL) OR
+    (scope = 'RESERVATION' AND place_id IS NULL AND room_id IS NULL)
+)
 
--- 규칙 2: 수량 >= 0
-CONSTRAINT CHECK (total_quantity >= 0)
-CONSTRAINT CHECK (used_quantity >= 0)
+-- 규칙 2: pricing_type에 따른 additional_price 제약
+CONSTRAINT chk_pricing_strategy CHECK (
+    (pricing_type = 'INITIAL_PLUS_ADDITIONAL' AND additional_price IS NOT NULL) OR
+    (pricing_type IN ('ONE_TIME', 'SIMPLE_STOCK') AND additional_price IS NULL)
+)
 
--- 규칙 3: 가격 >= 0
-CONSTRAINT CHECK (price >= 0)
+-- 규칙 3: scope 값 제한
+CONSTRAINT chk_scope CHECK (scope IN ('PLACE', 'ROOM', 'RESERVATION'))
+
+-- 규칙 4: pricing_type 값 제한
+CONSTRAINT chk_pricing_type CHECK (pricing_type IN ('INITIAL_PLUS_ADDITIONAL', 'ONE_TIME', 'SIMPLE_STOCK'))
 ```
 
 ### ReservationPricing
 ```sql
--- 규칙 1: 예약 ID 유일성
-CONSTRAINT uq_reservation_id UNIQUE (reservation_id)
+-- 규칙 1: status 값 제한
+CONSTRAINT chk_status CHECK (status IN ('PENDING', 'CONFIRMED', 'CANCELLED'))
 
--- 규칙 2: 금액 >= 0
-CONSTRAINT CHECK (base_price >= 0)
-CONSTRAINT CHECK (total_price >= 0)
+-- 규칙 2: time_slot 값 제한
+CONSTRAINT chk_time_slot CHECK (time_slot IN ('HOUR', 'HALFHOUR'))
 ```
 
 ---
@@ -260,11 +312,17 @@ CREATE INDEX idx_pricing_policies_day_time ON pricing_policies(day_of_week, star
 
 **products**:
 ```sql
--- 적용 범위별 상품 조회
-CREATE INDEX idx_products_scope ON products(scope_type, scope_id);
+-- scope별 상품 조회
+CREATE INDEX idx_products_scope ON products(scope);
 
--- 활성 상품 필터링 (Partial Index)
-CREATE INDEX idx_products_active ON products(is_active) WHERE is_active = TRUE;
+-- 플레이스별 상품 조회 (Partial Index)
+CREATE INDEX idx_products_place_id ON products(place_id) WHERE place_id IS NOT NULL;
+
+-- 룸별 상품 조회 (Partial Index)
+CREATE INDEX idx_products_room_id ON products(room_id) WHERE room_id IS NOT NULL;
+
+-- scope + place_id 복합 조회
+CREATE INDEX idx_products_scope_place_id ON products(scope, place_id) WHERE place_id IS NOT NULL;
 ```
 
 **reservation_pricings**:
@@ -272,45 +330,41 @@ CREATE INDEX idx_products_active ON products(is_active) WHERE is_active = TRUE;
 -- 예약 ID로 빠른 조회
 CREATE INDEX idx_reservation_pricings_reservation_id ON reservation_pricings(reservation_id);
 
--- 룸별 가격 조회
+-- 룸별 예약 가격 조회
 CREATE INDEX idx_reservation_pricings_room_id ON reservation_pricings(room_id);
+
+-- 플레이스별 예약 가격 조회
+CREATE INDEX idx_reservation_pricings_place_id ON reservation_pricings(place_id);
+
+-- 상태별 조회
+CREATE INDEX idx_reservation_pricings_status ON reservation_pricings(status);
+
+-- 생성 시각 기준 조회
+CREATE INDEX idx_reservation_pricings_calculated_at ON reservation_pricings(calculated_at);
+
+-- 룸 + 상태 복합 조회
+CREATE INDEX idx_reservation_pricings_room_status ON reservation_pricings(room_id, status);
+
+-- 플레이스 + 상태 복합 조회
+CREATE INDEX idx_reservation_pricings_place_status ON reservation_pricings(place_id, status);
 ```
 
-**reservation_pricing_items**:
+**reservation_pricing_slots**:
 ```sql
--- 예약 가격별 항목 조회
-CREATE INDEX idx_pricing_items_reservation_pricing_id ON reservation_pricing_items(reservation_pricing_id);
+-- 시간 슬롯 기준 조회
+CREATE INDEX idx_reservation_pricing_slots_time ON reservation_pricing_slots(slot_time);
+
+-- 예약 + 시간 복합 조회
+CREATE INDEX idx_reservation_pricing_slots_reservation_time
+    ON reservation_pricing_slots(reservation_id, slot_time);
 ```
 
----
-
-## 트리거
-
-### updated_at 자동 갱신
-
+**reservation_pricing_products**:
 ```sql
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- pricing_policies 테이블
-CREATE TRIGGER trigger_pricing_policies_updated_at
-BEFORE UPDATE ON pricing_policies
-FOR EACH ROW
-EXECUTE FUNCTION update_updated_at_column();
-
--- products 테이블
-CREATE TRIGGER trigger_products_updated_at
-BEFORE UPDATE ON products
-FOR EACH ROW
-EXECUTE FUNCTION update_updated_at_column();
+-- 상품 ID 기준 조회
+CREATE INDEX idx_reservation_pricing_products_product_id
+    ON reservation_pricing_products(product_id);
 ```
-
-**주의**: `reservation_pricings` 및 `reservation_pricing_items`는 불변 객체이므로 트리거 없음
 
 ---
 
@@ -319,18 +373,39 @@ EXECUTE FUNCTION update_updated_at_column();
 ### PricingPolicy 샘플
 ```sql
 INSERT INTO pricing_policies (room_id, place_id, day_of_week, start_time, end_time, price) VALUES
-(1, 1, 'MONDAY', '09:00', '12:00', 50000.00),
-(1, 1, 'MONDAY', '12:00', '18:00', 80000.00),
-(1, 1, 'SATURDAY', '09:00', '12:00', 70000.00),
-(1, 1, 'SATURDAY', '12:00', '18:00', 100000.00);
+(1, 100, 'MONDAY', '09:00', '12:00', 50000.00),
+(1, 100, 'MONDAY', '12:00', '18:00', 80000.00),
+(1, 100, 'SATURDAY', '09:00', '12:00', 70000.00),
+(1, 100, 'SATURDAY', '12:00', '18:00', 100000.00);
 ```
 
 ### Product 샘플
 ```sql
-INSERT INTO products (name, description, price, scope_type, scope_id, total_quantity, used_quantity, is_active) VALUES
-('빔 프로젝터', '회의용 빔 프로젝터 대여', 30000.00, 'PLACE', 1, 5, 0, TRUE),
-('화이트보드', '대형 화이트보드 (마커 포함)', 10000.00, 'ROOM', 1, 3, 0, TRUE),
-('케이터링 세트', '회의용 간식 세트 (10인분)', 50000.00, 'RESERVATION', NULL, 100, 0, TRUE);
+INSERT INTO products (scope, place_id, room_id, name, pricing_type, initial_price, additional_price, total_quantity) VALUES
+-- PLACE scope: 플레이스 전체에서 사용 가능
+('PLACE', 100, NULL, '빔 프로젝터', 'SIMPLE_STOCK', 30000.00, NULL, 5),
+
+-- ROOM scope: 특정 룸에서만 사용 가능
+('ROOM', 100, 1, '화이트보드', 'ONE_TIME', 10000.00, NULL, 3),
+
+-- RESERVATION scope: 시간 독립적
+('RESERVATION', NULL, NULL, '케이터링 세트', 'INITIAL_PLUS_ADDITIONAL', 50000.00, 30000.00, 100);
+```
+
+### ReservationPricing 샘플
+```sql
+-- 예약 메인 정보
+INSERT INTO reservation_pricings (reservation_id, room_id, place_id, status, time_slot, total_price, calculated_at) VALUES
+(1, 1, 100, 'CONFIRMED', 'HOUR', 130000.00, '2025-01-10 14:30:00');
+
+-- 시간대별 가격 (2시간 예약)
+INSERT INTO reservation_pricing_slots (reservation_id, slot_time, slot_price) VALUES
+(1, '2025-01-15 10:00:00', 50000.00),
+(1, '2025-01-15 11:00:00', 50000.00);
+
+-- 상품별 가격 (빔 프로젝터 1개)
+INSERT INTO reservation_pricing_products (reservation_id, product_id, product_name, quantity, unit_price, total_price, pricing_type) VALUES
+(1, 1, '빔 프로젝터', 1, 30000.00, 30000.00, 'SIMPLE_STOCK');
 ```
 
 ---
@@ -339,21 +414,29 @@ INSERT INTO products (name, description, price, scope_type, scope_id, total_quan
 
 | Version | Description | Date |
 |---------|-------------|------|
-| V1 | 초기 스키마 생성 (PricingPolicy, Product, ReservationPricing Aggregates) | 2025-11-08 |
+| V1 | 초기 스키마 생성 | 2025-11-08 |
+| V2 | PricingPolicy Aggregate 추가 | 2025-11-08 |
+| V3 | Product Aggregate 추가 | 2025-11-08 |
+| V4 | ReservationPricing Aggregate 추가 | 2025-11-08 |
 
 ---
 
 ## 향후 고려사항
 
 ### 성능 최적화
-- 파티셔닝: `reservation_pricings` 테이블이 커질 경우 날짜 기반 파티셔닝 고려
-- 아카이빙: 오래된 예약 가격 데이터 아카이빙 전략
+- **파티셔닝**: `reservation_pricings` 테이블이 커질 경우 날짜 기반 파티셔닝 고려
+- **아카이빙**: 오래된 예약 가격 데이터 아카이빙 전략
+- **Materialized View**: 통계 조회를 위한 집계 뷰
 
 ### 기능 확장
-- 가격 정책 변경 이력 관리 (Temporal Table)
-- 프로모션/할인 코드 지원
-- 동적 가격 정책 (Dynamic Pricing)
+- **가격 정책 변경 이력 관리**: Temporal Table 또는 별도 히스토리 테이블
+- **프로모션/할인 코드 지원**: 할인 정책 테이블 추가
+- **동적 가격 정책**: Dynamic Pricing 알고리즘 적용
+
+### 데이터 무결성
+- **재고 동시성 제어**: Optimistic Lock 또는 Pessimistic Lock 적용
+- **분산 트랜잭션**: Saga 패턴 고려 (마이크로서비스 환경)
 
 ---
 
-**Last Updated**: 2025-11-08
+**Last Updated**: 2025-11-09

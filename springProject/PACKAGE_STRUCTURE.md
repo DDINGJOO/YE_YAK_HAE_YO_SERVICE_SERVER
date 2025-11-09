@@ -98,18 +98,28 @@ com.teambind.springproject/
 
 **책임:**
 - 추가상품 등록 및 관리
-- 적용 범위 관리 (플레이스/룸/예약별)
-- 재고 관리 (가용 수량, 총 수량)
+- 적용 범위 관리 (PLACE/ROOM/RESERVATION scope)
+- 가격 책정 전략 관리
+- 재고 가용성 계산
 
 **도메인 규칙:**
-- ❌ 사용 수량 > 총 수량
-- ✅ PENDING 또는 CONFIRMED 상태만 재고 차감
+- ✅ scope에 따라 place_id/room_id 조합 제약
+- ✅ pricing_type에 따라 가격 계산 전략 적용
 - ❌ 가격 < 0원
+
+**가격 책정 전략:**
+- `INITIAL_PLUS_ADDITIONAL`: 초기 가격 + 추가 가격 (1개 초과 시)
+- `ONE_TIME`: 1회 대여 가격 (수량 무관)
+- `SIMPLE_STOCK`: 단순 재고 기반 가격 (단가 × 수량)
 
 **주요 클래스:**
 - `Product`: Aggregate Root
-- `ProductScope`: Value Object (적용 범위)
-- `ProductAvailabilityService`: Domain Service
+- `ProductScope`: Value Object (PLACE/ROOM/RESERVATION)
+- `PricingStrategy`: Interface (가격 책정 전략)
+  - `InitialPlusAdditionalPricing`
+  - `OneTimePricing`
+  - `SimpleStockPricing`
+- `ProductAvailabilityService`: Domain Service (재고 가용성 계산)
 
 ---
 
@@ -119,17 +129,22 @@ com.teambind.springproject/
 
 **책임:**
 - 예약 시점의 가격 정보 스냅샷 저장
-- 예약 총 가격 계산 (룸 가격 + 추가상품)
-- 가격 정책 변경 이력 관리
+- 예약 총 가격 계산 (시간대 가격 + 추가상품)
+- 예약 상태 관리 (PENDING/CONFIRMED/CANCELLED)
+- 가격 불변성 보장
 
 **도메인 규칙:**
 - ✅ 예약 가격은 생성 후 변경 불가 (Immutable Snapshot)
-- ✅ 총 가격 = 룸 가격 + ∑(추가상품 가격)
+- ✅ 총 가격 = ∑(시간대 가격) + ∑(추가상품 가격)
+- ✅ status만 변경 가능 (PENDING → CONFIRMED/CANCELLED)
 - ❌ 가격 < 0원
 
 **주요 클래스:**
 - `ReservationPricing`: Aggregate Root
-- `PricingItem`: Entity (가격 항목)
+- `ReservationStatus`: Enum (PENDING/CONFIRMED/CANCELLED)
+- `TimeSlotUnit`: Enum (HOUR/HALFHOUR)
+- `ProductPriceBreakdown`: Embeddable (상품별 가격 내역)
+- `ReservationPricingService`: Domain Service (가격 계산)
 
 ---
 
@@ -137,16 +152,22 @@ com.teambind.springproject/
 
 **위치:** `com.teambind.springproject.domain.shared`
 
-**포함 요소:**
-- `Money`: 금액 Value Object
+**포함 요소 (Value Objects):**
+- `Money`: 금액 Value Object (BigDecimal 래핑)
 - `ReservationId`: 예약 ID Value Object
 - `RoomId`: 룸 ID Value Object
 - `PlaceId`: 플레이스 ID Value Object
+- `ProductId`: 상품 ID Value Object
+
+**포함 요소 (Enums):**
+- `ReservationStatus`: 예약 상태 (PENDING/CONFIRMED/CANCELLED)
+- `TimeSlotUnit`: 시간 단위 (HOUR/HALFHOUR)
 
 **설계 원칙:**
 - ✅ 모든 Value Object는 불변(Immutable)
 - ✅ equals/hashCode 구현
 - ✅ 생성자에서 유효성 검증
+- ✅ Record 클래스 활용
 
 ---
 
@@ -292,4 +313,49 @@ public class PricingPolicyController {
 
 ---
 
-**Last Updated**: 2025-11-08
+## 주요 Use Cases 및 Application Services
+
+### PricingPolicy 관련
+**Use Cases**:
+- `QueryPricingPolicyUseCase`: 가격 정책 조회
+- `UpdateDefaultPriceUseCase`: 기본 가격 업데이트
+- `UpdateTimeRangePricesUseCase`: 시간대별 가격 업데이트
+- `CopyPricingPolicyUseCase`: 가격 정책 복사
+
+**Services**:
+- `PricingPolicyQueryService`
+- `PricingPolicyCommandService`
+
+### Product 관련
+**Use Cases**:
+- `QueryProductAvailabilityUseCase`: 상품 재고 가용성 조회
+
+**Services**:
+- `ProductAvailabilityQueryService`
+
+### ReservationPricing 관련
+**Use Cases**:
+- `CreateReservationUseCase`: 예약 생성
+- `CalculateReservationPriceUseCase`: 예약 가격 미리보기
+
+**Services**:
+- `ReservationPricingService`: 예약 생성/확정/취소
+- `PricePreviewService`: 가격 미리보기
+
+### 주요 DTO
+
+**Request DTOs**:
+- `ProductAvailabilityRequest`: 상품 가용성 조회 요청
+- `CreateReservationRequest`: 예약 생성 요청
+- `ProductRequest`: 상품 정보 (ID + 수량)
+
+**Response DTOs**:
+- `ProductAvailabilityResponse`: 상품 가용성 조회 응답
+- `AvailableProductDto`: 가용 상품 정보
+- `PricePreviewResponse`: 가격 미리보기 응답
+- `ProductPriceDetail`: 상품별 가격 상세
+- `ReservationPricingResponse`: 예약 가격 응답
+
+---
+
+**Last Updated**: 2025-11-09

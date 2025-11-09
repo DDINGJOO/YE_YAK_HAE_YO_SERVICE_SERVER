@@ -162,7 +162,9 @@ docker exec -it reservation-pricing-kafka kafka-console-consumer \
 
 ## 애플리케이션 연동
 
-### application-dev.yaml 설정
+### application.yml 설정
+
+프로젝트에 `src/main/resources/application.yml` 파일을 생성하고 다음 내용을 추가합니다:
 
 ```yaml
 spring:
@@ -179,18 +181,32 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
   flyway:
     enabled: true
     locations: classpath:db/migration
+    baseline-on-migrate: true
 
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
       group-id: reservation-pricing-service
       auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     producer:
       acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.teambind.springproject: INFO
+    org.hibernate.SQL: DEBUG
 ```
 
 ### 애플리케이션 실행
@@ -307,4 +323,50 @@ open http://localhost:8090
 
 ---
 
-**Last Updated**: 2025-11-08
+### 보안 설정 (운영 환경)
+
+**PostgreSQL**:
+```yaml
+# 운영 환경에서는 강력한 비밀번호 사용
+POSTGRES_PASSWORD: ${DB_PASSWORD}  # 환경변수로 관리
+
+# 외부 접속 제한
+# docker-compose.yml에서 ports 제거하고 내부 네트워크만 사용
+```
+
+**Kafka**:
+```yaml
+# SASL/SSL 인증 설정
+KAFKA_SECURITY_PROTOCOL: SASL_SSL
+KAFKA_SASL_MECHANISM: PLAIN
+KAFKA_SASL_JAAS_CONFIG: ${KAFKA_JAAS_CONFIG}
+```
+
+### 리소스 제한 (운영 환경)
+
+```yaml
+services:
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+
+  kafka:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+```
+
+---
+
+**Last Updated**: 2025-11-09
