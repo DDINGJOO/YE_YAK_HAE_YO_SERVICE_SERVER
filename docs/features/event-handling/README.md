@@ -67,7 +67,6 @@ Repository (PricingPolicyRepository)
 ## 관련 문서
 - [아키텍처 상세](./architecture.md)
 - [이벤트 타입 및 스키마](./events.md)
-- [핸들러 구현 가이드](./handlers.md)
 
 ## 관련 Issues
 - Issue #9: RoomCreatedEvent 리스너 및 가격 정책 자동 생성

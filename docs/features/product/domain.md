@@ -317,25 +317,60 @@ product.updatePricingStrategy(
 );
 ```
 
-## Use Cases (예정)
+## Use Cases
 
-### 1. CreateProductUseCase
-- 상품 생성
-- Scope별 검증
+### 구현 완료 (Issue #14)
+
+#### 1. RegisterProductUseCase ✅
+**구현**: `RegisterProductService`
+- 상품 생성 (PLACE/ROOM/RESERVATION Scope별)
+- Scope별 ID 검증
+- PricingStrategy 검증
 - Repository 저장
+- ProductResponse 반환
 
-### 2. UpdateProductUseCase
+**REST API**: `POST /api/products`
+
+#### 2. GetProductUseCase ✅
+**구현**: `GetProductService`
+- 상품 조회 (ID, PlaceId, RoomId, Scope별)
+- 전체 상품 목록 조회
+- ProductResponse 변환
+
+**REST API**:
+- `GET /api/products/{productId}`
+- `GET /api/products?scope=PLACE`
+- `GET /api/products?placeId=100`
+- `GET /api/products?roomId=200`
+
+#### 3. UpdateProductUseCase ✅
+**구현**: `UpdateProductService`
 - 상품 정보 수정
 - 이름, 가격 전략, 수량 변경
+- Repository 저장
 
-### 3. ManageProductStockUseCase
+**REST API**: `PUT /api/products/{productId}`
+
+#### 4. DeleteProductUseCase ✅
+**구현**: `DeleteProductService`
+- 상품 삭제
+- 존재 여부 검증
+- Repository 삭제
+
+**REST API**: `DELETE /api/products/{productId}`
+
+### 향후 구현 예정
+
+#### 5. ManageProductStockUseCase
 - 재고 차감 (예약 시)
 - 재고 복원 (예약 취소 시)
 - 재고 부족 검증
+- 동시성 제어
 
-### 4. CalculateProductPriceUseCase
+#### 6. CalculateProductPriceUseCase
 - 상품별 가격 계산
 - 예약에 포함된 모든 상품 총액 계산
+- ReservationPricing과 통합
 
 ## 도메인 이벤트 (예정)
 
