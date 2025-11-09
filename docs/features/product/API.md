@@ -604,4 +604,4 @@ Adapter Out (Persistence)│ Repository       │
 - [Product 기능 개요](./README.md)
 
 ## 관련 Issues
-- Issue #14: Product API 구현 ✅
+- Issue #14: Product API 구현 

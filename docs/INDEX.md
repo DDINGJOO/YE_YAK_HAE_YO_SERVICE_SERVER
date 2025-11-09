@@ -370,10 +370,10 @@ docs/
 
 ### 2025-11-09
 - **추가상품 기능 완료** (Issue #11, #13, #14)
-  - Issue #11: Product Aggregate 구현 (도메인 모델, 테스트 67개) ✅
-  - Issue #13: Product Repository 구현 (영속성 계층, 통합 테스트 13개) ✅
-  - Issue #14: Product API 구현 (Application Layer, Controller, 통합 테스트 16개) ✅
-
+  - Issue #11: Product Aggregate 구현 (도메인 모델, 테스트 67개) 
+  - Issue #13: Product Repository 구현 (영속성 계층, 통합 테스트 13개) 
+  - Issue #14: Product API 구현 (Application Layer, Controller, 통합 테스트 16개) 
+  
 - **추가상품 기능 문서 작성 완료**
   - README.md: 기능 개요, Scope 및 PricingType 설명, 가격 계산 예시, 완료 이슈 체크
   - domain.md: Product Aggregate, PricingStrategy, ProductPriceBreakdown 상세 설계
