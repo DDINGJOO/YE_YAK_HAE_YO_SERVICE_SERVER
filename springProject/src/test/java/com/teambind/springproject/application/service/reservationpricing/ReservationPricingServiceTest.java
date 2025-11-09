@@ -20,6 +20,8 @@ import com.teambind.springproject.domain.product.Product;
 import com.teambind.springproject.domain.product.ProductAvailabilityService;
 import com.teambind.springproject.domain.product.PricingStrategy;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
+import com.teambind.springproject.domain.reservationpricing.exception.ProductNotAvailableException;
+import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;
 import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.ProductId;
@@ -169,7 +171,7 @@ class ReservationPricingServiceTest {
 
       // when & then
       assertThatThrownBy(() -> reservationPricingService.createReservation(request))
-          .isInstanceOf(IllegalArgumentException.class)
+          .isInstanceOf(ReservationPricingNotFoundException.class)
           .hasMessageContaining("Pricing policy not found");
 
       verify(pricingPolicyRepository).findById(roomId);
@@ -192,7 +194,7 @@ class ReservationPricingServiceTest {
 
       // when & then
       assertThatThrownBy(() -> reservationPricingService.createReservation(request))
-          .isInstanceOf(IllegalArgumentException.class)
+          .isInstanceOf(ReservationPricingNotFoundException.class)
           .hasMessageContaining("Product not found");
 
       verify(pricingPolicyRepository).findById(roomId);
@@ -218,7 +220,7 @@ class ReservationPricingServiceTest {
 
       // when & then
       assertThatThrownBy(() -> reservationPricingService.createReservation(request))
-          .isInstanceOf(IllegalArgumentException.class)
+          .isInstanceOf(ProductNotAvailableException.class)
           .hasMessageContaining("Product is not available");
 
       verify(pricingPolicyRepository).findById(roomId);
@@ -285,8 +287,8 @@ class ReservationPricingServiceTest {
 
       // when & then
       assertThatThrownBy(() -> reservationPricingService.confirmReservation(reservationId))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("Reservation not found");
+          .isInstanceOf(ReservationPricingNotFoundException.class)
+          .hasMessageContaining("Reservation pricing not found");
 
       verify(reservationPricingRepository).findById(ReservationId.of(reservationId));
     }
@@ -350,8 +352,8 @@ class ReservationPricingServiceTest {
 
       // when & then
       assertThatThrownBy(() -> reservationPricingService.cancelReservation(reservationId))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("Reservation not found");
+          .isInstanceOf(ReservationPricingNotFoundException.class)
+          .hasMessageContaining("Reservation pricing not found");
 
       verify(reservationPricingRepository).findById(ReservationId.of(reservationId));
     }

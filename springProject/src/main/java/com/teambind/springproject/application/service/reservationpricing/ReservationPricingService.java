@@ -13,6 +13,8 @@ import com.teambind.springproject.domain.product.ProductAvailabilityService;
 import com.teambind.springproject.domain.product.ProductPriceBreakdown;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown;
+import com.teambind.springproject.domain.reservationpricing.exception.ProductNotAvailableException;
+import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;
 import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.ProductId;
 import com.teambind.springproject.domain.shared.ReservationId;
@@ -62,7 +64,7 @@ public class ReservationPricingService implements CreateReservationUseCase {
 
     // 1. 가격 정책 조회
     final PricingPolicy pricingPolicy = pricingPolicyRepository.findById(roomId)
-        .orElseThrow(() -> new IllegalArgumentException(
+        .orElseThrow(() -> new ReservationPricingNotFoundException(
             "Pricing policy not found for roomId: " + request.roomId()));
 
     // 2. 상품 목록 조회
@@ -104,8 +106,7 @@ public class ReservationPricingService implements CreateReservationUseCase {
 
     final ReservationPricing reservation = reservationPricingRepository
         .findById(ReservationId.of(reservationId))
-        .orElseThrow(() -> new IllegalArgumentException(
-            "Reservation not found: " + reservationId));
+        .orElseThrow(() -> new ReservationPricingNotFoundException(reservationId));
 
     reservation.confirm();
     final ReservationPricing savedReservation = reservationPricingRepository.save(reservation);
@@ -121,8 +122,7 @@ public class ReservationPricingService implements CreateReservationUseCase {
 
     final ReservationPricing reservation = reservationPricingRepository
         .findById(ReservationId.of(reservationId))
-        .orElseThrow(() -> new IllegalArgumentException(
-            "Reservation not found: " + reservationId));
+        .orElseThrow(() -> new ReservationPricingNotFoundException(reservationId));
 
     reservation.cancel();
     final ReservationPricing savedReservation = reservationPricingRepository.save(reservation);
@@ -139,7 +139,7 @@ public class ReservationPricingService implements CreateReservationUseCase {
     final List<Product> products = new ArrayList<>();
     for (final ProductRequest productRequest : productRequests) {
       final Product product = productRepository.findById(ProductId.of(productRequest.productId()))
-          .orElseThrow(() -> new IllegalArgumentException(
+          .orElseThrow(() -> new ReservationPricingNotFoundException(
               "Product not found: " + productRequest.productId()));
       products.add(product);
     }
@@ -165,9 +165,8 @@ public class ReservationPricingService implements CreateReservationUseCase {
       );
 
       if (!available) {
-        throw new IllegalArgumentException(
-            "Product is not available: productId=" + product.getProductId().getValue()
-                + ", requestedQuantity=" + productRequest.quantity());
+        throw new ProductNotAvailableException(
+            product.getProductId().getValue(), productRequest.quantity());
       }
     }
   }
