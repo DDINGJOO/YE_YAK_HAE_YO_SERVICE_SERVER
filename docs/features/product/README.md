@@ -40,13 +40,44 @@
   - Scope 및 PricingType 제약조건
   - 성능 최적화 인덱스
 
+### Application Layer (Issue #14)
+- **Use Case Ports**: 입력 포트 (4개)
+  - RegisterProductUseCase: 상품 등록
+  - GetProductUseCase: 상품 조회 (ID, PlaceId, RoomId, Scope)
+  - UpdateProductUseCase: 상품 수정
+  - DeleteProductUseCase: 상품 삭제
+- **Application Services**: Use Case 구현 (4개)
+  - RegisterProductService: 상품 등록 로직, @Transactional
+  - GetProductService: 다양한 조건 조회, @Transactional(readOnly)
+  - UpdateProductService: 상품 정보 업데이트
+  - DeleteProductService: 상품 삭제 및 존재 검증
+- **DTOs**: Request/Response 변환 (4개)
+  - PricingStrategyDto: 가격 전략 DTO (toDomain/from 메서드)
+  - RegisterProductRequest: 상품 등록 요청 (Scope별 ID 검증)
+  - UpdateProductRequest: 상품 수정 요청
+  - ProductResponse: 상품 응답 DTO
+
+### API Layer (Issue #14)
+- **ProductController**: REST Controller
+  - POST /api/products: 상품 등록 (201 Created)
+  - GET /api/products/{id}: 상품 조회 (200 OK)
+  - GET /api/products: 목록 조회 (필터링: scope, placeId, roomId)
+  - PUT /api/products/{id}: 상품 수정 (200 OK)
+  - DELETE /api/products/{id}: 상품 삭제 (204 No Content)
+- **GlobalExceptionHandler**: 예외 처리
+  - NoSuchElementException → 404 NOT_FOUND
+  - ConstraintViolationException → 400 BAD_REQUEST
+  - MethodArgumentNotValidException → 400 BAD_REQUEST
+
 ## 관련 문서
 - [도메인 모델](./domain.md)
 - [데이터베이스 스키마](./database.md)
+- [API 문서](./API.md)
 
 ## 관련 Issues
 - Issue #11: Product Aggregate 구현 ✅
 - Issue #13: Product Repository 및 영속성 구현 ✅
+- Issue #14: Product API 구현 ✅
 
 ## Product Scope
 Product는 3가지 범위(Scope)로 구분됩니다:
@@ -154,15 +185,19 @@ Product는 3가지 가격 책정 방식을 지원합니다:
   - Scope별 조회 테스트 (findByPlaceId, findByRoomId, findByScope)
   - PricingStrategy 저장/조회 테스트 (3가지 타입별)
 
-**총 테스트: 80+ 케이스**
-**테스트 커버리지: Domain Layer 100%, Repository Layer 100%**
+### API Layer (Issue #14)
+- **ProductControllerTest**: 16개 통합 테스트
+  - POST /api/products: 3가지 Scope 등록, Validation 테스트
+  - GET /api/products/{id}: 조회 성공/실패 테스트
+  - GET /api/products: 필터링 조회 테스트 (scope, placeId, roomId)
+  - PUT /api/products/{id}: 수정 성공/실패 테스트
+  - DELETE /api/products/{id}: 삭제 성공/실패 테스트
+
+**총 테스트: 96개 케이스**
+**테스트 커버리지: Domain 100%, Repository 100%, API 100%**
 
 ## 향후 계획
-- Issue #14 (예정): Product API 구현
-  - GET /api/products: 상품 목록 조회
-  - GET /api/products/{productId}: 상품 상세 조회
-  - POST /api/products: 상품 생성
-  - PUT /api/products/{productId}: 상품 수정
-  - DELETE /api/products/{productId}: 상품 삭제
-- Issue #15 (예정): Product 재고 관리 UseCase 구현
-- Issue #16 (예정): Product 가격 계산 통합
+- Issue #12: ProductAvailabilityService 완성 (Place/Room Scope)
+  - Issue #15 (ReservationPricing 도메인) 완료 후 구현
+- Issue #17: 예약 가격 계산 Application Service 구현
+- Issue #18: 예약 가격 관리 API 구현
