@@ -47,6 +47,14 @@ public class ProductRepositoryAdapter implements ProductRepository {
   }
 
   @Override
+  public List<Product> findAccessibleProducts(final PlaceId placeId, final RoomId roomId) {
+    return jpaRepository.findAccessibleProducts(placeId.getValue(), roomId.getValue())
+        .stream()
+        .map(ProductEntity::toDomain)
+        .collect(Collectors.toList());
+  }
+
+  @Override
   public List<Product> findByScope(final ProductScope scope) {
     return jpaRepository.findByScope(scope)
         .stream()

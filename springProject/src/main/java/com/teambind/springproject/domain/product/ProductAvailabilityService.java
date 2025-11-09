@@ -62,6 +62,95 @@ public class ProductAvailabilityService {
   }
 
   /**
+   * 상품의 가용 수량을 계산합니다.
+   * 총 재고에서 요청 시간대에 이미 사용 중인 최대 수량을 뺀 값을 반환합니다.
+   *
+   * @param product 확인할 상품
+   * @param requestedSlots 요청 시간 슬롯 목록
+   * @param repository 예약 가격 Repository
+   * @return 가용한 수량 (0 이상)
+   */
+  public int calculateAvailableQuantity(
+      final Product product,
+      final List<LocalDateTime> requestedSlots,
+      final ReservationPricingRepository repository) {
+
+    return switch (product.getScope()) {
+      case RESERVATION -> product.getTotalQuantity();
+      case PLACE -> calculatePlaceScopedAvailableQuantity(product, requestedSlots, repository);
+      case ROOM -> calculateRoomScopedAvailableQuantity(product, requestedSlots, repository);
+    };
+  }
+
+  /**
+   * PLACE Scope 상품의 가용 수량을 계산합니다.
+   *
+   * @param product 확인할 상품
+   * @param requestedSlots 요청 시간 슬롯 목록
+   * @param repository 예약 가격 Repository
+   * @return 가용한 수량
+   */
+  private int calculatePlaceScopedAvailableQuantity(
+      final Product product,
+      final List<LocalDateTime> requestedSlots,
+      final ReservationPricingRepository repository) {
+
+    validateTimeSlots(requestedSlots);
+    final PlaceId placeId = product.getPlaceId();
+    final LocalDateTime start = requestedSlots.get(0);
+    final LocalDateTime end = requestedSlots.get(requestedSlots.size() - 1);
+
+    final List<ReservationPricing> overlappingReservations =
+        repository.findByPlaceIdAndTimeRange(
+            placeId,
+            start,
+            end,
+            List.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
+
+    final int maxUsedQuantity = requestedSlots.stream()
+        .mapToInt(slot -> calculateUsedAtSlot(overlappingReservations, product.getProductId(),
+            slot))
+        .max()
+        .orElse(0);
+
+    return Math.max(0, product.getTotalQuantity() - maxUsedQuantity);
+  }
+
+  /**
+   * ROOM Scope 상품의 가용 수량을 계산합니다.
+   *
+   * @param product 확인할 상품
+   * @param requestedSlots 요청 시간 슬롯 목록
+   * @param repository 예약 가격 Repository
+   * @return 가용한 수량
+   */
+  private int calculateRoomScopedAvailableQuantity(
+      final Product product,
+      final List<LocalDateTime> requestedSlots,
+      final ReservationPricingRepository repository) {
+
+    validateTimeSlots(requestedSlots);
+    final RoomId roomId = product.getRoomId();
+    final LocalDateTime start = requestedSlots.get(0);
+    final LocalDateTime end = requestedSlots.get(requestedSlots.size() - 1);
+
+    final List<ReservationPricing> overlappingReservations =
+        repository.findByRoomIdAndTimeRange(
+            roomId,
+            start,
+            end,
+            List.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
+
+    final int maxUsedQuantity = requestedSlots.stream()
+        .mapToInt(slot -> calculateUsedAtSlot(overlappingReservations, product.getProductId(),
+            slot))
+        .max()
+        .orElse(0);
+
+    return Math.max(0, product.getTotalQuantity() - maxUsedQuantity);
+  }
+
+  /**
    * RESERVATION Scope 상품의 재고 가용성을 확인합니다.
    * 시간과 무관하게 총 재고량만 확인합니다.
    *

@@ -1,10 +1,13 @@
 package com.teambind.springproject.adapter.in.web.product;
 
+import com.teambind.springproject.application.dto.request.ProductAvailabilityRequest;
 import com.teambind.springproject.application.dto.request.RegisterProductRequest;
 import com.teambind.springproject.application.dto.request.UpdateProductRequest;
+import com.teambind.springproject.application.dto.response.ProductAvailabilityResponse;
 import com.teambind.springproject.application.dto.response.ProductResponse;
 import com.teambind.springproject.application.port.in.DeleteProductUseCase;
 import com.teambind.springproject.application.port.in.GetProductUseCase;
+import com.teambind.springproject.application.port.in.QueryProductAvailabilityUseCase;
 import com.teambind.springproject.application.port.in.RegisterProductUseCase;
 import com.teambind.springproject.application.port.in.UpdateProductUseCase;
 import com.teambind.springproject.domain.product.ProductScope;
@@ -12,7 +15,9 @@ import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.ProductId;
 import com.teambind.springproject.domain.shared.RoomId;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Positive;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,16 +44,19 @@ public class ProductController {
   private final GetProductUseCase getProductUseCase;
   private final UpdateProductUseCase updateProductUseCase;
   private final DeleteProductUseCase deleteProductUseCase;
+  private final QueryProductAvailabilityUseCase queryProductAvailabilityUseCase;
 
   public ProductController(
       final RegisterProductUseCase registerProductUseCase,
       final GetProductUseCase getProductUseCase,
       final UpdateProductUseCase updateProductUseCase,
-      final DeleteProductUseCase deleteProductUseCase) {
+      final DeleteProductUseCase deleteProductUseCase,
+      final QueryProductAvailabilityUseCase queryProductAvailabilityUseCase) {
     this.registerProductUseCase = registerProductUseCase;
     this.getProductUseCase = getProductUseCase;
     this.updateProductUseCase = updateProductUseCase;
     this.deleteProductUseCase = deleteProductUseCase;
+    this.queryProductAvailabilityUseCase = queryProductAvailabilityUseCase;
   }
 
   /**
@@ -145,5 +153,32 @@ public class ProductController {
     deleteProductUseCase.delete(ProductId.of(productId));
 
     return ResponseEntity.noContent().build();
+  }
+
+  /**
+   * 상품 재고 가용성 조회.
+   * 특정 시간대에 예약 가능한 상품 목록과 각 상품의 가용 수량을 반환합니다.
+   *
+   * @param roomId     룸 ID
+   * @param placeId    플레이스 ID
+   * @param timeSlots  예약하려는 시간 슬롯 목록
+   * @return 가용한 상품 목록 및 수량
+   */
+  @GetMapping("/availability")
+  public ResponseEntity<ProductAvailabilityResponse> queryProductAvailability(
+      @RequestParam @Positive(message = "Room ID must be positive") final Long roomId,
+      @RequestParam @Positive(message = "Place ID must be positive") final Long placeId,
+      @RequestParam @NotEmpty(message = "Time slots must not be empty") final List<LocalDateTime> timeSlots) {
+
+    final ProductAvailabilityRequest request = new ProductAvailabilityRequest(
+        roomId,
+        placeId,
+        timeSlots
+    );
+
+    final ProductAvailabilityResponse response = queryProductAvailabilityUseCase.queryAvailability(
+        request);
+
+    return ResponseEntity.ok(response);
   }
 }

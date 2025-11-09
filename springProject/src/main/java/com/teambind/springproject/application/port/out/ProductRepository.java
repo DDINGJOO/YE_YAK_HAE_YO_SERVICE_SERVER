@@ -41,6 +41,18 @@ public interface ProductRepository {
   List<Product> findByRoomId(RoomId roomId);
 
   /**
+   * 특정 룸에서 접근 가능한 모든 상품을 조회합니다.
+   * - ROOM scope: roomId가 일치하는 상품
+   * - PLACE scope: placeId가 일치하는 상품
+   * - RESERVATION scope: 모든 RESERVATION 상품
+   *
+   * @param placeId 플레이스 ID
+   * @param roomId 룸 ID
+   * @return 접근 가능한 상품 목록
+   */
+  List<Product> findAccessibleProducts(PlaceId placeId, RoomId roomId);
+
+  /**
    * ProductScope로 상품을 조회합니다.
    *
    * @param scope 상품 범위

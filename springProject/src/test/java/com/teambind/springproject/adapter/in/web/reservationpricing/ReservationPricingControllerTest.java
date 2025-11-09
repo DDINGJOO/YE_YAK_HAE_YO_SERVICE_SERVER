@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teambind.springproject.application.dto.request.CreateReservationRequest;
 import com.teambind.springproject.application.dto.request.ProductRequest;
 import com.teambind.springproject.application.dto.response.ReservationPricingResponse;
+import com.teambind.springproject.application.port.in.CalculateReservationPriceUseCase;
 import com.teambind.springproject.application.port.in.CreateReservationUseCase;
 import com.teambind.springproject.domain.reservationpricing.exception.ProductNotAvailableException;
 import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;
@@ -40,6 +41,9 @@ class ReservationPricingControllerTest {
 
   @MockBean
   private CreateReservationUseCase createReservationUseCase;
+
+  @MockBean
+  private CalculateReservationPriceUseCase calculateReservationPriceUseCase;
 
   @Nested
   @DisplayName("POST /api/reservations/pricing - 예약 생성")
