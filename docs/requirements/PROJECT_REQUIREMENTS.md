@@ -150,10 +150,21 @@ MSA 아키텍처 환경에서 시간대별 가격 정책, 추가상품 관리, �
 ### 기능 3: 예약 총 가격 정보 저장 및 계산
 
 #### 비즈니스 요구사항
-1. **가격 계산 및 저장**
-   - 시간대별 가격 계산 (기능 1 활용)
-   - 추가상품별 가격 계산 (기능 2 활용)
-   - 총 가격 = 시간대별 가격 합계 + 추가상품 가격 합계
+1. **3단계 예약 프로세스**
+
+   **1단계: 슬롯 예약**
+   - 예약 서비스에서 SlotReservedEvent 발행
+   - 가격 서비스가 시간대 가격만 계산
+   - PENDING 상태로 생성 (상품 정보 없음)
+
+   **2단계: 상품 추가 및 재고 락**
+   - 사용자가 reservationId + 상품 목록 전달
+   - 재고 검증 후 ReservationPricing 업데이트
+   - 여전히 PENDING 상태 (재고 락 효과)
+
+   **3단계: 결제 확정**
+   - 결제 서비스에서 PaymentCompletedEvent 발행
+   - 가격 서비스가 PENDING → CONFIRMED로 상태 변경
 
 2. **저장해야 할 정보 (Snapshot)**
    ```
@@ -162,7 +173,7 @@ MSA 아키텍처 환경에서 시간대별 가격 정책, 추가상품 관리, �
    │  ├─ 각 슬롯별 시작 시간
    │  ├─ 각 슬롯별 가격
    │  └─ 소계
-   ├─ 추가상품별 가격 내역
+   ├─ 추가상품별 가격 내역 (2단계에서 추가)
    │  ├─ 상품 ID
    │  ├─ 상품명
    │  ├─ 수량
@@ -170,23 +181,31 @@ MSA 아키텍처 환경에서 시간대별 가격 정책, 추가상품 관리, �
    │  ├─ 가격 정책 타입
    │  └─ 소계
    ├─ 총 가격
-   └─ 계산 시점 (timestamp)
+   ├─ 계산 시점 (timestamp)
+   └─ 예약 상태 (PENDING/CONFIRMED/CANCELLED)
    ```
 
 3. **형상관리 (Immutability)**
    - 가격 정보는 예약 생성 시점의 스냅샷
    - 이후 가격 정책 변경해도 기존 예약 가격 불변
    - 과거 예약의 가격 추적 가능
+   - 상품 추가 시에만 가격 정보 업데이트 가능 (PENDING 상태에서만)
 
 4. **예약 상태별 동작**
    ```
-   예약 생성 (PENDING):
+   슬롯 예약 (PENDING):
+   ├─ SlotReservedEvent 수신
+   ├─ 시간대 가격 계산
+   └─ 상품 없이 PENDING 상태로 생성
+
+   상품 추가 (PENDING):
    ├─ 재고 가용성 검증
-   ├─ 가격 계산 및 스냅샷 저장
+   ├─ 상품 가격 계산 및 업데이트
    └─ 재고 차감 (soft lock)
 
    예약 확정 (CONFIRMED):
-   ├─ 재고 유지
+   ├─ PaymentCompletedEvent 수신
+   ├─ 재고 유지 (이미 차감됨)
    └─ 가격 정보 확정
 
    예약 취소 (CANCELLED):
@@ -250,19 +269,49 @@ MSA 아키텍처 환경에서 시간대별 가격 정책, 추가상품 관리, �
 ## 외부 의존성
 
 ### 이벤트 수신
-- **RoomCreatedEvent**
-  - Source: 룸 관리 서버
-  - Payload: `roomId`, `placeId`, `timeSlot`
-  - Protocol: 메시지 큐 (Kafka/RabbitMQ 등)
+
+#### 1. RoomCreatedEvent
+- **Source**: 룸 관리 서버
+- **Payload**: `roomId`, `placeId`, `timeSlot`
+- **Topic**: `room-events`
+- **처리**: 기본 가격 정책 생성
+- **상태**: ✅ 구현 완료
+
+#### 2. SlotReservedEvent
+- **Source**: 예약 서버
+- **Payload**: `reservationId`, `roomId`, `slotDate`, `startTimes`, `occurredAt`
+- **Topic**: `reservation-reserved`
+- **처리**: 시간대 가격 계산 및 PENDING 상태 ReservationPricing 생성
+- **특징**:
+  - placeId는 PricingPolicy에서 조회
+  - 상품 정보는 포함하지 않음
+  - 멱등성 보장 (중복 처리 방지)
+- **상태**: ✅ 구현 완료
+
+#### 3. PaymentCompletedEvent
+- **Source**: 결제 서버
+- **Payload**: `paymentId`, `reservationId`, `amount`, `occurredAt`
+- **Topic**: `payment-completed`
+- **처리**: PENDING → CONFIRMED 상태 변경
+- **상태**: ⚠️ 구현 필요
+
+#### 4. ReservationExpiredEvent (Optional)
+- **Source**: 예약 서버
+- **Payload**: `reservationId`, `expiredAt`
+- **Topic**: `reservation-expired`
+- **처리**: 시간 초과된 예약 자동 취소 (재고 복구)
+- **상태**: ⚠️ 구현 필요
 
 ### 이벤트 발행
-- **ReservationCreatedEvent** (PENDING)
-- **ReservationConfirmedEvent** (CONFIRMED)
-- **ReservationCancelledEvent** (CANCELLED)
+이 서비스는 현재 이벤트를 발행하지 않음 (Read-Only from event perspective)
+
+향후 필요 시 고려:
+- **PricingCalculatedEvent**: 가격 계산 완료 알림
+- **ReservationCancelledEvent**: 예약 취소 알림 (재고 복구 통보)
 
 ### 외부 서비스 호출 없음
 - 이 서비스는 다른 서비스의 동기 API를 호출하지 않음
-- 완전한 이벤트 기반 통신
+- 완전한 이벤트 기반 통신 (Event-Driven)
 
 ---
 
@@ -298,3 +347,22 @@ MSA 아키텍처 환경에서 시간대별 가격 정책, 추가상품 관리, �
 - 새로운 가격 정책 추가 시간: 1일 이내
 - 새로운 상품 타입 추가 시간: 2일 이내
 - 단위 테스트 커버리지: 80% 이상
+
+---
+
+## 관련 문서
+
+### 상세 설계 문서
+- [예약 플로우 전체 시나리오](../features/reservation/RESERVATION_FLOW.md) - 예약 서비스와 가격 서비스 간 협업 프로세스
+- [Product Domain](../features/product/domain.md) - 상품 도메인 설계
+- [Pricing Policy Domain](../features/pricing-policy/domain.md) - 가격 정책 도메인 설계
+- [Event Handling Architecture](../features/event-handling/architecture.md) - 이벤트 처리 아키텍처
+
+### 아키텍처 문서
+- [Architecture Decision Records](../adr/ADR_001_ARCHITECTURE_DECISION.md)
+- [Domain Model Design](../architecture/DOMAIN_MODEL_DESIGN.md)
+- [Tech Stack Analysis](../architecture/TECH_STACK_ANALYSIS.md)
+
+### 개발 가이드
+- [Performance Optimization](../development/performance/optimization.md) - N+1 쿼리 최적화 가이드
+- [Performance Testing Guide](../development/performance/testing-guide.md) - 성능 테스트 방법론
