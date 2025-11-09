@@ -50,6 +50,7 @@ dependencies {
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
+    testImplementation 'org.awaitility:awaitility:4.2.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     // Test - H2 for integration tests
