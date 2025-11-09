@@ -75,9 +75,9 @@
 - [API 문서](./API.md)
 
 ## 관련 Issues
-- Issue #11: Product Aggregate 구현 ✅
-- Issue #13: Product Repository 및 영속성 구현 ✅
-- Issue #14: Product API 구현 ✅
+- Issue #11: Product Aggregate 구현 
+- Issue #13: Product Repository 및 영속성 구현 
+- Issue #14: Product API 구현 
 
 ## Product Scope
 Product는 3가지 범위(Scope)로 구분됩니다:

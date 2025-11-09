@@ -321,7 +321,7 @@ product.updatePricingStrategy(
 
 ### 구현 완료 (Issue #14)
 
-#### 1. RegisterProductUseCase ✅
+#### 1. RegisterProductUseCase 
 **구현**: `RegisterProductService`
 - 상품 생성 (PLACE/ROOM/RESERVATION Scope별)
 - Scope별 ID 검증
@@ -331,7 +331,7 @@ product.updatePricingStrategy(
 
 **REST API**: `POST /api/products`
 
-#### 2. GetProductUseCase ✅
+#### 2. GetProductUseCase 
 **구현**: `GetProductService`
 - 상품 조회 (ID, PlaceId, RoomId, Scope별)
 - 전체 상품 목록 조회
@@ -343,7 +343,7 @@ product.updatePricingStrategy(
 - `GET /api/products?placeId=100`
 - `GET /api/products?roomId=200`
 
-#### 3. UpdateProductUseCase ✅
+#### 3. UpdateProductUseCase 
 **구현**: `UpdateProductService`
 - 상품 정보 수정
 - 이름, 가격 전략, 수량 변경
@@ -351,7 +351,7 @@ product.updatePricingStrategy(
 
 **REST API**: `PUT /api/products/{productId}`
 
-#### 4. DeleteProductUseCase ✅
+#### 4. DeleteProductUseCase 
 **구현**: `DeleteProductService`
 - 상품 삭제
 - 존재 여부 검증
