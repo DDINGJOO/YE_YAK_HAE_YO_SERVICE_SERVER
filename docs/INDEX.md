@@ -25,12 +25,27 @@ docs/
 │   ├── README.md
 │   └── ADR_001_ARCHITECTURE_DECISION.md (최종 아키텍처 결정)
 │
+├── development/                      (개발 가이드)
+│   └── performance/                  (성능 관련)
+│       ├── optimization.md           (성능 최적화 전략)
+│       └── testing-guide.md          (성능 테스트 가이드)
+│
 └── features/                         (기능별 상세 문서)
     ├── pricing-policy/               (가격 정책 기능)
     │   ├── README.md                 (개요)
     │   ├── domain.md                 (도메인 모델)
     │   ├── flow.md                   (플로우 및 시퀀스)
-    │   └── database.md               (DB 스키마)
+    │   ├── database.md               (DB 스키마)
+    │   └── API.md                    (REST API 명세)
+    │
+    ├── product/                      (추가상품 기능)
+    │   ├── README.md                 (개요)
+    │   ├── domain.md                 (도메인 모델)
+    │   ├── database.md               (DB 스키마)
+    │   └── API.md                    (REST API 명세)
+    │
+    ├── reservation/                  (예약 기능)
+    │   └── RESERVATION_FLOW.md       (예약 플로우 전체 시나리오)
     │
     └── event-handling/               (이벤트 처리 기능)
         ├── README.md                 (개요)
@@ -60,6 +75,13 @@ docs/
   - [database.md](features/product/database.md) - DB 스키마 및 JPA 매핑
   - [API.md](features/product/API.md) - REST API 명세 및 사용 예시
 
+- **reservation/**: 예약 기능 (Issue #68)
+  - [RESERVATION_FLOW.md](features/reservation/RESERVATION_FLOW.md) - 예약 플로우 전체 시나리오 (7단계)
+    - 슬롯 예약 → 시간대 가격 계산 → 재고 조회 → 상품 추가 및 재고 락 → 결제 → 예약 확정 → 취소
+    - 상태 전이 다이어그램 (PENDING → CONFIRMED → CANCELLED)
+    - 재고 관리 메커니즘 (소프트 락, 하드 락, 해제)
+    - 실패 시나리오 및 보상 트랜잭션
+
 - **event-handling/**: 이벤트 처리 기능 (Issue #9)
   - [README.md](features/event-handling/README.md) - 기능 개요 및 아키텍처 원칙
   - [architecture.md](features/event-handling/architecture.md) - 계층별 상세 설계
@@ -70,6 +92,7 @@ docs/
 - 유사한 기능 개발 시 참고용
 - 코드 리뷰 시
 - 버그 분석 시
+- 전체 예약 플로우 이해 필요 시
 
 ---
 
@@ -226,6 +249,35 @@ docs/
 
 ---
 
+### 개발 가이드 (Development)
+
+**위치:** `development/`
+
+**목적:** 개발 과정에서 필요한 가이드 및 최적화 전략을 제공합니다.
+
+**주요 문서:**
+
+#### performance/optimization.md
+- JPA N+1 문제 해결 전략
+- 캐싱 전략 (Redis, Caffeine)
+- DB 쿼리 최적화
+- 인덱스 설계 및 최적화
+- 성능 개선 사례
+
+#### performance/testing-guide.md
+- JMeter를 활용한 부하 테스트
+- 성능 테스트 시나리오
+- 모니터링 및 분석
+- 성능 목표 및 검증
+
+**언제 읽나요?**
+- 성능 최적화 필요 시
+- 부하 테스트 수행 시
+- 성능 이슈 분석 시
+- 프로덕션 배포 전 성능 검증 시
+
+---
+
 ### 프로젝트 자동화 (Project Automation)
 
 **위치:** `docs/` (최상위)
@@ -328,10 +380,11 @@ docs/
 5. **features/product/database.md** (DB 스키마 및 JPA 매핑)
 6. adr/ADR_001_ARCHITECTURE_DECISION.md (설계 결정)
 
-#### "예약 가격 계산"에 대해 알고 싶다면?
-1. requirements/PROJECT_REQUIREMENTS.md (기능 3)
-2. architecture/DOMAIN_MODEL_DESIGN.md (ReservationPricing Aggregate)
-3. adr/ADR_001_ARCHITECTURE_DECISION.md (Value Object Snapshot)
+#### "예약 가격 계산" 또는 "예약 플로우"에 대해 알고 싶다면?
+1. requirements/PROJECT_REQUIREMENTS.md (기능 3 - 3단계 예약 프로세스)
+2. **features/reservation/RESERVATION_FLOW.md** (전체 예약 플로우 시나리오)
+3. architecture/DOMAIN_MODEL_DESIGN.md (ReservationPricing Aggregate)
+4. adr/ADR_001_ARCHITECTURE_DECISION.md (Value Object Snapshot)
 
 ---
 
@@ -369,6 +422,27 @@ docs/
 ## 최근 업데이트
 
 ### 2025-11-09
+- **문서 구조 정리 및 예약 플로우 문서화**
+  - docs/development/performance/ 디렉토리 신규 생성
+  - PERFORMANCE_OPTIMIZATION.md, PERFORMANCE_TESTING_GUIDE.md 이동 및 정리
+  - docs/features/reservation/ 디렉토리 신규 생성
+  - RESERVATION_FLOW.md: 예약 플로우 전체 시나리오 문서화 (370 lines)
+    - 7단계 예약 프로세스 (슬롯 예약 → 시간대 가격 계산 → 재고 조회 → 상품 추가 및 재고 락 → 결제 → 예약 확정 → 취소)
+    - 상태 전이 다이어그램 (PENDING → CONFIRMED → CANCELLED)
+    - 재고 관리 메커니즘 (소프트 락, 하드 락, 해제)
+    - 실패 시나리오 및 보상 트랜잭션
+  - PROJECT_REQUIREMENTS.md 업데이트
+    - 기능 3을 3단계 예약 프로세스로 수정
+    - 외부 의존성 섹션에 모든 이벤트 명시
+    - 구현 상태 표시 추가
+    - 관련 문서 링크 추가
+
+- **SlotReservedEvent 핸들러 구현 완료** (Issue #68)
+  - SlotReservedEvent 이벤트 처리
+  - 시간대 가격 자동 계산 및 PENDING 상태 ReservationPricing 생성
+  - 멱등성 보장 (중복 처리 방지)
+  - 통합 테스트 완료
+
 - **추가상품 기능 완료** (Issue #11, #13, #14)
   - Issue #11: Product Aggregate 구현 (도메인 모델, 테스트 67개) 
   - Issue #13: Product Repository 구현 (영속성 계층, 통합 테스트 13개) 
