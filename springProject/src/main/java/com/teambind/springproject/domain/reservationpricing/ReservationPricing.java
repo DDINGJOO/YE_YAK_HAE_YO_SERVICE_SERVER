@@ -96,6 +96,39 @@ public class ReservationPricing {
   }
 
   /**
+   * 저장된 예약 가격 데이터를 복원합니다 (Repository용 Factory Method).
+   * 이미 검증된 데이터를 복원하는 용도로만 사용해야 합니다.
+   *
+   * @param reservationId 예약 ID
+   * @param roomId 룸 ID
+   * @param status 예약 상태
+   * @param timeSlotBreakdown 시간대별 가격 내역
+   * @param productBreakdowns 상품별 가격 내역
+   * @param totalPrice 총 가격
+   * @param calculatedAt 계산 시각
+   * @return ReservationPricing
+   */
+  public static ReservationPricing restore(
+      final ReservationId reservationId,
+      final RoomId roomId,
+      final ReservationStatus status,
+      final TimeSlotPriceBreakdown timeSlotBreakdown,
+      final List<ProductPriceBreakdown> productBreakdowns,
+      final Money totalPrice,
+      final LocalDateTime calculatedAt) {
+
+    return new ReservationPricing(
+        reservationId,
+        roomId,
+        status,
+        timeSlotBreakdown,
+        productBreakdowns,
+        totalPrice,
+        calculatedAt
+    );
+  }
+
+  /**
    * 예약을 확정합니다.
    * PENDING 상태에서만 CONFIRMED로 전환 가능합니다.
    */
