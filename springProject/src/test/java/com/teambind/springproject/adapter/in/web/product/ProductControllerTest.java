@@ -19,6 +19,7 @@ import com.teambind.springproject.application.dto.request.UpdateProductRequest;
 import com.teambind.springproject.application.dto.response.ProductResponse;
 import com.teambind.springproject.application.port.in.DeleteProductUseCase;
 import com.teambind.springproject.application.port.in.GetProductUseCase;
+import com.teambind.springproject.application.port.in.QueryProductAvailabilityUseCase;
 import com.teambind.springproject.application.port.in.RegisterProductUseCase;
 import com.teambind.springproject.application.port.in.UpdateProductUseCase;
 import com.teambind.springproject.domain.product.ProductScope;
@@ -59,6 +60,9 @@ class ProductControllerTest {
 
   @MockBean
   private DeleteProductUseCase deleteProductUseCase;
+
+  @MockBean
+  private QueryProductAvailabilityUseCase queryProductAvailabilityUseCase;
 
   @Nested
   @DisplayName("POST /api/products - 상품 등록")
