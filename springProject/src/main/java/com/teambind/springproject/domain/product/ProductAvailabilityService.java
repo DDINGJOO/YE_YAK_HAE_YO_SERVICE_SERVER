@@ -1,8 +1,10 @@
 package com.teambind.springproject.domain.product;
 
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
+import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.ProductId;
+import com.teambind.springproject.domain.shared.ReservationStatus;
 import com.teambind.springproject.domain.shared.RoomId;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -50,14 +52,10 @@ public class ProductAvailabilityService {
 
     return switch (product.getScope()) {
       case RESERVATION -> checkSimpleStockAvailability(product, requestedQuantity);
-      // TODO: Issue #15 (ReservationPricing 도메인 구현) 완료 후 주석 해제
-      // case PLACE -> checkPlaceScopedAvailability(
-      //     product, requestedSlots, requestedQuantity, repository);
-      // case ROOM -> checkRoomScopedAvailability(
-      //     product, requestedSlots, requestedQuantity, repository);
-      default -> throw new UnsupportedOperationException(
-          "Scope " + product.getScope() + " is not yet implemented. "
-              + "Will be implemented after Issue #15 (ReservationPricing domain model)");
+      case PLACE -> checkPlaceScopedAvailability(
+          product, requestedSlots, requestedQuantity, repository);
+      case ROOM -> checkRoomScopedAvailability(
+          product, requestedSlots, requestedQuantity, repository);
     };
   }
 
@@ -86,34 +84,34 @@ public class ProductAvailabilityService {
    * @param repository 예약 가격 Repository
    * @return 가용하면 true, 아니면 false
    */
-  // TODO: Issue #15 (ReservationPricing 도메인 구현) 완료 후 구현
-  // private boolean checkPlaceScopedAvailability(
-  //     final Product product,
-  //     final List<LocalDateTime> requestedSlots,
-  //     final int requestedQuantity,
-  //     final ReservationPricingRepository repository) {
-  //
-  //   validateTimeSlots(requestedSlots);
-  //   final PlaceId placeId = product.getPlaceId();
-  //   final LocalDateTime start = requestedSlots.get(0);
-  //   final LocalDateTime end = requestedSlots.get(requestedSlots.size() - 1);
-  //
-  //   // PENDING과 CONFIRMED 상태의 예약만 조회
-  //   final List<ReservationPricing> overlappingReservations =
-  //       repository.findByPlaceIdAndTimeRange(
-  //           placeId,
-  //           start,
-  //           end,
-  //           List.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
-  //
-  //   // 각 슬롯별 최대 사용량 계산
-  //   final int maxUsedQuantity = requestedSlots.stream()
-  //       .mapToInt(slot -> calculateUsedAtSlot(overlappingReservations, product.getProductId(), slot))
-  //       .max()
-  //       .orElse(0);
-  //
-  //   return maxUsedQuantity + requestedQuantity <= product.getTotalQuantity();
-  // }
+  private boolean checkPlaceScopedAvailability(
+      final Product product,
+      final List<LocalDateTime> requestedSlots,
+      final int requestedQuantity,
+      final ReservationPricingRepository repository) {
+
+    validateTimeSlots(requestedSlots);
+    final PlaceId placeId = product.getPlaceId();
+    final LocalDateTime start = requestedSlots.get(0);
+    final LocalDateTime end = requestedSlots.get(requestedSlots.size() - 1);
+
+    // PENDING과 CONFIRMED 상태의 예약만 조회
+    final List<ReservationPricing> overlappingReservations =
+        repository.findByPlaceIdAndTimeRange(
+            placeId,
+            start,
+            end,
+            List.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
+
+    // 각 슬롯별 최대 사용량 계산
+    final int maxUsedQuantity = requestedSlots.stream()
+        .mapToInt(slot -> calculateUsedAtSlot(overlappingReservations, product.getProductId(),
+            slot))
+        .max()
+        .orElse(0);
+
+    return maxUsedQuantity + requestedQuantity <= product.getTotalQuantity();
+  }
 
   /**
    * ROOM Scope 상품의 재고 가용성을 확인합니다.
@@ -125,34 +123,34 @@ public class ProductAvailabilityService {
    * @param repository 예약 가격 Repository
    * @return 가용하면 true, 아니면 false
    */
-  // TODO: Issue #15 (ReservationPricing 도메인 구현) 완료 후 구현
-  // private boolean checkRoomScopedAvailability(
-  //     final Product product,
-  //     final List<LocalDateTime> requestedSlots,
-  //     final int requestedQuantity,
-  //     final ReservationPricingRepository repository) {
-  //
-  //   validateTimeSlots(requestedSlots);
-  //   final RoomId roomId = product.getRoomId();
-  //   final LocalDateTime start = requestedSlots.get(0);
-  //   final LocalDateTime end = requestedSlots.get(requestedSlots.size() - 1);
-  //
-  //   // PENDING과 CONFIRMED 상태의 예약만 조회
-  //   final List<ReservationPricing> overlappingReservations =
-  //       repository.findByRoomIdAndTimeRange(
-  //           roomId,
-  //           start,
-  //           end,
-  //           List.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
-  //
-  //   // 각 슬롯별 최대 사용량 계산
-  //   final int maxUsedQuantity = requestedSlots.stream()
-  //       .mapToInt(slot -> calculateUsedAtSlot(overlappingReservations, product.getProductId(), slot))
-  //       .max()
-  //       .orElse(0);
-  //
-  //   return maxUsedQuantity + requestedQuantity <= product.getTotalQuantity();
-  // }
+  private boolean checkRoomScopedAvailability(
+      final Product product,
+      final List<LocalDateTime> requestedSlots,
+      final int requestedQuantity,
+      final ReservationPricingRepository repository) {
+
+    validateTimeSlots(requestedSlots);
+    final RoomId roomId = product.getRoomId();
+    final LocalDateTime start = requestedSlots.get(0);
+    final LocalDateTime end = requestedSlots.get(requestedSlots.size() - 1);
+
+    // PENDING과 CONFIRMED 상태의 예약만 조회
+    final List<ReservationPricing> overlappingReservations =
+        repository.findByRoomIdAndTimeRange(
+            roomId,
+            start,
+            end,
+            List.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
+
+    // 각 슬롯별 최대 사용량 계산
+    final int maxUsedQuantity = requestedSlots.stream()
+        .mapToInt(slot -> calculateUsedAtSlot(overlappingReservations, product.getProductId(),
+            slot))
+        .max()
+        .orElse(0);
+
+    return maxUsedQuantity + requestedQuantity <= product.getTotalQuantity();
+  }
 
   /**
    * 특정 시간 슬롯에서 해당 상품이 사용 중인 수량을 계산합니다.
@@ -162,19 +160,18 @@ public class ProductAvailabilityService {
    * @param slot 확인할 시간 슬롯
    * @return 사용 중인 수량
    */
-  // TODO: Issue #15 (ReservationPricing 도메인 구현) 완료 후 구현
-  // private int calculateUsedAtSlot(
-  //     final List<ReservationPricing> reservations,
-  //     final ProductId productId,
-  //     final LocalDateTime slot) {
-  //
-  //   return reservations.stream()
-  //       .filter(reservation -> reservation.getTimeSlots().contains(slot))
-  //       .flatMap(reservation -> reservation.getProductBreakdowns().stream())
-  //       .filter(breakdown -> breakdown.productId().equals(productId))
-  //       .mapToInt(ProductPriceBreakdown::quantity)
-  //       .sum();
-  // }
+  private int calculateUsedAtSlot(
+      final List<ReservationPricing> reservations,
+      final ProductId productId,
+      final LocalDateTime slot) {
+
+    return reservations.stream()
+        .filter(reservation -> reservation.getTimeSlotBreakdown().slotPrices().containsKey(slot))
+        .flatMap(reservation -> reservation.getProductBreakdowns().stream())
+        .filter(breakdown -> breakdown.productId().equals(productId))
+        .mapToInt(ProductPriceBreakdown::quantity)
+        .sum();
+  }
 
   /**
    * 요청 수량이 유효한지 검증합니다.
@@ -195,10 +192,9 @@ public class ProductAvailabilityService {
    * @param requestedSlots 시간 슬롯 목록
    * @throws IllegalArgumentException 슬롯이 null이거나 비어있는 경우
    */
-  // TODO: Issue #15 (ReservationPricing 도메인 구현) 완료 후 주석 해제
-  // private void validateTimeSlots(final List<LocalDateTime> requestedSlots) {
-  //   if (requestedSlots == null || requestedSlots.isEmpty()) {
-  //     throw new IllegalArgumentException("Requested time slots cannot be null or empty");
-  //   }
-  // }
+  private void validateTimeSlots(final List<LocalDateTime> requestedSlots) {
+    if (requestedSlots == null || requestedSlots.isEmpty()) {
+      throw new IllegalArgumentException("Requested time slots cannot be null or empty");
+    }
+  }
 }
