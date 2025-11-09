@@ -19,10 +19,7 @@ public class ReservationId {
   }
 
   private void validateValue(final Long value) {
-    if (value == null) {
-      throw new IllegalArgumentException("Reservation ID cannot be null");
-    }
-    if (value <= 0) {
+    if (value != null && value <= 0) {
       throw new IllegalArgumentException("Reservation ID must be positive: " + value);
     }
   }

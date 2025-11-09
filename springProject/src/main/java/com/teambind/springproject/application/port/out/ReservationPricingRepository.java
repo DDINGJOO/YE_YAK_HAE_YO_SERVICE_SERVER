@@ -1,19 +1,27 @@
 package com.teambind.springproject.application.port.out;
 
+import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.shared.PlaceId;
+import com.teambind.springproject.domain.shared.ReservationId;
 import com.teambind.springproject.domain.shared.ReservationStatus;
 import com.teambind.springproject.domain.shared.RoomId;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * ReservationPricing Aggregate를 영속화하기 위한 Repository Port.
  * Hexagonal Architecture의 출력 포트(Output Port)입니다.
- *
- * <p>이 인터페이스는 예약 가격 스냅샷을 조회하는 메서드를 정의합니다.
- * 특히 ProductAvailabilityService에서 재고 가용성 검증을 위해 사용됩니다.
  */
 public interface ReservationPricingRepository {
+
+  /**
+   * ReservationId로 예약 가격을 조회합니다.
+   *
+   * @param reservationId 예약 ID
+   * @return 예약 가격 (없으면 Optional.empty())
+   */
+  Optional<ReservationPricing> findById(ReservationId reservationId);
 
   /**
    * PlaceId와 시간 범위로 예약 가격 스냅샷을 조회합니다.
@@ -25,12 +33,11 @@ public interface ReservationPricingRepository {
    * @param statuses 조회할 예약 상태 목록
    * @return 조건에 맞는 예약 가격 스냅샷 목록
    */
-  // TODO: ReservationPricing 도메인 모델 구현 후 반환 타입 변경 (Issue #15)
-  // List<ReservationPricing> findByPlaceIdAndTimeRange(
-  //     PlaceId placeId,
-  //     LocalDateTime start,
-  //     LocalDateTime end,
-  //     List<ReservationStatus> statuses);
+  List<ReservationPricing> findByPlaceIdAndTimeRange(
+      PlaceId placeId,
+      LocalDateTime start,
+      LocalDateTime end,
+      List<ReservationStatus> statuses);
 
   /**
    * RoomId와 시간 범위로 예약 가격 스냅샷을 조회합니다.
@@ -42,10 +49,41 @@ public interface ReservationPricingRepository {
    * @param statuses 조회할 예약 상태 목록
    * @return 조건에 맞는 예약 가격 스냅샷 목록
    */
-  // TODO: ReservationPricing 도메인 모델 구현 후 반환 타입 변경 (Issue #15)
-  // List<ReservationPricing> findByRoomIdAndTimeRange(
-  //     RoomId roomId,
-  //     LocalDateTime start,
-  //     LocalDateTime end,
-  //     List<ReservationStatus> statuses);
+  List<ReservationPricing> findByRoomIdAndTimeRange(
+      RoomId roomId,
+      LocalDateTime start,
+      LocalDateTime end,
+      List<ReservationStatus> statuses);
+
+  /**
+   * 특정 상태의 예약 가격을 조회합니다.
+   *
+   * @param statuses 조회할 상태 목록
+   * @return 예약 가격 목록
+   */
+  List<ReservationPricing> findByStatusIn(List<ReservationStatus> statuses);
+
+  /**
+   * 예약 가격을 저장합니다.
+   * 새로운 예약이면 INSERT, 기존 예약이면 UPDATE합니다.
+   *
+   * @param reservationPricing 저장할 예약 가격
+   * @return 저장된 예약 가격
+   */
+  ReservationPricing save(ReservationPricing reservationPricing);
+
+  /**
+   * ReservationId로 예약 가격을 삭제합니다.
+   *
+   * @param reservationId 예약 ID
+   */
+  void deleteById(ReservationId reservationId);
+
+  /**
+   * ReservationId에 해당하는 예약 가격이 존재하는지 확인합니다.
+   *
+   * @param reservationId 예약 ID
+   * @return 존재하면 true, 아니면 false
+   */
+  boolean existsById(ReservationId reservationId);
 }
