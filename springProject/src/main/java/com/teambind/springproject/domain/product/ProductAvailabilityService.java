@@ -8,6 +8,7 @@ import com.teambind.springproject.domain.shared.ReservationStatus;
 import com.teambind.springproject.domain.shared.RoomId;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.stereotype.Service;
 
 /**
  * 상품 재고 가용성을 검증하는 Domain Service.
@@ -30,6 +31,7 @@ import java.util.List;
  * @see Product
  * @see ProductScope
  */
+@Service
 public class ProductAvailabilityService {
 
   /**
