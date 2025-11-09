@@ -1,84 +1,84 @@
-# Performance Optimization Guide
+# 성능 최적화 가이드
 
-## Document Overview
+## 문서 개요
 
-**Purpose**: Systematic analysis and resolution plan for N+1 query problems and performance bottlenecks in the Reservation Pricing Service.
+**목적**: 예약 가격 관리 서비스의 N+1 쿼리 문제 및 성능 병목 현상에 대한 체계적인 분석 및 해결 계획
 
-**Target Audience**: Backend developers, architects, and technical leads
+**대상**: 백엔드 개발자, 아키텍트, 기술 리더
 
-**Last Updated**: 2025-11-09
+**최종 업데이트**: 2025-11-09
 
-**Status**: Planning Phase
-
----
-
-## Table of Contents
-
-1. [Executive Summary](#executive-summary)
-2. [Identified Issues](#identified-issues)
-3. [Solution Approaches](#solution-approaches)
-4. [Implementation Roadmap](#implementation-roadmap)
-5. [Technical Specifications](#technical-specifications)
-6. [Risk Assessment](#risk-assessment)
-7. [Performance Metrics](#performance-metrics)
+**상태**: 계획 단계
 
 ---
 
-## Executive Summary
+## 목차
 
-### Current Situation
-
-The codebase has been audited for performance bottlenecks. While the architecture follows Hexagonal/DDD principles excellently, several N+1 query patterns were identified that could significantly impact performance under load.
-
-### Impact Assessment
-
-- **Severity**: CRITICAL
-- **Affected Components**: PricingPolicy, ReservationPricing, Product repositories
-- **Estimated Performance Degradation**: 40-70% slower queries under production load
-- **User Impact**: Increased response times on reservation creation and pricing queries
-
-### Proposed Solution
-
-Phased implementation combining multiple optimization techniques:
-- Phase 1: Batch Size optimization (Low risk, immediate benefit)
-- Phase 2: JPQL Fetch Join for common queries (Medium risk, high benefit)
-- Phase 3: QueryDSL integration for complex queries (Higher initial cost, long-term benefit)
+1. [요약](#요약)
+2. [식별된 문제점](#식별된-문제점)
+3. [해결 방안](#해결-방안)
+4. [구현 로드맵](#구현-로드맵)
+5. [기술 사양](#기술-사양)
+6. [리스크 평가](#리스크-평가)
+7. [성능 지표](#성능-지표)
 
 ---
 
-## Identified Issues
+## 요약
 
-### Issue 1: PricingPolicyEntity EAGER Loading
+### 현재 상황
 
-**Location**: `springProject/src/main/java/com/teambind/springproject/adapter/out/persistence/pricingpolicy/PricingPolicyEntity.java:47`
+코드베이스에 대한 성능 병목 현상 감사가 완료되었습니다. 아키텍처는 Hexagonal/DDD 원칙을 훌륭하게 따르고 있지만, 부하 상황에서 성능에 큰 영향을 미칠 수 있는 여러 N+1 쿼리 패턴이 식별되었습니다.
 
-**Code**:
+### 영향 평가
+
+- **심각도**: 치명적
+- **영향 받는 컴포넌트**: PricingPolicy, ReservationPricing, Product 리포지토리
+- **예상 성능 저하**: 프로덕션 부하 상황에서 쿼리 40-70% 느려짐
+- **사용자 영향**: 예약 생성 및 가격 조회 시 응답 시간 증가
+
+### 제안 솔루션
+
+여러 최적화 기법을 결합한 단계별 구현:
+- Phase 1: Batch Size 최적화 (낮은 위험, 즉각적인 효과)
+- Phase 2: 일반 쿼리를 위한 JPQL Fetch Join (중간 위험, 높은 효과)
+- Phase 3: 복잡한 쿼리를 위한 QueryDSL 통합 (초기 비용 높음, 장기적 이득)
+
+---
+
+## 식별된 문제점
+
+### 문제 1: PricingPolicyEntity EAGER 로딩
+
+**위치**: `springProject/src/main/java/com/teambind/springproject/adapter/out/persistence/pricingpolicy/PricingPolicyEntity.java:47`
+
+**코드**:
 ```java
 @ElementCollection(fetch = FetchType.EAGER)
 @CollectionTable(name = "time_range_prices", ...)
 private List<TimeRangePriceEmbeddable> timeRangePrices = new ArrayList<>();
 ```
 
-**Problem**:
-- Always loads time_range_prices table even when not needed
-- Causes N+1 queries when fetching multiple pricing policies
-- Database join occurs unconditionally
+**문제**:
+- 필요하지 않을 때도 항상 time_range_prices 테이블을 로드
+- 여러 가격 정책을 조회할 때 N+1 쿼리 발생
+- 데이터베이스 조인이 무조건적으로 발생
 
-**Impact**: HIGH
-- Affects: All pricing policy queries
-- Query multiplier: N+1 where N = number of policies
-- Memory overhead: Loads all time range prices into heap
+**영향**: 높음
+- 영향 대상: 모든 가격 정책 쿼리
+- 쿼리 배수: N+1 (N = 정책 개수)
+- 메모리 오버헤드: 모든 시간대 가격을 힙에 로드
 
-**Proposed Fix**: Convert to LAZY with selective FETCH JOIN
-**Expected Improvement**: 40-60% query reduction
+**제안 수정 사항**: 선택적 FETCH JOIN과 함께 LAZY로 전환
+**예상 개선**: 40-60% 쿼리 감소
 
 ---
 
-### Issue 2: ReservationPricingEntity Multiple EAGER Collections
+### 문제 2: ReservationPricingEntity 다중 EAGER 컬렉션
 
-**Location**: `springProject/src/main/java/com/teambind/springproject/adapter/out/persistence/reservationpricing/ReservationPricingEntity.java:62,71`
+**위치**: `springProject/src/main/java/com/teambind/springproject/adapter/out/persistence/reservationpricing/ReservationPricingEntity.java:62,71`
 
-**Code**:
+**코드**:
 ```java
 @ElementCollection(fetch = FetchType.EAGER)
 @CollectionTable(name = "reservation_pricing_slots", ...)
@@ -89,26 +89,26 @@ private Map<LocalDateTime, BigDecimal> slotPrices = new HashMap<>();
 private List<ProductPriceBreakdownEmbeddable> productBreakdowns = new ArrayList<>();
 ```
 
-**Problem**:
-- Two EAGER ElementCollections create Cartesian Product risk
-- Always loads both collections regardless of use case
-- Potential MultipleBagFetchException in future
+**문제**:
+- 두 개의 EAGER ElementCollection이 카르테시안 곱 위험 생성
+- 사용 사례와 관계없이 항상 두 컬렉션을 로드
+- 향후 MultipleBagFetchException 가능성
 
-**Impact**: CRITICAL
-- Affects: All reservation queries
-- Query multiplier: 1 + 2*N
-- Memory overhead: Significant with large reservation lists
+**영향**: 치명적
+- 영향 대상: 모든 예약 쿼리
+- 쿼리 배수: 1 + 2*N
+- 메모리 오버헤드: 큰 예약 목록에서 상당함
 
-**Proposed Fix**: LAZY + BatchSize + selective FETCH JOIN
-**Expected Improvement**: 50-80% query reduction
+**제안 수정 사항**: LAZY + BatchSize + 선택적 FETCH JOIN
+**예상 개선**: 50-80% 쿼리 감소
 
 ---
 
-### Issue 3: ProductAvailabilityService In-Memory Processing
+### 문제 3: ProductAvailabilityService 인메모리 처리
 
-**Location**: `springProject/src/main/java/com/teambind/springproject/domain/product/ProductAvailabilityService.java:103-115,137-150`
+**위치**: `springProject/src/main/java/com/teambind/springproject/domain/product/ProductAvailabilityService.java:103-115,137-150`
 
-**Code**:
+**코드**:
 ```java
 final List<ReservationPricing> overlappingReservations =
     repository.findByPlaceIdAndTimeRange(...);
@@ -119,26 +119,26 @@ final int maxUsedQuantity = requestedSlots.stream()
     .orElse(0);
 ```
 
-**Problem**:
-- Loads all overlapping reservations into memory
-- O(n*m) complexity: iterates requestedSlots * reservations
-- Inefficient for large datasets
+**문제**:
+- 겹치는 모든 예약을 메모리로 로드
+- O(n*m) 복잡도: requestedSlots * reservations 반복
+- 대용량 데이터셋에 비효율적
 
-**Impact**: HIGH
-- Affects: Product availability checks during reservation
-- Complexity: O(n*m) where n=slots, m=reservations
-- Memory: Loads entire reservation list
+**영향**: 높음
+- 영향 대상: 예약 시 상품 재고 확인
+- 복잡도: O(n*m) (n=슬롯 수, m=예약 수)
+- 메모리: 전체 예약 목록 로드
 
-**Proposed Fix**: Database-level aggregation query
-**Expected Improvement**: 60-90% performance gain
+**제안 수정 사항**: 데이터베이스 수준 집계 쿼리
+**예상 개선**: 60-90% 성능 향상
 
 ---
 
-### Issue 4: ReservationPricingService Loop Queries
+### 문제 4: ReservationPricingService 루프 쿼리
 
-**Location**: `springProject/src/main/java/com/teambind/springproject/application/service/reservationpricing/ReservationPricingService.java:138-146`
+**위치**: `springProject/src/main/java/com/teambind/springproject/application/service/reservationpricing/ReservationPricingService.java:138-146`
 
-**Code**:
+**코드**:
 ```java
 private List<Product> fetchProducts(final List<ProductRequest> productRequests) {
     final List<Product> products = new ArrayList<>();
@@ -151,83 +151,83 @@ private List<Product> fetchProducts(final List<ProductRequest> productRequests) 
 }
 ```
 
-**Problem**:
-- N separate database queries for N products
-- Classic N+1 pattern
-- Inefficient transaction usage
+**문제**:
+- N개 상품에 대한 N개의 별도 데이터베이스 쿼리
+- 고전적인 N+1 패턴
+- 비효율적인 트랜잭션 사용
 
-**Impact**: MEDIUM
-- Affects: Reservation creation with multiple products
-- Query multiplier: N+1 where N = number of products
-- Network round-trips: N
+**영향**: 중간
+- 영향 대상: 여러 상품을 포함한 예약 생성
+- 쿼리 배수: N+1 (N = 상품 개수)
+- 네트워크 왕복: N
 
-**Proposed Fix**: Batch query with findAllById
-**Expected Improvement**: 30-50% faster for multi-product reservations
-
----
-
-### Issue 5: Missing Composite Indexes
-
-**Location**: `springProject/src/main/resources/db/migration/V4__create_reservation_pricing_tables.sql`
-
-**Problem**:
-- Single-column indexes only
-- Query patterns use multi-column WHERE clauses
-- Suboptimal query execution plans
-
-**Impact**: MEDIUM
-- Affects: Time-range and status-based queries
-- Index usage: Partial or sequential scans
-- Database load: Increased I/O
-
-**Proposed Fix**: Add composite indexes
-**Expected Improvement**: 50-80% faster range queries
+**제안 수정 사항**: findAllById를 사용한 배치 쿼리
+**예상 개선**: 다중 상품 예약에서 30-50% 빠름
 
 ---
 
-## Solution Approaches
+### 문제 5: 복합 인덱스 누락
 
-### Approach 1: Batch Size Optimization
+**위치**: `springProject/src/main/resources/db/migration/V4__create_reservation_pricing_tables.sql`
 
-**Description**: Configure Hibernate batch fetching to reduce N+1 to N/batch_size + 1
+**문제**:
+- 단일 컬럼 인덱스만 존재
+- 쿼리 패턴이 다중 컬럼 WHERE 절 사용
+- 최적화되지 않은 쿼리 실행 계획
 
-**Implementation**:
+**영향**: 중간
+- 영향 대상: 시간 범위 및 상태 기반 쿼리
+- 인덱스 사용: 부분적 또는 순차 스캔
+- 데이터베이스 부하: I/O 증가
+
+**제안 수정 사항**: 복합 인덱스 추가
+**예상 개선**: 범위 쿼리 50-80% 빠름
+
+---
+
+## 해결 방안
+
+### 방안 1: Batch Size 최적화
+
+**설명**: Hibernate 배치 페칭 구성으로 N+1을 N/batch_size + 1로 감소
+
+**구현**:
 ```java
-// Entity level
+// Entity 레벨
 @ElementCollection(fetch = FetchType.LAZY)
 @BatchSize(size = 10)
 private List<TimeRangePriceEmbeddable> timeRangePrices;
 
-// Global configuration (application.yml)
+// 전역 설정 (application.yml)
 spring.jpa.properties.hibernate.default_batch_fetch_size: 100
 ```
 
-**Pros**:
-- Minimal code changes
-- No additional dependencies
-- Transparent optimization
-- Reversible
+**장점**:
+- 최소한의 코드 변경
+- 추가 의존성 없음
+- 투명한 최적화
+- 되돌리기 가능
 
-**Cons**:
-- Not a complete solution (still multiple queries)
-- Requires LAZY conversion (LazyInitializationException risk)
-- Memory consumption with large batch sizes
+**단점**:
+- 완전한 솔루션 아님 (여전히 다중 쿼리)
+- LAZY 전환 필요 (LazyInitializationException 위험)
+- 큰 배치 사이즈로 인한 메모리 소비
 
-**SOLID Compliance**: Full compliance, no architectural changes
+**SOLID 준수**: 완전 준수, 아키텍처 변경 없음
 
-**Risk Level**: LOW
+**위험 수준**: 낮음
 
-**Effort**: 1-2 hours
+**작업량**: 1-2시간
 
-**Priority**: IMMEDIATE
+**우선순위**: 즉시
 
 ---
 
-### Approach 2: JPQL Fetch Join
+### 방안 2: JPQL Fetch Join
 
-**Description**: Explicit JOIN FETCH in JPQL queries
+**설명**: JPQL 쿼리에서 명시적 JOIN FETCH
 
-**Implementation**:
+**구현**:
 ```java
 @Query("SELECT p FROM PricingPolicyEntity p " +
        "LEFT JOIN FETCH p.timeRangePrices " +
@@ -235,65 +235,65 @@ spring.jpa.properties.hibernate.default_batch_fetch_size: 100
 Optional<PricingPolicyEntity> findByIdWithTimeRangePrices(@Param("roomId") RoomIdEmbeddable roomId);
 ```
 
-**Pros**:
-- JPA standard, no dependencies
-- Single query solution
-- Explicit control
-- Simple to understand
+**장점**:
+- JPA 표준, 의존성 없음
+- 단일 쿼리 솔루션
+- 명시적 제어
+- 이해하기 쉬움
 
-**Cons**:
-- String-based queries (no compile-time checking)
-- MultipleBagFetchException with multiple collections
-- Requires DISTINCT for collection joins
-- Manual query writing
+**단점**:
+- 문자열 기반 쿼리 (컴파일 타임 검사 없음)
+- 다중 컬렉션에서 MultipleBagFetchException
+- 컬렉션 조인 시 DISTINCT 필요
+- 수동 쿼리 작성
 
-**SOLID Compliance**: Full compliance
+**SOLID 준수**: 완전 준수
 
-**Risk Level**: LOW-MEDIUM
+**위험 수준**: 낮음-중간
 
-**Effort**: 1-2 days
+**작업량**: 1-2일
 
-**Priority**: SHORT-TERM
+**우선순위**: 단기
 
 ---
 
-### Approach 3: EntityGraph
+### 방안 3: EntityGraph
 
-**Description**: JPA EntityGraph for dynamic fetch strategies
+**설명**: 동적 페치 전략을 위한 JPA EntityGraph
 
-**Implementation**:
+**구현**:
 ```java
 @EntityGraph(attributePaths = {"timeRangePrices"})
 Optional<PricingPolicyEntity> findWithTimeRangePricesById(RoomIdEmbeddable id);
 ```
 
-**Pros**:
-- JPA standard
-- Declarative approach
-- Reusable graphs
-- Override default fetch plans
+**장점**:
+- JPA 표준
+- 선언적 접근
+- 재사용 가능한 그래프
+- 기본 페치 계획 오버라이드
 
-**Cons**:
-- Entity pollution with fetch metadata
-- Less explicit than JPQL
-- Configuration scattered between Entity and Repository
-- Cartesian product still possible
+**단점**:
+- 페치 메타데이터로 인한 엔티티 오염
+- JPQL보다 명시성 낮음
+- Entity와 Repository 간 분산된 설정
+- 여전히 카르테시안 곱 가능
 
-**SOLID Compliance**: Minor SRP concern (Entity knows about fetching)
+**SOLID 준수**: 경미한 SRP 우려 (Entity가 페칭을 알게됨)
 
-**Risk Level**: MEDIUM
+**위험 수준**: 중간
 
-**Effort**: 1-2 days
+**작업량**: 1-2일
 
-**Priority**: OPTIONAL
+**우선순위**: 선택적
 
 ---
 
-### Approach 4: QueryDSL
+### 방안 4: QueryDSL
 
-**Description**: Type-safe query builder with full control
+**설명**: 완전한 제어를 가진 타입 안전 쿼리 빌더
 
-**Implementation**:
+**구현**:
 ```java
 public Optional<PricingPolicy> findByIdWithTimeRangePrices(RoomId roomId) {
     QPricingPolicyEntity policy = QPricingPolicyEntity.pricingPolicyEntity;
@@ -308,35 +308,35 @@ public Optional<PricingPolicy> findByIdWithTimeRangePrices(RoomId roomId) {
 }
 ```
 
-**Pros**:
-- Compile-time type safety
-- IDE refactoring support
-- Dynamic query building
-- Complex query support
-- MultipleBagFetchException avoidable via multi-step fetch
-- Clean separation via Custom Repository pattern
+**장점**:
+- 컴파일 타임 타입 안정성
+- IDE 리팩토링 지원
+- 동적 쿼리 빌딩
+- 복잡한 쿼리 지원
+- 다단계 페치를 통한 MultipleBagFetchException 회피 가능
+- Custom Repository 패턴을 통한 깔끔한 분리
 
-**Cons**:
-- Additional dependency (querydsl-jpa)
-- Q-class generation step in build
-- Learning curve
-- Custom repository boilerplate
+**단점**:
+- 추가 의존성 (querydsl-jpa)
+- 빌드 시 Q-class 생성 단계
+- 학습 곡선
+- Custom repository 보일러플레이트
 
-**SOLID Compliance**: Excellent (promotes clean repository interfaces)
+**SOLID 준수**: 우수 (깔끔한 repository 인터페이스 촉진)
 
-**Risk Level**: MEDIUM (initial setup), LOW (after setup)
+**위험 수준**: 중간 (초기 설정), 낮음 (설정 후)
 
-**Effort**: 1 week (initial setup + learning), faster afterward
+**작업량**: 1주 (초기 설정 + 학습), 이후 더 빠름
 
-**Priority**: STRATEGIC (long-term investment)
+**우선순위**: 전략적 (장기 투자)
 
 ---
 
-### Approach 5: Database Aggregation
+### 방안 5: 데이터베이스 집계
 
-**Description**: Push computation to database layer
+**설명**: 계산을 데이터베이스 계층으로 푸시
 
-**Implementation**:
+**구현**:
 ```java
 @Query("SELECT COALESCE(MAX(usedQty), 0) FROM (" +
        "  SELECT SUM(pb.quantity) as usedQty " +
@@ -350,33 +350,33 @@ public Optional<PricingPolicy> findByIdWithTimeRangePrices(RoomId roomId) {
 Integer findMaxUsedQuantity(...);
 ```
 
-**Pros**:
-- Minimal memory usage
-- Database-optimized computation
-- Eliminates in-memory processing
-- Scalable to large datasets
+**장점**:
+- 최소 메모리 사용
+- 데이터베이스 최적화 계산
+- 인메모리 처리 제거
+- 대용량 데이터셋에 확장 가능
 
-**Cons**:
-- Complex SQL/JPQL
-- Database-specific optimizations
-- Less portable
-- Harder to test
+**단점**:
+- 복잡한 SQL/JPQL
+- 데이터베이스별 최적화
+- 이식성 낮음
+- 테스트 어려움
 
-**SOLID Compliance**: Acceptable (Repository responsibility)
+**SOLID 준수**: 허용 가능 (Repository 책임)
 
-**Risk Level**: MEDIUM
+**위험 수준**: 중간
 
-**Effort**: 2-3 days
+**작업량**: 2-3일
 
-**Priority**: MEDIUM-TERM
+**우선순위**: 중기
 
 ---
 
-### Approach 6: DTO Projection
+### 방안 6: DTO Projection
 
-**Description**: Query directly to DTOs, bypassing Entity mapping
+**설명**: Entity 매핑을 우회하여 DTO로 직접 쿼리
 
-**Implementation**:
+**구현**:
 ```java
 @Query("SELECT new com.teambind...PricingPolicyDto(" +
        "p.roomId, p.placeId, p.timeSlot, p.defaultPrice) " +
@@ -384,32 +384,32 @@ Integer findMaxUsedQuantity(...);
 List<PricingPolicyDto> findAllSummary();
 ```
 
-**Pros**:
-- Maximum performance (only needed columns)
-- Minimal network transfer
-- Clear intent separation (read-only)
+**장점**:
+- 최대 성능 (필요한 컬럼만)
+- 최소 네트워크 전송
+- 명확한 의도 분리 (읽기 전용)
 
-**Cons**:
-- Code duplication (Entity + DTO)
-- Maintenance overhead
-- Can violate Hexagonal boundaries if not careful
-- Complex mapping for nested structures
+**단점**:
+- 코드 중복 (Entity + DTO)
+- 유지보수 오버헤드
+- 주의하지 않으면 Hexagonal 경계 위반 가능
+- 중첩 구조에 대한 복잡한 매핑
 
-**SOLID Compliance**: SRP benefit, but can violate DIP if DTO leaks to domain
+**SOLID 준수**: SRP 이점, 하지만 DTO가 도메인으로 누출되면 DIP 위반 가능
 
-**Risk Level**: MEDIUM
+**위험 수준**: 중간
 
-**Effort**: 2-3 days per use case
+**작업량**: 사용 사례당 2-3일
 
-**Priority**: SELECTIVE (special read endpoints only)
+**우선순위**: 선택적 (특별한 읽기 엔드포인트만)
 
 ---
 
-### Approach 7: Composite Indexes
+### 방안 7: 복합 인덱스
 
-**Description**: Multi-column database indexes matching query patterns
+**설명**: 쿼리 패턴에 맞춘 다중 컬럼 데이터베이스 인덱스
 
-**Implementation**:
+**구현**:
 ```sql
 -- V6__add_composite_indexes.sql
 CREATE INDEX idx_reservation_pricings_place_time_status
@@ -422,147 +422,147 @@ CREATE INDEX idx_reservation_pricing_slots_composite
     ON reservation_pricing_slots (reservation_id, slot_time);
 ```
 
-**Pros**:
-- Massive query speedup (50-80%)
-- No code changes
-- Database-level optimization
-- Simple rollback
+**장점**:
+- 대규모 쿼리 속도 향상 (50-80%)
+- 코드 변경 없음
+- 데이터베이스 수준 최적화
+- 간단한 롤백
 
-**Cons**:
-- Disk space increase
-- Write performance slightly degraded
-- Index maintenance overhead
+**단점**:
+- 디스크 공간 증가
+- 쓰기 성능 약간 저하
+- 인덱스 유지보수 오버헤드
 
-**SOLID Compliance**: N/A (infrastructure)
+**SOLID 준수**: N/A (인프라)
 
-**Risk Level**: LOW
+**위험 수준**: 낮음
 
-**Effort**: 1-2 hours
+**작업량**: 1-2시간
 
-**Priority**: IMMEDIATE
-
----
-
-## Implementation Roadmap
-
-### Phase 1: Quick Wins (Week 1)
-
-**Goal**: Achieve 40-50% performance improvement with minimal risk
-
-**Tasks**:
-1. Enable global batch fetch size
-2. Convert all EAGER to LAZY
-3. Add composite database indexes
-4. Implement batch query in ReservationPricingService.fetchProducts
-
-**Deliverables**:
-- Migration file V6__add_composite_indexes.sql
-- Updated application.yml with batch size
-- Refactored Entity classes (LAZY conversion)
-- Refactored fetchProducts method
-
-**Success Criteria**:
-- All tests pass
-- No LazyInitializationException in integration tests
-- Query count reduced by 40% minimum
-
-**Assignee**: Backend Team
-
-**Related Issues**: TBD (Epic + Tasks)
+**우선순위**: 즉시
 
 ---
 
-### Phase 2: JPQL Optimization (Week 2-3)
+## 구현 로드맵
 
-**Goal**: Eliminate N+1 in critical paths
+### Phase 1: 빠른 성과 (1주차)
 
-**Tasks**:
-1. Add FETCH JOIN queries to PricingPolicyJpaRepository
-2. Add FETCH JOIN queries to ReservationPricingJpaRepository
-3. Add FETCH JOIN queries to ProductJpaRepository
-4. Update Repository Adapters to use optimized queries
-5. Update Service layer with @Transactional boundaries
+**목표**: 최소 위험으로 40-50% 성능 개선 달성
 
-**Deliverables**:
-- Enhanced Repository interfaces with fetch join methods
-- Updated Adapter implementations
-- Integration tests validating query counts
+**작업**:
+1. 전역 배치 페치 사이즈 활성화
+2. 모든 EAGER를 LAZY로 전환
+3. 복합 데이터베이스 인덱스 추가
+4. ReservationPricingService.fetchProducts에 배치 쿼리 구현
 
-**Success Criteria**:
-- Single query for pricing policy retrieval with time ranges
-- Single query for reservation pricing with slots and products
-- Query count reduced by 70% minimum
+**산출물**:
+- 마이그레이션 파일 V6__add_composite_indexes.sql
+- 배치 사이즈가 포함된 업데이트된 application.yml
+- 리팩토링된 Entity 클래스 (LAZY 전환)
+- 리팩토링된 fetchProducts 메서드
 
-**Assignee**: Backend Team
+**성공 기준**:
+- 모든 테스트 통과
+- 통합 테스트에서 LazyInitializationException 없음
+- 쿼리 수 최소 40% 감소
 
-**Related Issues**: TBD (Story + Tasks)
+**담당자**: Backend Team
 
----
-
-### Phase 3: QueryDSL Integration (Week 4-5)
-
-**Goal**: Establish long-term type-safe query foundation
-
-**Tasks**:
-1. Add QueryDSL dependencies to build.gradle
-2. Configure Q-class generation
-3. Create base QueryDSL configuration
-4. Implement Custom Repositories with QueryDSL
-5. Migrate complex queries from ProductAvailabilityService
-6. Add dynamic query support for search endpoints
-
-**Deliverables**:
-- QueryDSL configuration
-- Generated Q-classes
-- Custom Repository implementations
-- Migrated ProductAvailabilityService logic
-- Developer documentation for QueryDSL usage
-
-**Success Criteria**:
-- All complex queries use QueryDSL
-- Compile-time query validation
-- Query performance matches or exceeds JPQL
-- Team proficiency in QueryDSL basics
-
-**Assignee**: Backend Team + Learning Session
-
-**Related Issues**: TBD (Story + Tasks)
+**관련 이슈**: TBD (Epic + Tasks)
 
 ---
 
-### Phase 4: Advanced Optimizations (Week 6+)
+### Phase 2: JPQL 최적화 (2-3주차)
 
-**Goal**: Address remaining edge cases and monitoring
+**목표**: 중요 경로에서 N+1 제거
 
-**Tasks**:
-1. Implement database aggregation queries for ProductAvailabilityService
-2. Add DTO projections for summary/list endpoints
-3. Set up query performance monitoring
-4. Add slow query alerts
-5. Document optimization patterns
+**작업**:
+1. PricingPolicyJpaRepository에 FETCH JOIN 쿼리 추가
+2. ReservationPricingJpaRepository에 FETCH JOIN 쿼리 추가
+3. ProductJpaRepository에 FETCH JOIN 쿼리 추가
+4. 최적화된 쿼리를 사용하도록 Repository Adapter 업데이트
+5. @Transactional 경계로 Service 레이어 업데이트
 
-**Deliverables**:
-- Aggregation query implementations
-- DTO projection for list endpoints
-- Performance monitoring dashboard
-- Slow query alert configuration
-- Updated PERFORMANCE_OPTIMIZATION.md with lessons learned
+**산출물**:
+- fetch join 메서드가 포함된 향상된 Repository 인터페이스
+- 업데이트된 Adapter 구현
+- 쿼리 수를 검증하는 통합 테스트
 
-**Success Criteria**:
-- All availability checks use database aggregation
-- List endpoints use DTO projection
-- 95th percentile query time under 100ms
-- Zero N+1 queries in production logs
+**성공 기준**:
+- 시간 범위를 포함한 가격 정책 조회 시 단일 쿼리
+- 슬롯 및 상품을 포함한 예약 가격 조회 시 단일 쿼리
+- 쿼리 수 최소 70% 감소
 
-**Assignee**: Backend Team
+**담당자**: Backend Team
 
-**Related Issues**: TBD (Tasks)
+**관련 이슈**: TBD (Story + Tasks)
 
 ---
 
-## Technical Specifications
+### Phase 3: QueryDSL 통합 (4-5주차)
 
-### Environment Requirements
+**목표**: 장기적인 타입 안전 쿼리 기반 확립
+
+**작업**:
+1. build.gradle에 QueryDSL 의존성 추가
+2. Q-class 생성 구성
+3. 기본 QueryDSL 설정 생성
+4. QueryDSL을 사용한 Custom Repository 구현
+5. ProductAvailabilityService에서 복잡한 쿼리 마이그레이션
+6. 검색 엔드포인트를 위한 동적 쿼리 지원 추가
+
+**산출물**:
+- QueryDSL 설정
+- 생성된 Q-class
+- Custom Repository 구현
+- 마이그레이션된 ProductAvailabilityService 로직
+- QueryDSL 사용을 위한 개발자 문서
+
+**성공 기준**:
+- 모든 복잡한 쿼리가 QueryDSL 사용
+- 컴파일 타임 쿼리 검증
+- 쿼리 성능이 JPQL과 동등하거나 초과
+- 팀의 QueryDSL 기본 숙련도
+
+**담당자**: Backend Team + 학습 세션
+
+**관련 이슈**: TBD (Story + Tasks)
+
+---
+
+### Phase 4: 고급 최적화 (6주차+)
+
+**목표**: 나머지 엣지 케이스 및 모니터링 처리
+
+**작업**:
+1. ProductAvailabilityService를 위한 데이터베이스 집계 쿼리 구현
+2. 요약/목록 엔드포인트를 위한 DTO projection 추가
+3. 쿼리 성능 모니터링 설정
+4. 느린 쿼리 알림 추가
+5. 최적화 패턴 문서화
+
+**산출물**:
+- 집계 쿼리 구현
+- 목록 엔드포인트를 위한 DTO projection
+- 성능 모니터링 대시보드
+- 느린 쿼리 알림 설정
+- 학습 사항이 반영된 업데이트된 PERFORMANCE_OPTIMIZATION.md
+
+**성공 기준**:
+- 모든 재고 확인이 데이터베이스 집계 사용
+- 목록 엔드포인트가 DTO projection 사용
+- 95 백분위수 쿼리 시간 100ms 미만
+- 프로덕션 로그에서 N+1 쿼리 제로
+
+**담당자**: Backend Team
+
+**관련 이슈**: TBD (Tasks)
+
+---
+
+## 기술 사양
+
+### 환경 요구사항
 
 - Java 21
 - Spring Boot 3.2.5
@@ -570,7 +570,7 @@ CREATE INDEX idx_reservation_pricing_slots_composite
 - PostgreSQL 16
 - Hibernate 6.x
 
-### Dependencies to Add
+### 추가할 의존성
 
 ```gradle
 // Phase 3: QueryDSL
@@ -579,7 +579,7 @@ annotationProcessor 'com.querydsl:querydsl-apt:5.0.0:jakarta'
 annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
 ```
 
-### Configuration Changes
+### 설정 변경
 
 ```yaml
 # application.yml
@@ -600,132 +600,132 @@ logging:
 
 ---
 
-## Risk Assessment
+## 리스크 평가
 
-### Technical Risks
+### 기술적 리스크
 
-**Risk 1: LazyInitializationException**
-- Probability: MEDIUM
-- Impact: HIGH
-- Mitigation: Comprehensive integration tests, careful @Transactional boundaries
-- Contingency: Selective EAGER fallback for specific use cases
+**리스크 1: LazyInitializationException**
+- 발생 가능성: 중간
+- 영향: 높음
+- 완화 방안: 포괄적인 통합 테스트, 신중한 @Transactional 경계
+- 대응책: 특정 사용 사례에 대한 선택적 EAGER 폴백
 
-**Risk 2: MultipleBagFetchException**
-- Probability: LOW (with proper JPQL/QueryDSL)
-- Impact: MEDIUM
-- Mitigation: Use QueryDSL multi-step fetch or @BatchSize
-- Contingency: Split into multiple queries
+**리스크 2: MultipleBagFetchException**
+- 발생 가능성: 낮음 (적절한 JPQL/QueryDSL 사용 시)
+- 영향: 중간
+- 완화 방안: QueryDSL 다단계 페치 또는 @BatchSize 사용
+- 대응책: 여러 쿼리로 분할
 
-**Risk 3: Cartesian Product**
-- Probability: LOW
-- Impact: HIGH
-- Mitigation: DISTINCT in JPQL, QueryDSL query inspection
-- Contingency: Monitor query execution plans
+**리스크 3: 카르테시안 곱**
+- 발생 가능성: 낮음
+- 영향: 높음
+- 완화 방안: JPQL의 DISTINCT, QueryDSL 쿼리 검사
+- 대응책: 쿼리 실행 계획 모니터링
 
-**Risk 4: Team Learning Curve (QueryDSL)**
-- Probability: MEDIUM
-- Impact: LOW
-- Mitigation: Team training session, pair programming
-- Contingency: Gradual adoption, JPQL fallback
-
----
-
-### Business Risks
-
-**Risk 1: Increased Development Time**
-- Probability: MEDIUM
-- Impact: MEDIUM
-- Mitigation: Phased approach, parallel work streams
-- Contingency: Defer Phase 3 if Phase 2 meets requirements
-
-**Risk 2: Regression Bugs**
-- Probability: LOW (with comprehensive tests)
-- Impact: HIGH
-- Mitigation: Extensive integration tests, staging validation
-- Contingency: Feature flags, quick rollback
+**리스크 4: 팀 학습 곡선 (QueryDSL)**
+- 발생 가능성: 중간
+- 영향: 낮음
+- 완화 방안: 팀 교육 세션, 페어 프로그래밍
+- 대응책: 점진적 도입, JPQL 폴백
 
 ---
 
-## Performance Metrics
+### 비즈니스 리스크
 
-### Baseline (Current State)
+**리스크 1: 개발 시간 증가**
+- 발생 가능성: 중간
+- 영향: 중간
+- 완화 방안: 단계적 접근, 병렬 작업 스트림
+- 대응책: Phase 2가 요구사항을 충족하면 Phase 3 연기
 
-**PricingPolicy Query**:
-- Queries: 1 (policy) + N (time_range_prices) = N+1
-- Average time: ~50ms for 1 policy with 10 time ranges
-- Worst case: ~500ms for 10 policies
-
-**ReservationPricing Query**:
-- Queries: 1 (pricing) + N (slots) + N (products) = 2N+1
-- Average time: ~80ms for 1 reservation
-- Worst case: ~800ms for 10 reservations
-
-**Product Availability Check**:
-- Queries: 1 (reservations) + in-memory processing
-- Average time: ~100ms for 10 overlapping reservations
-- Worst case: ~1000ms for 100 reservations
-
-**Reservation Creation**:
-- Queries: 1 (policy) + N (products) + 1 (save) = N+2
-- Average time: ~150ms for 3 products
-- Worst case: ~500ms for 10 products
+**리스크 2: 회귀 버그**
+- 발생 가능성: 낮음 (포괄적 테스트 시)
+- 영향: 높음
+- 완화 방안: 광범위한 통합 테스트, 스테이징 검증
+- 대응책: 기능 플래그, 빠른 롤백
 
 ---
 
-### Target (Post-Optimization)
+## 성능 지표
 
-**PricingPolicy Query**:
-- Queries: 1 (with FETCH JOIN)
-- Average time: ~20ms (60% improvement)
-- Worst case: ~100ms (80% improvement)
+### 기준선 (현재 상태)
 
-**ReservationPricing Query**:
-- Queries: 1 or 2 (with QueryDSL multi-step)
-- Average time: ~30ms (62% improvement)
-- Worst case: ~200ms (75% improvement)
+**PricingPolicy 쿼리**:
+- 쿼리 수: 1 (policy) + N (time_range_prices) = N+1
+- 평균 시간: ~50ms (10개 시간 범위를 가진 정책 1개)
+- 최악의 경우: ~500ms (정책 10개)
 
-**Product Availability Check**:
-- Queries: 1 (database aggregation)
-- Average time: ~20ms (80% improvement)
-- Worst case: ~100ms (90% improvement)
+**ReservationPricing 쿼리**:
+- 쿼리 수: 1 (pricing) + N (slots) + N (products) = 2N+1
+- 평균 시간: ~80ms (예약 1개)
+- 최악의 경우: ~800ms (예약 10개)
 
-**Reservation Creation**:
-- Queries: 2 (policy + batch products) + 1 (save) = 3
-- Average time: ~60ms (60% improvement)
-- Worst case: ~150ms (70% improvement)
+**Product 재고 확인**:
+- 쿼리 수: 1 (reservations) + 인메모리 처리
+- 평균 시간: ~100ms (겹치는 예약 10개)
+- 최악의 경우: ~1000ms (예약 100개)
+
+**예약 생성**:
+- 쿼리 수: 1 (policy) + N (products) + 1 (save) = N+2
+- 평균 시간: ~150ms (상품 3개)
+- 최악의 경우: ~500ms (상품 10개)
 
 ---
 
-### Monitoring Plan
+### 목표 (최적화 후)
 
-**Key Metrics**:
-- Query count per request
-- Query execution time (p50, p95, p99)
-- Database connection pool usage
-- Memory heap usage
+**PricingPolicy 쿼리**:
+- 쿼리 수: 1 (FETCH JOIN 사용)
+- 평균 시간: ~20ms (60% 개선)
+- 최악의 경우: ~100ms (80% 개선)
 
-**Alerting Thresholds**:
-- Query count > 10 per request: WARNING
-- Query execution time p95 > 200ms: WARNING
-- Query execution time p99 > 500ms: CRITICAL
+**ReservationPricing 쿼리**:
+- 쿼리 수: 1 또는 2 (QueryDSL 다단계 사용)
+- 평균 시간: ~30ms (62% 개선)
+- 최악의 경우: ~200ms (75% 개선)
 
-**Tools**:
+**Product 재고 확인**:
+- 쿼리 수: 1 (데이터베이스 집계)
+- 평균 시간: ~20ms (80% 개선)
+- 최악의 경우: ~100ms (90% 개선)
+
+**예약 생성**:
+- 쿼리 수: 2 (policy + 배치 products) + 1 (save) = 3
+- 평균 시간: ~60ms (60% 개선)
+- 최악의 경우: ~150ms (70% 개선)
+
+---
+
+### 모니터링 계획
+
+**주요 지표**:
+- 요청당 쿼리 수
+- 쿼리 실행 시간 (p50, p95, p99)
+- 데이터베이스 연결 풀 사용량
+- 메모리 힙 사용량
+
+**알림 임계값**:
+- 요청당 쿼리 수 > 10: 경고
+- 쿼리 실행 시간 p95 > 200ms: 경고
+- 쿼리 실행 시간 p99 > 500ms: 치명적
+
+**도구**:
 - Spring Boot Actuator
 - Hibernate Statistics
 - PostgreSQL pg_stat_statements
-- APM (if available)
+- APM (사용 가능한 경우)
 
 ---
 
-## References
+## 참고 자료
 
-### Internal Documents
+### 내부 문서
 
-- [Architecture Decision Records](adr/)
-- [Hexagonal Architecture Guide](architecture/)
-- [Issue Management Guide](ISSUE_GUIDE.md)
+- [Architecture Decision Records](../../adr/)
+- [Hexagonal Architecture Guide](../../architecture/)
+- [Issue Management Guide](../../ISSUE_GUIDE.md)
 
-### External Resources
+### 외부 리소스
 
 - [Hibernate Performance Tuning](https://docs.jboss.org/hibernate/orm/6.4/userguide/html_single/Hibernate_User_Guide.html#performance)
 - [QueryDSL Reference](http://querydsl.com/static/querydsl/latest/reference/html/)
@@ -733,22 +733,22 @@ logging:
 
 ---
 
-## Appendix A: Query Analysis Examples
+## 부록 A: 쿼리 분석 예제
 
-### Example 1: PricingPolicy N+1
+### 예제 1: PricingPolicy N+1
 
-**Current Behavior**:
+**현재 동작**:
 ```sql
--- Query 1: Load policy
+-- Query 1: 정책 로드
 SELECT * FROM pricing_policies WHERE room_id = 1;
 
--- Query 2: Load time ranges
+-- Query 2: 시간 범위 로드
 SELECT * FROM time_range_prices WHERE room_id = 1;
 ```
 
-**After FETCH JOIN**:
+**FETCH JOIN 적용 후**:
 ```sql
--- Single Query
+-- 단일 쿼리
 SELECT p.*, trp.*
 FROM pricing_policies p
 LEFT JOIN time_range_prices trp ON p.room_id = trp.room_id
@@ -757,58 +757,58 @@ WHERE p.room_id = 1;
 
 ---
 
-### Example 2: Product Batch Loading
+### 예제 2: Product 배치 로딩
 
-**Current Behavior**:
+**현재 동작**:
 ```sql
 SELECT * FROM products WHERE product_id = 1;
 SELECT * FROM products WHERE product_id = 2;
 SELECT * FROM products WHERE product_id = 3;
--- N queries
+-- N개의 쿼리
 ```
 
-**After Batch Query**:
+**배치 쿼리 적용 후**:
 ```sql
 SELECT * FROM products WHERE product_id IN (1, 2, 3);
--- Single query
+-- 단일 쿼리
 ```
 
 ---
 
-## Appendix B: Testing Strategy
+## 부록 B: 테스트 전략
 
-### Unit Tests
+### 단위 테스트
 
-- Repository methods return expected data
-- Query methods handle null/empty cases
-- Domain logic unchanged
+- Repository 메서드가 예상 데이터 반환
+- 쿼리 메서드가 null/empty 케이스 처리
+- 도메인 로직 변경 없음
 
-### Integration Tests
+### 통합 테스트
 
-- Verify query counts with Hibernate Statistics
-- Test @Transactional boundaries
-- Validate LazyInitializationException doesn't occur
+- Hibernate Statistics로 쿼리 수 검증
+- @Transactional 경계 테스트
+- LazyInitializationException 발생 안함 검증
 
-### Performance Tests
+### 성능 테스트
 
-- JMeter scenarios for baseline vs optimized
-- Compare query execution plans
-- Memory profiling
+- 기준선 vs 최적화 버전에 대한 JMeter 시나리오
+- 쿼리 실행 계획 비교
+- 메모리 프로파일링
 
-### Regression Tests
+### 회귀 테스트
 
-- Existing functionality unchanged
-- API contracts preserved
-- Domain invariants maintained
+- 기존 기능 변경 없음
+- API 계약 유지
+- 도메인 불변성 유지
 
 ---
 
-## Change Log
+## 변경 이력
 
-| Date | Author | Changes |
+| 날짜 | 작성자 | 변경 사항 |
 |------|--------|---------|
-| 2025-11-09 | Backend Team | Initial document creation |
+| 2025-11-09 | Backend Team | 초기 문서 생성 |
 
 ---
 
-End of Document
+문서 끝
