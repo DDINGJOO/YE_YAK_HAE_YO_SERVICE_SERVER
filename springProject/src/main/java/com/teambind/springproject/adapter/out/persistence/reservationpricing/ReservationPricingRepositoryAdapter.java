@@ -107,6 +107,14 @@ public class ReservationPricingRepositoryAdapter implements ReservationPricingRe
     return jpaRepository.existsById(reservationId.getValue());
   }
 
+  @Override
+  public List<ReservationPricing> findExpiredPendingReservations() {
+    return jpaRepository.findExpiredPendingReservations(LocalDateTime.now())
+        .stream()
+        .map(ReservationPricingEntity::toDomain)
+        .toList();
+  }
+
   /**
    * RoomId로 PlaceId를 조회합니다.
    * PricingPolicy에서 Room-Place 매핑을 가져옵니다.

@@ -96,7 +96,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null), // Auto-generated
           testRoomId,
           timeSlotBreakdown,
-          productBreakdowns
+          productBreakdowns,
+        10L
       );
 
       // when
@@ -134,7 +135,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           unknownRoomId,
           timeSlotBreakdown,
-          List.of()
+          List.of(),
+        10L
       );
 
       // when & then
@@ -160,7 +162,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           testRoomId,
           timeSlotBreakdown,
-          List.of() // 상품 없음
+          List.of(), // 상품 없음
+          10L
       );
 
       // when
@@ -190,7 +193,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           testRoomId,
           timeSlotBreakdown,
-          List.of()
+          List.of(),
+        10L
       );
 
       final ReservationPricing saved = repository.save(pricing);
@@ -223,7 +227,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           testRoomId,
           timeSlotBreakdown,
-          List.of()
+          List.of(),
+        10L
       );
 
       final ReservationPricing saved = repository.save(pricing);
@@ -253,7 +258,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           testRoomId,
           timeSlotBreakdown,
-          List.of()
+          List.of(),
+        10L
       );
 
       final ReservationPricing saved = repository.save(pricing);
@@ -281,7 +287,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           testRoomId,
           new TimeSlotPriceBreakdown(slotPrices1, TimeSlot.HOUR),
-          List.of()
+          List.of(),
+        10L
       );
       repository.save(pricing1);
 
@@ -293,7 +300,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           testRoomId,
           new TimeSlotPriceBreakdown(slotPrices2, TimeSlot.HOUR),
-          List.of()
+          List.of(),
+        10L
       );
       repository.save(pricing2);
 
@@ -323,7 +331,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           testRoomId,
           new TimeSlotPriceBreakdown(slotPrices1, TimeSlot.HOUR),
-          List.of()
+          List.of(),
+        10L
       );
       repository.save(pricing1);
 
@@ -345,7 +354,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           anotherRoomId,
           new TimeSlotPriceBreakdown(slotPrices2, TimeSlot.HOUR),
-          List.of()
+          List.of(),
+        10L
       );
       repository.save(pricing2);
 
@@ -380,7 +390,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           testRoomId,
           timeSlotBreakdown,
-          List.of()
+          List.of(),
+        10L
       );
       repository.save(pending1);
 
@@ -388,7 +399,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           testRoomId,
           timeSlotBreakdown,
-          List.of()
+          List.of(),
+        10L
       );
       repository.save(pending2);
 
@@ -397,7 +409,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           testRoomId,
           timeSlotBreakdown,
-          List.of()
+          List.of(),
+        10L
       );
       final ReservationPricing savedConfirmed = repository.save(confirmed);
       savedConfirmed.confirm();
@@ -470,7 +483,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           testRoomId,
           timeSlotBreakdown,
-          productBreakdowns
+          productBreakdowns,
+        10L
       );
 
       // when
@@ -503,7 +517,8 @@ class ReservationPricingRepositoryAdapterTest {
           ReservationId.of(null),
           testRoomId,
           timeSlotBreakdown,
-          List.of()
+          List.of(),
+        10L
       );
 
       final ReservationPricing saved = repository.save(pricing);

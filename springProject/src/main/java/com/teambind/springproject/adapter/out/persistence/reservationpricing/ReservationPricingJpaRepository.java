@@ -62,4 +62,15 @@ public interface ReservationPricingJpaRepository extends
    * @return 조건에 맞는 예약 가격 엔티티 목록
    */
   List<ReservationPricingEntity> findByStatusIn(List<ReservationStatus> statuses);
+
+  /**
+   * 만료된 PENDING 상태의 예약을 조회합니다.
+   *
+   * @param now 현재 시간
+   * @return 만료된 PENDING 예약 엔티티 목록
+   */
+  @Query("SELECT rp FROM ReservationPricingEntity rp "
+      + "WHERE rp.status = 'PENDING' "
+      + "AND rp.expiresAt < :now")
+  List<ReservationPricingEntity> findExpiredPendingReservations(@Param("now") LocalDateTime now);
 }

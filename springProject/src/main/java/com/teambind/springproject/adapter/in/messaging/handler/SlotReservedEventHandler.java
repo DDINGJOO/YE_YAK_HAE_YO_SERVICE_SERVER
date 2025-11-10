@@ -31,12 +31,15 @@ public class SlotReservedEventHandler implements EventHandler<SlotReservedEvent>
 
   private final PricingPolicyRepository pricingPolicyRepository;
   private final ReservationPricingRepository reservationPricingRepository;
+  private final long pendingTimeoutMinutes;
 
   public SlotReservedEventHandler(
       final PricingPolicyRepository pricingPolicyRepository,
-      final ReservationPricingRepository reservationPricingRepository) {
+      final ReservationPricingRepository reservationPricingRepository,
+      final com.teambind.springproject.common.config.ReservationConfiguration reservationConfiguration) {
     this.pricingPolicyRepository = pricingPolicyRepository;
     this.reservationPricingRepository = reservationPricingRepository;
+    this.pendingTimeoutMinutes = reservationConfiguration.getPending().getTimeoutMinutes();
   }
 
   @Override
@@ -81,7 +84,8 @@ public class SlotReservedEventHandler implements EventHandler<SlotReservedEvent>
           reservationId,
           roomId,
           timeSlotBreakdown,
-          Collections.emptyList()  // 상품 정보는 예약 확정 시 업데이트
+          Collections.emptyList(),  // 상품 정보는 예약 확정 시 업데이트
+          pendingTimeoutMinutes
       );
 
       // 6. 저장

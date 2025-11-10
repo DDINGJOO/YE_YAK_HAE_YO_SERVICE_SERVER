@@ -81,6 +81,9 @@ public class ReservationPricingEntity {
   @Column(name = "calculated_at", nullable = false)
   private LocalDateTime calculatedAt;
 
+  @Column(name = "expires_at", nullable = false)
+  private LocalDateTime expiresAt;
+
   protected ReservationPricingEntity() {
     // JPA용 기본 생성자
   }
@@ -94,7 +97,8 @@ public class ReservationPricingEntity {
       final Map<LocalDateTime, BigDecimal> slotPrices,
       final List<ProductPriceBreakdownEmbeddable> productBreakdowns,
       final BigDecimal totalPrice,
-      final LocalDateTime calculatedAt) {
+      final LocalDateTime calculatedAt,
+      final LocalDateTime expiresAt) {
     this.id = id;
     this.roomId = roomId;
     this.placeId = placeId;
@@ -104,6 +108,7 @@ public class ReservationPricingEntity {
     this.productBreakdowns = new ArrayList<>(productBreakdowns);
     this.totalPrice = totalPrice;
     this.calculatedAt = calculatedAt;
+    this.expiresAt = expiresAt;
   }
 
   /**
@@ -140,7 +145,8 @@ public class ReservationPricingEntity {
         slotPricesMap,
         productBreakdownsList,
         pricing.getTotalPrice().getAmount(),
-        pricing.getCalculatedAt()
+        pricing.getCalculatedAt(),
+        pricing.getExpiresAt()
     );
   }
 
@@ -166,7 +172,7 @@ public class ReservationPricingEntity {
         .map(ProductPriceBreakdownEmbeddable::toDomain)
         .toList();
 
-    // restore()를 사용하여 저장된 데이터 복원 (status, calculatedAt 보존)
+    // restore()를 사용하여 저장된 데이터 복원 (status, calculatedAt, expiresAt 보존)
     return ReservationPricing.restore(
         ReservationId.of(id),
         RoomId.of(roomId),
@@ -174,7 +180,8 @@ public class ReservationPricingEntity {
         timeSlotBreakdown,
         domainProductBreakdowns,
         Money.of(totalPrice),
-        calculatedAt
+        calculatedAt,
+        expiresAt
     );
   }
 
@@ -214,6 +221,10 @@ public class ReservationPricingEntity {
 
   public LocalDateTime getCalculatedAt() {
     return calculatedAt;
+  }
+
+  public LocalDateTime getExpiresAt() {
+    return expiresAt;
   }
 
   public void setStatus(final ReservationStatus status) {

@@ -15,6 +15,7 @@ import com.teambind.springproject.application.dto.response.ReservationPricingRes
 import com.teambind.springproject.application.port.out.PricingPolicyRepository;
 import com.teambind.springproject.application.port.out.ProductRepository;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
+import com.teambind.springproject.common.config.ReservationConfiguration;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
 import com.teambind.springproject.domain.product.Product;
 import com.teambind.springproject.domain.product.ProductAvailabilityService;
@@ -38,7 +39,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -58,7 +58,9 @@ class ReservationPricingServiceTest {
   @Mock
   private ProductAvailabilityService productAvailabilityService;
 
-  @InjectMocks
+  @Mock
+  private ReservationConfiguration reservationConfiguration;
+
   private ReservationPricingService reservationPricingService;
 
   private RoomId roomId;
@@ -70,6 +72,18 @@ class ReservationPricingServiceTest {
 
   @BeforeEach
   void setUp() {
+    final ReservationConfiguration.Pending pending = new ReservationConfiguration.Pending();
+    pending.setTimeoutMinutes(10L);
+    when(reservationConfiguration.getPending()).thenReturn(pending);
+
+    reservationPricingService = new ReservationPricingService(
+        pricingPolicyRepository,
+        productRepository,
+        reservationPricingRepository,
+        productAvailabilityService,
+        reservationConfiguration
+    );
+
     roomId = RoomId.of(1L);
     placeId = PlaceId.of(100L);
 
@@ -133,7 +147,8 @@ class ReservationPricingServiceTest {
           ReservationId.of(1L),
           roomId,
           timeSlotBreakdown,
-          List.of(product.calculatePrice(2))
+          List.of(product.calculatePrice(2)),
+          10L
       );
 
       when(reservationPricingRepository.save(any(ReservationPricing.class)))
@@ -257,7 +272,8 @@ class ReservationPricingServiceTest {
           ReservationId.of(reservationId),
           roomId,
           timeSlotBreakdown,
-          List.of(product.calculatePrice(1))
+          List.of(product.calculatePrice(1)),
+          10L
       );
 
       when(reservationPricingRepository.findById(ReservationId.of(reservationId)))
@@ -322,7 +338,8 @@ class ReservationPricingServiceTest {
           ReservationId.of(reservationId),
           roomId,
           timeSlotBreakdown,
-          List.of(product.calculatePrice(1))
+          List.of(product.calculatePrice(1)),
+          10L
       );
 
       when(reservationPricingRepository.findById(ReservationId.of(reservationId)))
