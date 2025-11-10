@@ -46,16 +46,19 @@ public class ReservationPricingService implements CreateReservationUseCase,
   private final ProductRepository productRepository;
   private final ReservationPricingRepository reservationPricingRepository;
   private final ProductAvailabilityService productAvailabilityService;
+  private final long pendingTimeoutMinutes;
 
   public ReservationPricingService(
       final PricingPolicyRepository pricingPolicyRepository,
       final ProductRepository productRepository,
       final ReservationPricingRepository reservationPricingRepository,
-      final ProductAvailabilityService productAvailabilityService) {
+      final ProductAvailabilityService productAvailabilityService,
+      final com.teambind.springproject.common.config.ReservationConfiguration reservationConfiguration) {
     this.pricingPolicyRepository = pricingPolicyRepository;
     this.productRepository = productRepository;
     this.reservationPricingRepository = reservationPricingRepository;
     this.productAvailabilityService = productAvailabilityService;
+    this.pendingTimeoutMinutes = reservationConfiguration.getPending().getTimeoutMinutes();
   }
 
   @Override
@@ -89,7 +92,8 @@ public class ReservationPricingService implements CreateReservationUseCase,
         ReservationId.of(null),  // Auto-generated
         roomId,
         timeSlotBreakdown,
-        productBreakdowns
+        productBreakdowns,
+        pendingTimeoutMinutes
     );
 
     // 7. 저장
