@@ -165,10 +165,14 @@ Response:
 **포인트**:
 - 사용자가 상품 선택 전 재고 확인
 - 이미 구현되어 있음 (Issue #58)
+- **룸별 상품 필터링 적용** (Epic #77):
+  - PLACE 상품: 룸별 허용 목록 설정된 상품만 표시 (화이트리스트)
+  - ROOM 상품: 해당 룸 전용 상품 표시
+  - RESERVATION 상품: 모든 예약에서 사용 가능한 상품 표시
 
 ---
 
-### 4단계: 상품 추가 및 재고 락 (가격 서비스) ⚠️ 구현 필요
+### 4단계: 상품 추가 및 재고 락 (가격 서비스) - 구현 필요
 
 #### 사용자 액션
 상품 선택 완료 후 예약에 추가
@@ -291,7 +295,7 @@ Response:
 
 ---
 
-### 6단계: 예약 확정 (가격 서비스) ⚠️ 구현 필요
+### 6단계: 예약 확정 (가격 서비스) - 구현 필요
 
 #### PaymentCompletedEvent 수신
 가격 서비스의 EventConsumer가 이벤트 수신
@@ -495,4 +499,5 @@ CANCELLED = Released (해제됨)
 
 - [PROJECT_REQUIREMENTS.md](../../requirements/PROJECT_REQUIREMENTS.md)
 - [Product Domain](../product/domain.md)
+- [Product - 룸별 상품 허용 관리](../product/README.md#룸별-상품-허용-관리-epic-77)
 - [Event Handling Architecture](../event-handling/architecture.md)
