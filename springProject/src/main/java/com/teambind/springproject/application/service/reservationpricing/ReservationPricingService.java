@@ -2,8 +2,10 @@ package com.teambind.springproject.application.service.reservationpricing;
 
 import com.teambind.springproject.application.dto.request.CreateReservationRequest;
 import com.teambind.springproject.application.dto.request.ProductRequest;
+import com.teambind.springproject.application.dto.request.UpdateProductsRequest;
 import com.teambind.springproject.application.dto.response.ReservationPricingResponse;
 import com.teambind.springproject.application.port.in.CreateReservationUseCase;
+import com.teambind.springproject.application.port.in.UpdateReservationProductsUseCase;
 import com.teambind.springproject.application.port.out.PricingPolicyRepository;
 import com.teambind.springproject.application.port.out.ProductRepository;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
@@ -31,11 +33,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 예약 가격 계산 Application Service.
- * CreateReservationUseCase를 구현합니다.
+ * CreateReservationUseCase와 UpdateReservationProductsUseCase를 구현합니다.
  */
 @Service
 @Transactional
-public class ReservationPricingService implements CreateReservationUseCase {
+public class ReservationPricingService implements CreateReservationUseCase,
+    UpdateReservationProductsUseCase {
 
   private static final Logger logger = LoggerFactory.getLogger(ReservationPricingService.class);
 
@@ -132,6 +135,42 @@ public class ReservationPricingService implements CreateReservationUseCase {
     return ReservationPricingResponse.from(savedReservation);
   }
 
+  @Override
+  public ReservationPricingResponse updateProducts(
+      final Long reservationId,
+      final UpdateProductsRequest request) {
+
+    logger.info("Updating products for reservation: reservationId={}, products={}",
+        reservationId, request.products().size());
+
+    // 1. 예약 조회
+    final ReservationPricing reservation = reservationPricingRepository
+        .findById(ReservationId.of(reservationId))
+        .orElseThrow(() -> new ReservationPricingNotFoundException(reservationId));
+
+    // 2. 상품 목록 조회
+    final List<Product> products = fetchProducts(request.products());
+
+    // 3. 재고 검증 (예약의 시간대 정보 추출)
+    final List<LocalDateTime> timeSlots = extractTimeSlots(reservation);
+    validateProductAvailabilityForUpdate(products, request.products(), timeSlots);
+
+    // 4. 상품별 가격 계산
+    final List<ProductPriceBreakdown> productBreakdowns = calculateProductBreakdowns(
+        products, request.products());
+
+    // 5. 예약 상품 업데이트 (도메인 메서드 호출)
+    reservation.updateProducts(productBreakdowns);
+
+    // 6. 저장
+    final ReservationPricing savedReservation = reservationPricingRepository.save(reservation);
+
+    logger.info("Successfully updated products for reservation: reservationId={}, totalPrice={}",
+        reservationId, savedReservation.getTotalPrice().getAmount());
+
+    return ReservationPricingResponse.from(savedReservation);
+  }
+
   /**
    * 상품 목록을 조회합니다.
    */
@@ -210,5 +249,39 @@ public class ReservationPricingService implements CreateReservationUseCase {
       breakdowns.add(breakdown);
     }
     return breakdowns;
+  }
+
+  /**
+   * 예약의 TimeSlotPriceBreakdown에서 시간대 목록을 추출합니다.
+   */
+  private List<LocalDateTime> extractTimeSlots(final ReservationPricing reservation) {
+    final TimeSlotPriceBreakdown breakdown = reservation.getTimeSlotBreakdown();
+    return new ArrayList<>(breakdown.slotPrices().keySet());
+  }
+
+  /**
+   * 상품 업데이트 시 재고 가용성을 검증합니다.
+   */
+  private void validateProductAvailabilityForUpdate(
+      final List<Product> products,
+      final List<ProductRequest> productRequests,
+      final List<LocalDateTime> timeSlots) {
+
+    for (int i = 0; i < products.size(); i++) {
+      final Product product = products.get(i);
+      final ProductRequest productRequest = productRequests.get(i);
+
+      final boolean available = productAvailabilityService.isAvailable(
+          product,
+          timeSlots,
+          productRequest.quantity(),
+          reservationPricingRepository
+      );
+
+      if (!available) {
+        throw new ProductNotAvailableException(
+            product.getProductId().getValue(), productRequest.quantity());
+      }
+    }
   }
 }
