@@ -49,9 +49,13 @@ class RoomAllowedProductE2ETest extends BaseE2ETest {
 
   @BeforeEach
   void setUpTestData() {
-    testPlaceId = 1L;
-    testRoomAId = 100L;
-    testRoomBId = 200L;
+    testPlaceId = 999L;  // Use unique placeId to avoid conflicts with other E2E tests
+    testRoomAId = 9001L;  // Use unique roomIds
+    testRoomBId = 9002L;
+
+    // 이전 테스트 데이터 정리
+    roomAllowedProductRepository.deleteByRoomId(testRoomAId);
+    roomAllowedProductRepository.deleteByRoomId(testRoomBId);
 
     // 가격 정책 생성
     createTestPricingPolicy(testRoomAId);
@@ -88,11 +92,17 @@ class RoomAllowedProductE2ETest extends BaseE2ETest {
         ProductAvailabilityResponse.class
     );
 
-    // Then: 상품 1, 2만 반환
+    // Then: PLACE scope 상품 중 1, 2만 반환 (RESERVATION/ROOM scope는 필터링 대상 아님)
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isNotNull();
-    assertThat(response.getBody().availableProducts()).hasSize(2);
-    assertThat(response.getBody().availableProducts())
+
+    // PLACE scope 상품만 필터링해서 확인
+    final var placeProducts = response.getBody().availableProducts().stream()
+        .filter(p -> p.productName().startsWith("Product "))
+        .toList();
+
+    assertThat(placeProducts).hasSize(2);
+    assertThat(placeProducts)
         .extracting("productId")
         .containsExactlyInAnyOrder(product1Id, product2Id);
   }
@@ -111,11 +121,17 @@ class RoomAllowedProductE2ETest extends BaseE2ETest {
         ProductAvailabilityResponse.class
     );
 
-    // Then: 상품 3만 반환
+    // Then: PLACE scope 상품 중 3만 반환 (RESERVATION/ROOM scope는 필터링 대상 아님)
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isNotNull();
-    assertThat(response.getBody().availableProducts()).hasSize(1);
-    assertThat(response.getBody().availableProducts().get(0).productId()).isEqualTo(product3Id);
+
+    // PLACE scope 상품만 필터링해서 확인
+    final var placeProducts = response.getBody().availableProducts().stream()
+        .filter(p -> p.productName().startsWith("Product "))
+        .toList();
+
+    assertThat(placeProducts).hasSize(1);
+    assertThat(placeProducts.get(0).productId()).isEqualTo(product3Id);
   }
 
   private void createTestPricingPolicy(final Long roomId) {
