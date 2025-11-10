@@ -21,9 +21,9 @@ public class ReservationPricing {
   private final RoomId roomId;
   private ReservationStatus status;
   private final TimeSlotPriceBreakdown timeSlotBreakdown;
-  private final List<ProductPriceBreakdown> productBreakdowns;
-  private final Money totalPrice;
-  private final LocalDateTime calculatedAt;
+  private List<ProductPriceBreakdown> productBreakdowns;
+  private Money totalPrice;
+  private LocalDateTime calculatedAt;
 
   private ReservationPricing(
       final ReservationId reservationId,
@@ -150,6 +150,36 @@ public class ReservationPricing {
           "Cannot cancel reservation: already cancelled");
     }
     this.status = ReservationStatus.CANCELLED;
+  }
+
+  /**
+   * 예약의 상품 목록을 업데이트하고 가격을 재계산합니다.
+   * PENDING 상태에서만 상품 업데이트가 가능합니다.
+   *
+   * @param newProductBreakdowns 새로운 상품 가격 내역 목록
+   * @throws com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException PENDING 상태가 아닌 경우
+   * @throws IllegalArgumentException 상품 내역이 null인 경우
+   */
+  public void updateProducts(final List<ProductPriceBreakdown> newProductBreakdowns) {
+    // 상태 검증: PENDING이 아니면 예외
+    if (this.status != ReservationStatus.PENDING) {
+      throw new com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException(
+          this.status, "updateProducts");
+    }
+
+    // 입력 검증
+    validateProductBreakdowns(newProductBreakdowns);
+
+    // 상품 목록 업데이트
+    this.productBreakdowns = Collections.unmodifiableList(new ArrayList<>(newProductBreakdowns));
+
+    // 가격 재계산
+    final Money timeSlotTotal = this.timeSlotBreakdown.getTotalPrice();
+    final Money productTotal = calculateProductTotal(newProductBreakdowns);
+    this.totalPrice = timeSlotTotal.add(productTotal);
+
+    // 계산 시각 업데이트
+    this.calculatedAt = LocalDateTime.now();
   }
 
   /**

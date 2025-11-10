@@ -460,6 +460,193 @@ class ReservationPricingTest {
     }
   }
 
+  @Nested
+  @DisplayName("updateProducts() 메서드 테스트")
+  class UpdateProductsTests {
+
+    @Test
+    @DisplayName("PENDING 상태에서 상품 목록을 업데이트한다")
+    void updateProductsInPendingState() {
+      // given
+      final ReservationPricing pricing = createTestPricing();
+      assertThat(pricing.getStatus()).isEqualTo(ReservationStatus.PENDING);
+      assertThat(pricing.getProductBreakdowns()).isEmpty();
+      final Money initialTotal = pricing.getTotalPrice();
+
+      final List<ProductPriceBreakdown> newProducts = List.of(
+          new ProductPriceBreakdown(
+              ProductId.of(1L),
+              "음료",
+              2,
+              Money.of(3000),
+              Money.of(6000),
+              PricingType.SIMPLE_STOCK
+          )
+      );
+
+      // when
+      pricing.updateProducts(newProducts);
+
+      // then
+      assertThat(pricing.getProductBreakdowns()).hasSize(1);
+      assertThat(pricing.getProductTotal()).isEqualTo(Money.of(6000));
+      assertThat(pricing.getTotalPrice()).isEqualTo(initialTotal.add(Money.of(6000)));
+    }
+
+    @Test
+    @DisplayName("CONFIRMED 상태에서는 상품 업데이트 불가")
+    void cannotUpdateProductsWhenConfirmed() {
+      // given
+      final ReservationPricing pricing = createTestPricing();
+      pricing.confirm();
+      assertThat(pricing.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+
+      final List<ProductPriceBreakdown> newProducts = List.of(
+          new ProductPriceBreakdown(
+              ProductId.of(1L),
+              "음료",
+              2,
+              Money.of(3000),
+              Money.of(6000),
+              PricingType.SIMPLE_STOCK
+          )
+      );
+
+      // when & then
+      assertThatThrownBy(() -> pricing.updateProducts(newProducts))
+          .isInstanceOf(com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException.class)
+          .hasMessageContaining("Invalid reservation status transition")
+          .hasMessageContaining("CONFIRMED");
+    }
+
+    @Test
+    @DisplayName("CANCELLED 상태에서는 상품 업데이트 불가")
+    void cannotUpdateProductsWhenCancelled() {
+      // given
+      final ReservationPricing pricing = createTestPricing();
+      pricing.cancel();
+      assertThat(pricing.getStatus()).isEqualTo(ReservationStatus.CANCELLED);
+
+      final List<ProductPriceBreakdown> newProducts = List.of(
+          new ProductPriceBreakdown(
+              ProductId.of(1L),
+              "음료",
+              2,
+              Money.of(3000),
+              Money.of(6000),
+              PricingType.SIMPLE_STOCK
+          )
+      );
+
+      // when & then
+      assertThatThrownBy(() -> pricing.updateProducts(newProducts))
+          .isInstanceOf(com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException.class)
+          .hasMessageContaining("Invalid reservation status transition")
+          .hasMessageContaining("CANCELLED");
+    }
+
+    @Test
+    @DisplayName("상품 업데이트 후 가격이 재계산된다")
+    void recalculatesPriceAfterUpdate() {
+      // given
+      final ReservationPricing pricing = createTestPricing();
+      final Money timeSlotTotal = pricing.getTimeSlotTotal();
+
+      final List<ProductPriceBreakdown> products = List.of(
+          new ProductPriceBreakdown(
+              ProductId.of(1L),
+              "빔프로젝터",
+              1,
+              Money.of(10000),
+              Money.of(10000),
+              PricingType.ONE_TIME
+          ),
+          new ProductPriceBreakdown(
+              ProductId.of(2L),
+              "음료",
+              5,
+              Money.of(2000),
+              Money.of(10000),
+              PricingType.SIMPLE_STOCK
+          )
+      );
+
+      // when
+      pricing.updateProducts(products);
+
+      // then
+      final Money expectedProductTotal = Money.of(10000).add(Money.of(10000)); // 10000 + (2000 * 5)
+      assertThat(pricing.getProductTotal()).isEqualTo(expectedProductTotal);
+      assertThat(pricing.getTotalPrice()).isEqualTo(timeSlotTotal.add(expectedProductTotal));
+    }
+
+    @Test
+    @DisplayName("상품 업데이트 후 reservationId는 변경되지 않는다")
+    void reservationIdRemainsUnchangedAfterUpdate() {
+      // given
+      final ReservationPricing pricing = createTestPricing();
+      final ReservationId originalId = pricing.getReservationId();
+
+      final List<ProductPriceBreakdown> newProducts = List.of(
+          new ProductPriceBreakdown(
+              ProductId.of(1L),
+              "음료",
+              2,
+              Money.of(3000),
+              Money.of(6000),
+              PricingType.SIMPLE_STOCK
+          )
+      );
+
+      // when
+      pricing.updateProducts(newProducts);
+
+      // then
+      assertThat(pricing.getReservationId()).isEqualTo(originalId);
+    }
+
+    @Test
+    @DisplayName("상품을 빈 리스트로 업데이트하면 상품이 제거된다")
+    void updateWithEmptyListRemovesProducts() {
+      // given
+      final ReservationPricing pricing = createTestPricing();
+      final Money timeSlotTotal = pricing.getTimeSlotTotal();
+
+      // 먼저 상품 추가
+      pricing.updateProducts(List.of(
+          new ProductPriceBreakdown(
+              ProductId.of(1L),
+              "음료",
+              2,
+              Money.of(3000),
+              Money.of(6000),
+              PricingType.SIMPLE_STOCK
+          )
+      ));
+      assertThat(pricing.getProductBreakdowns()).isNotEmpty();
+
+      // when: 빈 리스트로 업데이트
+      pricing.updateProducts(Collections.emptyList());
+
+      // then
+      assertThat(pricing.getProductBreakdowns()).isEmpty();
+      assertThat(pricing.getProductTotal()).isEqualTo(Money.ZERO);
+      assertThat(pricing.getTotalPrice()).isEqualTo(timeSlotTotal);
+    }
+
+    @Test
+    @DisplayName("null 상품 리스트로 업데이트 시 예외 발생")
+    void throwsExceptionWhenProductsIsNull() {
+      // given
+      final ReservationPricing pricing = createTestPricing();
+
+      // when & then
+      assertThatThrownBy(() -> pricing.updateProducts(null))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("Product breakdowns cannot be null");
+    }
+  }
+
   // ========== Helper Methods ==========
 
   private ReservationPricing createTestPricing() {
