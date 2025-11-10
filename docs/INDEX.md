@@ -44,6 +44,12 @@ docs/
     │   ├── database.md               (DB 스키마)
     │   └── API.md                    (REST API 명세)
     │
+    ├── reservation-pricing/          (예약 가격 기능)
+    │   ├── README.md                 (개요)
+    │   ├── domain.md                 (도메인 모델)
+    │   ├── database.md               (DB 스키마)
+    │   └── API.md                    (REST API 명세)
+    │
     ├── reservation/                  (예약 기능)
     │   └── RESERVATION_FLOW.md       (예약 플로우 전체 시나리오)
     │
@@ -74,6 +80,12 @@ docs/
   - [domain.md](features/product/domain.md) - 도메인 모델 상세 (Aggregate, Value Objects, PricingStrategy)
   - [database.md](features/product/database.md) - DB 스키마 및 JPA 매핑
   - [API.md](features/product/API.md) - REST API 명세 및 사용 예시
+
+- **reservation-pricing/**: 예약 가격 기능 (Task #74, #88, #89)
+  - [README.md](features/reservation-pricing/README.md) - 기능 개요 및 완료된 태스크
+  - [domain.md](features/reservation-pricing/domain.md) - 도메인 모델 상세 (ReservationPricing Aggregate, 상태 전이, 재고 관리)
+  - [database.md](features/reservation-pricing/database.md) - DB 스키마, JPA 매핑, 인덱스 전략
+  - [API.md](features/reservation-pricing/API.md) - REST API 명세 및 사용 예시 (예약 생성/확정/취소/미리보기/상품 업데이트)
 
 - **reservation/**: 예약 기능 (Issue #68)
   - [RESERVATION_FLOW.md](features/reservation/RESERVATION_FLOW.md) - 예약 플로우 전체 시나리오 (7단계)
@@ -383,8 +395,12 @@ docs/
 #### "예약 가격 계산" 또는 "예약 플로우"에 대해 알고 싶다면?
 1. requirements/PROJECT_REQUIREMENTS.md (기능 3 - 3단계 예약 프로세스)
 2. **features/reservation/RESERVATION_FLOW.md** (전체 예약 플로우 시나리오)
-3. architecture/DOMAIN_MODEL_DESIGN.md (ReservationPricing Aggregate)
-4. adr/ADR_001_ARCHITECTURE_DECISION.md (Value Object Snapshot)
+3. **features/reservation-pricing/README.md** (예약 가격 기능 개요)
+4. **features/reservation-pricing/domain.md** (ReservationPricing Aggregate, 상태 전이, 재고 관리)
+5. **features/reservation-pricing/database.md** (DB 스키마 및 인덱스 전략)
+6. **features/reservation-pricing/API.md** (REST API 사용법)
+7. architecture/DOMAIN_MODEL_DESIGN.md (ReservationPricing Aggregate 설계)
+8. adr/ADR_001_ARCHITECTURE_DECISION.md (Value Object Snapshot)
 
 ---
 
@@ -420,6 +436,15 @@ docs/
 ---
 
 ## 최근 업데이트
+
+### 2025-11-10
+- **예약 가격 기능 문서 작성 완료** (Task #74, #88, #89)
+  - docs/features/reservation-pricing/ 디렉토리 신규 생성
+  - README.md: 기능 개요, 주요 컴포넌트, 상태 전이, PENDING 타임아웃, 이벤트 처리 (완료된 Task 체크)
+  - domain.md: ReservationPricing Aggregate, Value Objects, 상태 전이 메서드, ProductAvailabilityService, 가격 계산 로직 상세 설계
+  - database.md: ERD, JPA 매핑, 인덱스 전략 (ElementCollection, PlaceId 비정규화), Flyway 마이그레이션, 성능 최적화
+  - API.md: REST API 5개 엔드포인트 명세 (예약 생성/확정/취소/미리보기/상품 업데이트), 사용 예시, 재고 관리, PENDING 타임아웃
+  - docs/INDEX.md 업데이트: reservation-pricing 문서 추가
 
 ### 2025-11-09
 - **문서 구조 정리 및 예약 플로우 문서화**
@@ -470,4 +495,4 @@ docs/
   - architecture.md: 계층별 설계, 디자인 패턴, 확장 전략
   - events.md: RoomCreatedEvent 스키마 및 처리 흐름
 
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-10
