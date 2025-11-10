@@ -113,6 +113,24 @@ Indexes:
 - idx_products_room_id (room_id) WHERE room_id IS NOT NULL
 - idx_products_scope_place_id (scope, place_id) WHERE place_id IS NOT NULL
 
+┌──────────────────────────┐
+│ room_allowed_products    │
+├──────────────────────────┤
+│ PK  id                   │ BIGSERIAL
+│ FK  product_id           │ BIGINT → products.product_id
+│     room_id              │ BIGINT (외부 서비스 참조)
+│     created_at           │ TIMESTAMP
+└──────────────────────────┘
+
+Constraints:
+- UNIQUE: (room_id, product_id)
+- FK: product_id → products.product_id ON DELETE CASCADE
+
+Indexes:
+- idx_room_allowed_products_room_id (room_id)
+
+Note: PLACE 범위 상품의 룸별 사용 가능 여부를 화이트리스트 방식으로 관리 (V6 추가)
+
 ---
 
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -129,8 +147,8 @@ Indexes:
 │     time_slot            │
 │     total_price          │         ┌──────────────────────────────┐
 │     calculated_at        │ 1     * │ reservation_pricing_products │
-└──────────────────────────┘◄────────├──────────────────────────────┤
-                                     │ FK  reservation_id           │
+│     expires_at           │◄────────├──────────────────────────────┤
+└──────────────────────────┘         │ FK  reservation_id           │
                                      │     product_id               │
                                      │     product_name             │
                                      │     quantity                 │
@@ -143,6 +161,7 @@ reservation_pricings:
 - Immutable snapshot of pricing at reservation time
 - CHECK: status IN ('PENDING', 'CONFIRMED', 'CANCELLED')
 - CHECK: time_slot IN ('HOUR', 'HALFHOUR')
+- expires_at: PENDING 예약 자동 만료 시각 (V7 추가)
 
 reservation_pricing_slots:
 - Stores time-slot prices (ElementCollection)
@@ -161,9 +180,29 @@ Indexes:
 - idx_reservation_pricings_calculated_at (calculated_at)
 - idx_reservation_pricings_room_status (room_id, status)
 - idx_reservation_pricings_place_status (place_id, status)
+- idx_reservation_pricings_status_expires_at (status, expires_at) WHERE status = 'PENDING' (V7 추가)
 - idx_reservation_pricing_slots_time (slot_time)
 - idx_reservation_pricing_slots_reservation_time (reservation_id, slot_time)
 - idx_reservation_pricing_products_product_id (product_id)
+
+---
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Infrastructure Tables                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────┐
+│       shedlock           │
+├──────────────────────────┤
+│ PK  name                 │ VARCHAR(64)
+│     lock_until           │ TIMESTAMP
+│     locked_at            │ TIMESTAMP
+│     locked_by            │ VARCHAR(255)
+└──────────────────────────┘
+
+Note: 분산 스케줄링 잠금 관리 테이블 (V8 추가)
+- ShedLock 라이브러리가 사용하는 테이블
+- 여러 서비스 인스턴스 환경에서 스케줄 작업 중복 실행 방지
 ```
 
 ---
@@ -245,15 +284,41 @@ Indexes:
 - `time_slot`: 시간 단위 (HOUR: 1시간, HALFHOUR: 30분)
 - `total_price`: 총 가격 (시간대 가격 합계 + 상품 가격 합계)
 - `calculated_at`: 가격 계산 시각 (생성 시각)
+- `expires_at`: PENDING 예약 자동 만료 시각 (V7에서 추가)
+  - PENDING 상태 예약이 이 시각을 초과하면 자동 취소됨
+  - 기본 타임아웃: 10분
 
 **특징**:
 - `updated_at` 컬럼 없음 (불변 객체)
 - 예약 취소 시에도 데이터 유지 (이력 관리)
 - status만 CANCELLED로 변경 가능
+- 스케줄러가 주기적으로 만료된 PENDING 예약을 자동 취소
 
 ---
 
-### 4. reservation_pricing_slots (예약 시간대별 가격)
+### 4. room_allowed_products (룸별 허용 상품)
+
+**목적**: PLACE 범위 상품의 룸별 사용 가능 여부를 화이트리스트 방식으로 관리합니다 (V6에서 추가).
+
+**도메인 규칙**:
+- 하나의 룸에 동일한 상품을 중복 등록할 수 없습니다
+- PLACE 범위 상품만 등록 가능합니다
+- 상품이 삭제되면 매핑도 함께 삭제됩니다 (CASCADE)
+
+**주요 컬럼**:
+- `id`: 매핑 ID (PK, Auto Increment)
+- `room_id`: 룸 ID (외부 서비스 참조)
+- `product_id`: 허용된 PLACE 상품 ID (FK: products.product_id)
+- `created_at`: 생성 일시
+
+**사용 시나리오**:
+- PLACE 상품은 기본적으로 플레이스 전체에 적용되지만
+- 특정 룸에서만 사용 가능하도록 제한하려면 이 테이블에 매핑을 추가
+- 매핑이 없으면 해당 룸에서는 해당 PLACE 상품 사용 불가
+
+---
+
+### 5. reservation_pricing_slots (예약 시간대별 가격)
 
 **목적**: 예약에 포함된 시간대별 가격을 스냅샷으로 저장합니다.
 
@@ -270,7 +335,7 @@ Indexes:
 
 ---
 
-### 5. reservation_pricing_products (예약 상품별 가격)
+### 6. reservation_pricing_products (예약 상품별 가격)
 
 **목적**: 예약에 포함된 추가상품 정보를 스냅샷으로 저장합니다.
 
@@ -287,6 +352,43 @@ Indexes:
 - ElementCollection 매핑 (JPA)
 - 스냅샷이므로 products 테이블과 FK 관계 없음
 - `ON DELETE CASCADE`: 예약 가격 삭제 시 함께 삭제
+
+---
+
+### 7. shedlock (분산 스케줄링 잠금)
+
+**목적**: 여러 서비스 인스턴스 환경에서 스케줄 작업의 중복 실행을 방지합니다 (V8에서 추가).
+
+**사용 라이브러리**: ShedLock (net.javacrumbs.shedlock)
+
+**도메인 규칙**:
+- 하나의 스케줄 작업은 하나의 인스턴스에서만 실행되어야 합니다
+- 잠금은 특정 시간이 지나면 자동으로 해제됩니다
+- 작업명은 고유해야 합니다
+
+**주요 컬럼**:
+- `name`: 스케줄 작업명 (PK)
+- `lock_until`: 잠금 유지 시각 (이 시각까지 다른 인스턴스가 작업 실행 불가)
+- `locked_at`: 잠금 획득 시각
+- `locked_by`: 잠금을 획득한 인스턴스 식별자 (hostname)
+
+**사용 시나리오**:
+- **만료 예약 자동 취소**: PENDING 상태인 예약 중 expires_at를 초과한 건을 주기적으로 취소
+- **재고 동기화**: 주기적으로 재고 상태를 검증하고 동기화
+- **통계 집계**: 일일/주간 통계를 특정 시간에 집계
+
+**예시**:
+```java
+@Scheduled(cron = "*/1 * * * * *")
+@SchedulerLock(
+    name = "cancelExpiredReservations",
+    lockAtMostFor = "10m",
+    lockAtLeastFor = "1m"
+)
+public void cancelExpiredReservations() {
+    // PENDING이면서 만료된 예약 자동 취소
+}
+```
 
 ---
 
@@ -390,6 +492,16 @@ CREATE INDEX idx_reservation_pricings_room_status ON reservation_pricings(room_i
 
 -- 플레이스 + 상태 복합 조회
 CREATE INDEX idx_reservation_pricings_place_status ON reservation_pricings(place_id, status);
+
+-- 만료 예약 조회 (V7 추가)
+CREATE INDEX idx_reservation_pricings_status_expires_at ON reservation_pricings(status, expires_at)
+WHERE status = 'PENDING';
+```
+
+**room_allowed_products**:
+```sql
+-- 룸별 허용 상품 조회
+CREATE INDEX idx_room_allowed_products_room_id ON room_allowed_products(room_id);
 ```
 
 **reservation_pricing_slots**:
@@ -462,6 +574,9 @@ INSERT INTO reservation_pricing_products (reservation_id, product_id, product_na
 | V3 | Product Aggregate 추가 | 2025-11-08 |
 | V4 | ReservationPricing Aggregate 추가 | 2025-11-08 |
 | V5 | ID 생성 전략 변경 (BIGSERIAL -> Snowflake ID) | 2025-11-09 |
+| V6 | room_allowed_products 테이블 추가 (룸별 허용 상품 화이트리스트) | 2025-11-09 |
+| V7 | reservation_pricings에 expires_at 컬럼 추가 (PENDING 예약 자동 만료) | 2025-11-09 |
+| V8 | shedlock 테이블 추가 (분산 스케줄링 잠금) | 2025-11-09 |
 
 ---
 
