@@ -96,6 +96,11 @@ springdoc:
   default-produces-media-type: application/json
   default-consumes-media-type: application/json
 
+# Reservation Configuration
+reservation:
+  pending:
+    timeout-minutes: ${RESERVATION_PENDING_TIMEOUT_MINUTES:10}
+
 
 
 
