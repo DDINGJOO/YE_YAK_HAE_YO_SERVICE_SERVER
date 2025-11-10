@@ -1,0 +1,65 @@
+spring:
+  # Database properties are dynamically set by Testcontainers
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  # JPA Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: create-drop
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+        implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+    open-in-view: false
+
+  # Flyway Configuration (disabled for E2E tests, using JPA schema generation instead)
+  flyway:
+    enabled: false
+
+  # Kafka Configuration (properties dynamically set by Testcontainers)
+  kafka:
+    producer:
+      retries: 3
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+
+    consumer:
+      group-id: e2e-test-consumer-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+    listener:
+      ack-mode: manual
+      concurrency: 1
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.teambind.springproject: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.springframework.kafka: INFO
+    org.flywaydb: INFO
+    org.testcontainers: INFO
+
+# Reservation Configuration
+reservation:
+  pending:
+    timeout-minutes: 10

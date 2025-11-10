@@ -59,6 +59,12 @@ dependencies {
 
     // Test - H2 for integration tests
     testImplementation 'com.h2database:h2'
+
+    // Test - Testcontainers for E2E tests
+    testImplementation 'org.testcontainers:testcontainers:1.19.3'
+    testImplementation 'org.testcontainers:junit-jupiter:1.19.3'
+    testImplementation 'org.testcontainers:postgresql:1.19.3'
+    testImplementation 'org.testcontainers:kafka:1.19.3'
 }
 
 tasks.named('test') {
