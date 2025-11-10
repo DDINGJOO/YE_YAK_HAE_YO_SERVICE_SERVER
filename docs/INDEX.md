@@ -25,6 +25,11 @@ docs/
 │   ├── README.md
 │   └── ADR_001_ARCHITECTURE_DECISION.md (최종 아키텍처 결정)
 │
+├── implementation/                   (구현 상세 문서)
+│   ├── PACKAGE_STRUCTURE.md          (Hexagonal Architecture 패키지 구조)
+│   ├── DATABASE_SCHEMA.md            (데이터베이스 스키마 및 ERD)
+│   └── DOCKER_SETUP.md               (Docker Compose 설정)
+│
 ├── development/                      (개발 가이드)
 │   └── performance/                  (성능 관련)
 │       ├── optimization.md           (성능 최적화 전략)
@@ -258,6 +263,42 @@ docs/
 - 아키텍처 결정 배경 이해 필요 시
 - 유사한 결정 필요 시
 - 온보딩 시
+
+---
+
+### 구현 상세 문서 (Implementation)
+
+**위치:** `implementation/`
+
+**목적:** 실제 구현된 시스템의 상세 구조와 설정을 문서화합니다.
+
+**주요 문서:**
+
+#### PACKAGE_STRUCTURE.md
+- Hexagonal Architecture 패키지 구조
+- 계층별 역할 (domain, application, adapter)
+- 포트와 어댑터 패턴 구현
+- 의존성 방향 및 규칙
+
+#### DATABASE_SCHEMA.md
+- 전체 데이터베이스 ERD
+- 테이블 상세 설명 (8개 테이블)
+- Snowflake ID 생성 전략
+- 인덱싱 전략 및 성능 최적화
+- 마이그레이션 히스토리 (V1~V8)
+- 도메인 규칙 (Constraints, CHECK)
+
+#### DOCKER_SETUP.md
+- Docker Compose 설정
+- PostgreSQL, Kafka, Zookeeper 컨테이너
+- 로컬 개발 환경 구성
+- 포트 매핑 및 네트워크 설정
+
+**언제 읽나요?**
+- 실제 코드 구조 파악 필요 시
+- 데이터베이스 스키마 확인 시
+- 로컬 개발 환경 설정 시
+- 온보딩 시 (아키텍처 설계 이후)
 
 ---
 
