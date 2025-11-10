@@ -86,4 +86,11 @@ public interface ReservationPricingRepository {
    * @return 존재하면 true, 아니면 false
    */
   boolean existsById(ReservationId reservationId);
+
+  /**
+   * 만료된 PENDING 상태의 예약을 조회합니다.
+   *
+   * @return 만료된 PENDING 예약 목록
+   */
+  List<ReservationPricing> findExpiredPendingReservations();
 }

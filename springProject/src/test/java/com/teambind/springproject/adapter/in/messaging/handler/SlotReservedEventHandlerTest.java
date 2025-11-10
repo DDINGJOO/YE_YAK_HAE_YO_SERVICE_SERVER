@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.teambind.springproject.adapter.in.messaging.event.SlotReservedEvent;
 import com.teambind.springproject.application.port.out.PricingPolicyRepository;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
+import com.teambind.springproject.common.config.ReservationConfiguration;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
 import com.teambind.springproject.domain.pricingpolicy.TimeRangePrices;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
@@ -42,15 +43,23 @@ class SlotReservedEventHandlerTest {
   @Mock
   private ReservationPricingRepository reservationPricingRepository;
 
+  @Mock
+  private ReservationConfiguration reservationConfiguration;
+
   private SlotReservedEventHandler handler;
 
   private PricingPolicy samplePricingPolicy;
 
   @BeforeEach
   void setUp() {
+    final ReservationConfiguration.Pending pending = new ReservationConfiguration.Pending();
+    pending.setTimeoutMinutes(10L);
+    when(reservationConfiguration.getPending()).thenReturn(pending);
+
     handler = new SlotReservedEventHandler(
         pricingPolicyRepository,
-        reservationPricingRepository
+        reservationPricingRepository,
+        reservationConfiguration
     );
 
     // 샘플 가격 정책 생성 (30분 단위, 기본 가격 10,000원)

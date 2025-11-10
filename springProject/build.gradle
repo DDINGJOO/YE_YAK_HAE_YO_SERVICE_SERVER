@@ -40,6 +40,10 @@ dependencies {
     // Kafka
     implementation 'org.springframework.kafka:spring-kafka'
 
+    // ShedLock for distributed scheduling
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:5.10.2'
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:5.10.2'
+
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

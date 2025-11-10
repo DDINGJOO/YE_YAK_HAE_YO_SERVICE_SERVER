@@ -47,7 +47,8 @@ class ReservationPricingTest {
           reservationId,
           roomId,
           timeSlotBreakdown,
-          Collections.emptyList()
+          Collections.emptyList(),
+        10L
       );
 
       // then
@@ -98,7 +99,8 @@ class ReservationPricingTest {
           reservationId,
           roomId,
           timeSlotBreakdown,
-          productBreakdowns
+          productBreakdowns,
+        10L
       );
 
       // then
@@ -122,7 +124,8 @@ class ReservationPricingTest {
           ReservationId.of(1L),
           RoomId.of(100L),
           timeSlotBreakdown,
-          new ArrayList<>()
+          new ArrayList<>(),
+          10L
       );
 
       // then
@@ -144,7 +147,8 @@ class ReservationPricingTest {
           null,
           RoomId.of(100L),
           timeSlotBreakdown,
-          Collections.emptyList()
+          Collections.emptyList(),
+        10L
       ))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("Reservation ID cannot be null");
@@ -164,7 +168,8 @@ class ReservationPricingTest {
           ReservationId.of(1L),
           null,
           timeSlotBreakdown,
-          Collections.emptyList()
+          Collections.emptyList(),
+        10L
       ))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("Room ID cannot be null");
@@ -177,7 +182,8 @@ class ReservationPricingTest {
           ReservationId.of(1L),
           RoomId.of(100L),
           null,
-          Collections.emptyList()
+          Collections.emptyList(),
+        10L
       ))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("Time slot breakdown cannot be null");
@@ -197,7 +203,8 @@ class ReservationPricingTest {
           ReservationId.of(1L),
           RoomId.of(100L),
           timeSlotBreakdown,
-          null
+          null,
+          10L
       ))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("Product breakdowns cannot be null");
@@ -315,7 +322,8 @@ class ReservationPricingTest {
           ReservationId.of(1L),
           RoomId.of(100L),
           timeSlotBreakdown,
-          Collections.emptyList()
+          Collections.emptyList(),
+        10L
       );
 
       assertThat(pricing.getTotalPrice()).isEqualTo(Money.of(10000));
@@ -351,7 +359,8 @@ class ReservationPricingTest {
           ReservationId.of(1L),
           RoomId.of(100L),
           timeSlotBreakdown,
-          productBreakdowns
+          productBreakdowns,
+        10L
       );
 
       // when
@@ -417,14 +426,16 @@ class ReservationPricingTest {
           reservationId,
           RoomId.of(100L),
           breakdown1,
-          Collections.emptyList()
+          Collections.emptyList(),
+        10L
       );
 
       final ReservationPricing pricing2 = ReservationPricing.calculate(
           reservationId,
           RoomId.of(200L),
           breakdown2,
-          Collections.emptyList()
+          Collections.emptyList(),
+        10L
       );
 
       // when & then
@@ -445,14 +456,16 @@ class ReservationPricingTest {
           ReservationId.of(1L),
           RoomId.of(100L),
           breakdown,
-          Collections.emptyList()
+          Collections.emptyList(),
+        10L
       );
 
       final ReservationPricing pricing2 = ReservationPricing.calculate(
           ReservationId.of(2L),
           RoomId.of(100L),
           breakdown,
-          Collections.emptyList()
+          Collections.emptyList(),
+        10L
       );
 
       // when & then
@@ -662,7 +675,8 @@ class ReservationPricingTest {
         ReservationId.of(1L),
         RoomId.of(100L),
         timeSlotBreakdown,
-        Collections.emptyList()
+        Collections.emptyList(),
+        10L
     );
   }
 }
