@@ -24,6 +24,7 @@ public class ReservationPricing {
   private List<ProductPriceBreakdown> productBreakdowns;
   private Money totalPrice;
   private LocalDateTime calculatedAt;
+  private LocalDateTime expiresAt;
 
   private ReservationPricing(
       final ReservationId reservationId,
@@ -32,7 +33,8 @@ public class ReservationPricing {
       final TimeSlotPriceBreakdown timeSlotBreakdown,
       final List<ProductPriceBreakdown> productBreakdowns,
       final Money totalPrice,
-      final LocalDateTime calculatedAt) {
+      final LocalDateTime calculatedAt,
+      final LocalDateTime expiresAt) {
     validateReservationId(reservationId);
     validateRoomId(roomId);
     validateStatus(status);
@@ -40,6 +42,7 @@ public class ReservationPricing {
     validateProductBreakdowns(productBreakdowns);
     validateTotalPrice(totalPrice);
     validateCalculatedAt(calculatedAt);
+    validateExpiresAt(expiresAt, calculatedAt);
     validatePriceConsistency(timeSlotBreakdown, productBreakdowns, totalPrice);
 
     this.reservationId = reservationId;
@@ -49,6 +52,7 @@ public class ReservationPricing {
     this.productBreakdowns = Collections.unmodifiableList(new ArrayList<>(productBreakdowns));
     this.totalPrice = totalPrice;
     this.calculatedAt = calculatedAt;
+    this.expiresAt = expiresAt;
   }
 
   /**
@@ -58,13 +62,15 @@ public class ReservationPricing {
    * @param roomId 룸 ID
    * @param timeSlotBreakdown 시간대별 가격 내역
    * @param productBreakdowns 상품별 가격 내역
+   * @param timeoutMinutes PENDING 상태 타임아웃 시간 (분)
    * @return ReservationPricing
    */
   public static ReservationPricing calculate(
       final ReservationId reservationId,
       final RoomId roomId,
       final TimeSlotPriceBreakdown timeSlotBreakdown,
-      final List<ProductPriceBreakdown> productBreakdowns) {
+      final List<ProductPriceBreakdown> productBreakdowns,
+      final long timeoutMinutes) {
 
     // Null 검증 (생성자보다 먼저 검증)
     if (reservationId == null) {
@@ -79,10 +85,14 @@ public class ReservationPricing {
     if (productBreakdowns == null) {
       throw new IllegalArgumentException("Product breakdowns cannot be null");
     }
+    if (timeoutMinutes <= 0) {
+      throw new IllegalArgumentException("Timeout minutes must be positive");
+    }
 
     final Money timeSlotTotal = timeSlotBreakdown.getTotalPrice();
     final Money productTotal = calculateProductTotal(productBreakdowns);
     final Money total = timeSlotTotal.add(productTotal);
+    final LocalDateTime now = LocalDateTime.now();
 
     return new ReservationPricing(
         reservationId,
@@ -91,7 +101,8 @@ public class ReservationPricing {
         timeSlotBreakdown,
         productBreakdowns,
         total,
-        LocalDateTime.now()
+        now,
+        now.plusMinutes(timeoutMinutes)
     );
   }
 
@@ -106,6 +117,7 @@ public class ReservationPricing {
    * @param productBreakdowns 상품별 가격 내역
    * @param totalPrice 총 가격
    * @param calculatedAt 계산 시각
+   * @param expiresAt 만료 시각
    * @return ReservationPricing
    */
   public static ReservationPricing restore(
@@ -115,7 +127,8 @@ public class ReservationPricing {
       final TimeSlotPriceBreakdown timeSlotBreakdown,
       final List<ProductPriceBreakdown> productBreakdowns,
       final Money totalPrice,
-      final LocalDateTime calculatedAt) {
+      final LocalDateTime calculatedAt,
+      final LocalDateTime expiresAt) {
 
     return new ReservationPricing(
         reservationId,
@@ -124,7 +137,8 @@ public class ReservationPricing {
         timeSlotBreakdown,
         productBreakdowns,
         totalPrice,
-        calculatedAt
+        calculatedAt,
+        expiresAt
     );
   }
 
@@ -240,6 +254,15 @@ public class ReservationPricing {
     }
   }
 
+  private void validateExpiresAt(final LocalDateTime expiresAt, final LocalDateTime calculatedAt) {
+    if (expiresAt == null) {
+      throw new IllegalArgumentException("Expires at cannot be null");
+    }
+    if (calculatedAt != null && expiresAt.isBefore(calculatedAt)) {
+      throw new IllegalArgumentException("Expires at must be after calculated at");
+    }
+  }
+
   private void validatePriceConsistency(
       final TimeSlotPriceBreakdown timeSlotBreakdown,
       final List<ProductPriceBreakdown> productBreakdowns,
@@ -283,6 +306,20 @@ public class ReservationPricing {
 
   public LocalDateTime getCalculatedAt() {
     return calculatedAt;
+  }
+
+  public LocalDateTime getExpiresAt() {
+    return expiresAt;
+  }
+
+  /**
+   * 예약이 만료되었는지 확인합니다.
+   * PENDING 상태이고 현재 시간이 만료 시각을 초과한 경우 true를 반환합니다.
+   *
+   * @return 만료 여부
+   */
+  public boolean isExpired() {
+    return status == ReservationStatus.PENDING && LocalDateTime.now().isAfter(expiresAt);
   }
 
   /**
