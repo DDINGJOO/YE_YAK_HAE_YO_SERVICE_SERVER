@@ -265,7 +265,8 @@ class ProductAvailabilityServiceTest {
           ReservationId.of(null),
           RoomId.of(1L),
           breakdown,
-          List.of(productBreakdown)
+          List.of(productBreakdown),
+          10L
       );
 
       when(repository.findByPlaceIdAndTimeRange(any(), any(), any(), anyList()))
@@ -318,7 +319,8 @@ class ProductAvailabilityServiceTest {
           ReservationId.of(null),
           RoomId.of(1L),
           breakdown,
-          List.of(productBreakdown)
+          List.of(productBreakdown),
+          10L
       );
 
       when(repository.findByPlaceIdAndTimeRange(any(), any(), any(), anyList()))
@@ -441,7 +443,8 @@ class ProductAvailabilityServiceTest {
           ReservationId.of(null),
           roomId,
           breakdown,
-          List.of(productBreakdown)
+          List.of(productBreakdown),
+          10L
       );
 
       when(repository.findByRoomIdAndTimeRange(any(), any(), any(), anyList()))

@@ -61,7 +61,8 @@ class ReservationCancelledEventHandlerTest {
         ReservationId.of(1L),
         RoomId.of(1L),
         timeSlotBreakdown,
-        Collections.emptyList()
+        Collections.emptyList(),
+        10L
     );
   }
 
