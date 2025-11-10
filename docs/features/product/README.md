@@ -78,8 +78,8 @@
 - Issue #11: Product Aggregate 구현 (완료)
 - Issue #13: Product Repository 및 영속성 구현 (완료)
 - Issue #14: Product API 구현 (완료)
-- Epic #77: 룸별 상품 관리 시스템 (진행 중)
-- Story #78: 룸별 허용 상품 설정 기능 (진행 중) 
+- Epic #77: 룸별 상품 관리 시스템 (완료)
+- Story #78: 룸별 허용 상품 설정 기능 (완료) 
 
 ## Product Scope
 Product는 3가지 범위(Scope)로 구분됩니다:
@@ -198,7 +198,19 @@ Product는 3가지 가격 책정 방식을 지원합니다:
   - PUT /api/products/{id}: 수정 성공/실패 테스트
   - DELETE /api/products/{id}: 삭제 성공/실패 테스트
 
-**총 테스트: 96개 케이스**
+### Room Allowed Products (Epic #77)
+- **RoomAllowedProductTest**: 9개 Value Object 테스트
+  - 생성자 검증 (null, 유효성)
+  - Record 불변성 테스트
+- **RoomAllowedProductRepositoryAdapterTest**: 17개 통합 테스트
+  - 허용 상품 조회/저장/삭제 테스트
+  - 트랜잭션 롤백 테스트
+  - 중복 저장 방지 테스트
+- **RoomAllowedProductControllerTest**: 11개 API 테스트
+  - POST/GET/DELETE 엔드포인트 테스트
+  - 비즈니스 시나리오 테스트
+
+**총 테스트: 133개 케이스**
 **테스트 커버리지: Domain 100%, Repository 100%, API 100%**
 
 ## 룸별 상품 허용 관리 (Epic #77)
@@ -241,11 +253,19 @@ DELETE /api/admin/rooms/{roomId}/allowed-products
 
 ---
 
+## 구현 완료 사항
+- Issue #11: Product Aggregate 구현
+- Issue #13: Product Repository 및 영속성 구현
+- Issue #14: Product API 구현
+- Epic #77: 룸별 상품 관리 시스템
+  - Task #79: RoomAllowedProduct Value Object
+  - Task #80: room_allowed_products 테이블 Migration
+  - Task #81: RoomAllowedProductRepository Port 및 Adapter
+  - Task #82: Use Cases 구현
+  - Task #83: Admin API 구현
+  - CR #84: ProductRepositoryAdapter 필터링 추가
+
 ## 향후 계획
-- Epic #77: 룸별 상품 관리 시스템 (진행 중)
-  - Story #78: 룸별 허용 상품 설정 기능
-  - Task #79-83: 각 계층별 구현
-  - CR #84: ProductAvailabilityService 필터링 추가
 - Issue #12: ProductAvailabilityService 완성 (Place/Room Scope)
   - Issue #15 (ReservationPricing 도메인) 완료 후 구현
 - Issue #17: 예약 가격 계산 Application Service 구현
