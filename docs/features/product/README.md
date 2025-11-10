@@ -75,17 +75,22 @@
 - [API 문서](./API.md)
 
 ## 관련 Issues
-- Issue #11: Product Aggregate 구현 
-- Issue #13: Product Repository 및 영속성 구현 
-- Issue #14: Product API 구현 
+- Issue #11: Product Aggregate 구현 (완료)
+- Issue #13: Product Repository 및 영속성 구현 (완료)
+- Issue #14: Product API 구현 (완료)
+- Epic #77: 룸별 상품 관리 시스템 (진행 중)
+- Story #78: 룸별 허용 상품 설정 기능 (진행 중) 
 
 ## Product Scope
 Product는 3가지 범위(Scope)로 구분됩니다:
 
 ### PLACE (플레이스 전체)
-- 플레이스 내 모든 룸에서 사용 가능
+- 플레이스 내 룸에서 사용 가능
 - PlaceId 필수, RoomId는 null
 - 예시: 공용 빔 프로젝터, 공용 화이트보드
+- **중요**: 룸별 허용 목록 설정 가능 (Epic #77)
+  - 화이트리스트 방식: 허용된 룸에서만 사용 가능
+  - 매핑 없으면 해당 룸에서 사용 불가
 
 ### ROOM (특정 룸)
 - 특정 룸에서만 사용 가능
@@ -196,7 +201,51 @@ Product는 3가지 가격 책정 방식을 지원합니다:
 **총 테스트: 96개 케이스**
 **테스트 커버리지: Domain 100%, Repository 100%, API 100%**
 
+## 룸별 상품 허용 관리 (Epic #77)
+
+### 개요
+플레이스 어드민이 룸별로 PLACE Scope 상품의 허용 목록을 관리할 수 있는 기능입니다.
+
+### 정책: 화이트리스트 방식
+**"매핑이 없으면 PLACE 상품은 표시되지 않음 (명시적 허용만)"**
+
+### 예시
+```
+플레이스 100의 PLACE 상품:
+- Product 1: 빔프로젝터
+- Product 2: 화이트보드
+- Product 3: 아메리카노
+- Product 4: 과자
+
+룸 1 설정: [Product 3, 4] (음료/간식만 허용)
+→ 룸 1 예약 시 상품 조회: 아메리카노, 과자만 표시
+
+룸 2 설정: [] (매핑 없음)
+→ 룸 2 예약 시 상품 조회: PLACE 상품 모두 제외
+
+룸 3 설정: [Product 1, 2, 3, 4] (모두 허용)
+→ 룸 3 예약 시 상품 조회: 모든 PLACE 상품 표시
+```
+
+### 관리자 API
+```
+POST   /api/admin/rooms/{roomId}/allowed-products
+GET    /api/admin/rooms/{roomId}/allowed-products
+DELETE /api/admin/rooms/{roomId}/allowed-products
+```
+
+### 영향받는 API
+- `GET /api/products/availability`: PLACE 상품 필터링 적용
+
+자세한 내용은 [도메인 모델](./domain.md#1-룸별-상품-허용-규칙-epic-77) 참고
+
+---
+
 ## 향후 계획
+- Epic #77: 룸별 상품 관리 시스템 (진행 중)
+  - Story #78: 룸별 허용 상품 설정 기능
+  - Task #79-83: 각 계층별 구현
+  - CR #84: ProductAvailabilityService 필터링 추가
 - Issue #12: ProductAvailabilityService 완성 (Place/Room Scope)
   - Issue #15 (ReservationPricing 도메인) 완료 후 구현
 - Issue #17: 예약 가격 계산 Application Service 구현

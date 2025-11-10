@@ -37,6 +37,45 @@ Product (Aggregate Root)
 
 ## Value Objects
 
+### RoomAllowedProduct (Epic #77, Story #78)
+**역할**: 룸별로 허용된 PLACE Scope 상품 관리
+
+**구성**:
+```java
+public record RoomAllowedProduct(
+    Long roomId,
+    ProductId productId
+) {
+    public RoomAllowedProduct {
+        if (roomId == null || roomId <= 0) {
+            throw new IllegalArgumentException("Invalid roomId");
+        }
+        if (productId == null) {
+            throw new IllegalArgumentException("ProductId is required");
+        }
+    }
+}
+```
+
+**불변식**:
+- roomId는 양수여야 함
+- productId는 null이 아니어야 함
+- 불변 객체 (Record)
+
+**비즈니스 의미**:
+- **화이트리스트 방식**: 매핑이 있는 PLACE 상품만 해당 룸에서 사용 가능
+- **매핑 없음**: 해당 룸에서 모든 PLACE 상품 사용 불가
+- **ROOM/RESERVATION Scope**: 이 매핑의 영향을 받지 않음
+
+**사용 예시**:
+```java
+// 룸 1에 아메리카노(productId=3)만 허용
+RoomAllowedProduct allowed = new RoomAllowedProduct(1L, ProductId.of(3L));
+
+// 룸 1 예약 시 상품 조회
+// → productId=3만 표시됨 (다른 PLACE 상품은 제외)
+```
+
 ### PricingStrategy
 **역할**: 상품의 가격 책정 방식 관리
 
@@ -132,7 +171,34 @@ public ProductPriceBreakdown {
 
 ## 비즈니스 규칙
 
-### 1. Scope별 ID 검증
+### 1. 룸별 상품 허용 규칙 (Epic #77)
+**화이트리스트 방식**:
+- RoomAllowedProduct 매핑이 **없는 경우**: 해당 룸에서 모든 PLACE 상품 사용 불가
+- RoomAllowedProduct 매핑이 **있는 경우**: 매핑된 PLACE 상품만 사용 가능
+
+**필터링 대상**:
+- **PLACE Scope**: 룸별 허용 목록 필터링 적용
+- **ROOM Scope**: 필터링 없음 (이미 룸 전용)
+- **RESERVATION Scope**: 필터링 없음 (모든 예약에서 사용)
+
+**예시**:
+```
+플레이스 100의 PLACE 상품:
+- Product 1: 빔프로젝터
+- Product 2: 화이트보드
+- Product 3: 아메리카노
+
+룸 1 매핑: [Product 3] (아메리카노만 허용)
+→ 룸 1 예약 시: 아메리카노만 표시
+
+룸 2 매핑: [] (매핑 없음)
+→ 룸 2 예약 시: PLACE 상품 모두 제외
+
+룸 3 매핑: [Product 1, Product 2, Product 3] (모두 허용)
+→ 룸 3 예약 시: 모든 PLACE 상품 표시
+```
+
+### 2. Scope별 ID 검증
 **PLACE**:
 - PlaceId 필수
 - RoomId는 null
@@ -165,7 +231,7 @@ private void validateScopeIds(PlaceId placeId, RoomId roomId, ProductScope scope
 }
 ```
 
-### 2. PricingType별 AdditionalPrice 검증
+### 3. PricingType별 AdditionalPrice 검증
 **INITIAL_PLUS_ADDITIONAL**:
 - initialPrice 필수
 - additionalPrice 필수
@@ -174,7 +240,7 @@ private void validateScopeIds(PlaceId placeId, RoomId roomId, ProductScope scope
 - initialPrice 필수
 - additionalPrice는 null
 
-### 3. 가격 계산 로직
+### 4. 가격 계산 로직
 **INITIAL_PLUS_ADDITIONAL**:
 ```
 수량 1: unitPrice = initialPrice, totalPrice = initialPrice
@@ -194,7 +260,7 @@ private void validateScopeIds(PlaceId placeId, RoomId roomId, ProductScope scope
 모든 수량: unitPrice = initialPrice, totalPrice = initialPrice * quantity
 ```
 
-### 4. 재고 관리
+### 5. 재고 관리
 - `totalQuantity`는 0 이상이어야 함
 - 재고 차감 로직은 별도 UseCase에서 처리 (추후 구현)
 - Product는 재고 수량 변경 기능만 제공
@@ -321,7 +387,7 @@ product.updatePricingStrategy(
 
 ### 구현 완료 (Issue #14)
 
-#### 1. RegisterProductUseCase ✅
+#### 1. RegisterProductUseCase (완료)
 **구현**: `RegisterProductService`
 - 상품 생성 (PLACE/ROOM/RESERVATION Scope별)
 - Scope별 ID 검증
@@ -331,7 +397,7 @@ product.updatePricingStrategy(
 
 **REST API**: `POST /api/products`
 
-#### 2. GetProductUseCase ✅
+#### 2. GetProductUseCase (완료)
 **구현**: `GetProductService`
 - 상품 조회 (ID, PlaceId, RoomId, Scope별)
 - 전체 상품 목록 조회
@@ -343,7 +409,7 @@ product.updatePricingStrategy(
 - `GET /api/products?placeId=100`
 - `GET /api/products?roomId=200`
 
-#### 3. UpdateProductUseCase ✅
+#### 3. UpdateProductUseCase (완료)
 **구현**: `UpdateProductService`
 - 상품 정보 수정
 - 이름, 가격 전략, 수량 변경
@@ -351,7 +417,7 @@ product.updatePricingStrategy(
 
 **REST API**: `PUT /api/products/{productId}`
 
-#### 4. DeleteProductUseCase ✅
+#### 4. DeleteProductUseCase (완료)
 **구현**: `DeleteProductService`
 - 상품 삭제
 - 존재 여부 검증
