@@ -37,7 +37,7 @@
 ## 관련 문서
 - [도메인 모델](./domain.md)
 - [플로우 및 시퀀스](./flow.md)
-- [데이터베이스 스키마](./database.md)
+- [데이터베이스 스키마](../../implementation/DATABASE_SCHEMA.md) - 전체 DB 스키마 (pricing_policies 테이블)
 
 ### API Layer (Issue #10)
 - **PricingPolicyController**: REST API 컨트롤러
