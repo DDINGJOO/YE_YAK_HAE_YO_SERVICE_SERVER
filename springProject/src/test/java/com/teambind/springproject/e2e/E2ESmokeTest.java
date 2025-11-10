@@ -19,11 +19,11 @@ class E2ESmokeTest extends BaseE2ETest {
   @Test
   @DisplayName("Testcontainers가 정상적으로 실행되는지 확인")
   void testContainersAreRunning() {
-    assertThat(POSTGRES_CONTAINER.isRunning())
+    assertThat(E2ETestContainers.getPostgresContainer().isRunning())
         .as("PostgreSQL container should be running")
         .isTrue();
 
-    assertThat(KAFKA_CONTAINER.isRunning())
+    assertThat(E2ETestContainers.getKafkaContainer().isRunning())
         .as("Kafka container should be running")
         .isTrue();
   }
@@ -47,11 +47,11 @@ class E2ESmokeTest extends BaseE2ETest {
   @Test
   @DisplayName("데이터베이스 연결이 정상적으로 동작하는지 확인")
   void testDatabaseConnection() {
-    assertThat(POSTGRES_CONTAINER.getJdbcUrl())
+    assertThat(E2ETestContainers.getPostgresContainer().getJdbcUrl())
         .as("Database URL should be configured")
         .isNotBlank();
 
-    assertThat(POSTGRES_CONTAINER.getUsername())
+    assertThat(E2ETestContainers.getPostgresContainer().getUsername())
         .as("Database username should be configured")
         .isEqualTo("test");
   }
@@ -59,7 +59,7 @@ class E2ESmokeTest extends BaseE2ETest {
   @Test
   @DisplayName("Kafka 브로커가 정상적으로 실행되는지 확인")
   void testKafkaConnection() {
-    assertThat(KAFKA_CONTAINER.getBootstrapServers())
+    assertThat(E2ETestContainers.getKafkaContainer().getBootstrapServers())
         .as("Kafka bootstrap servers should be configured")
         .isNotBlank();
   }
