@@ -82,7 +82,7 @@
 
 ## 관련 문서
 - [도메인 모델](./domain.md)
-- [데이터베이스 스키마](./database.md)
+- [데이터베이스 스키마](../../implementation/DATABASE_SCHEMA.md) - 전체 DB 스키마 (reservation_pricings 테이블)
 - [API 문서](./API.md)
 
 ## 관련 Issues

@@ -6,28 +6,25 @@
 
 ```
 docs/
-├── INDEX.md                          (이 파일)
+├── INDEX.md                          (이 파일 - 문서 진입점)
 ├── INFO.md                           (프로젝트 자동화 시스템 개요)
 ├── ISSUE_GUIDE.md                    (이슈 작성 가이드)
 ├── PROJECT_SETUP.md                  (프로젝트 설정 및 워크플로우 가이드)
 │
 ├── requirements/                     (요구사항 분석)
-│   ├── README.md
 │   └── PROJECT_REQUIREMENTS.md       (전체 요구사항 명세)
 │
 ├── architecture/                     (아키텍처 설계)
-│   ├── README.md
 │   ├── ARCHITECTURE_ANALYSIS.md      (아키텍처 패턴 비교)
 │   ├── DOMAIN_MODEL_DESIGN.md        (도메인 모델 설계)
 │   └── TECH_STACK_ANALYSIS.md        (기술 스택 분석)
 │
 ├── adr/                              (Architecture Decision Records)
-│   ├── README.md
 │   └── ADR_001_ARCHITECTURE_DECISION.md (최종 아키텍처 결정)
 │
 ├── implementation/                   (구현 상세 문서)
 │   ├── PACKAGE_STRUCTURE.md          (Hexagonal Architecture 패키지 구조)
-│   ├── DATABASE_SCHEMA.md            (데이터베이스 스키마 및 ERD)
+│   ├── DATABASE_SCHEMA.md            (전체 DB 스키마 및 ERD - 단일 진실 공급원)
 │   └── DOCKER_SETUP.md               (Docker Compose 설정)
 │
 ├── development/                      (개발 가이드)
@@ -40,19 +37,16 @@ docs/
     │   ├── README.md                 (개요)
     │   ├── domain.md                 (도메인 모델)
     │   ├── flow.md                   (플로우 및 시퀀스)
-    │   ├── database.md               (DB 스키마)
     │   └── API.md                    (REST API 명세)
     │
     ├── product/                      (추가상품 기능)
     │   ├── README.md                 (개요)
     │   ├── domain.md                 (도메인 모델)
-    │   ├── database.md               (DB 스키마)
     │   └── API.md                    (REST API 명세)
     │
     ├── reservation-pricing/          (예약 가격 기능)
     │   ├── README.md                 (개요)
     │   ├── domain.md                 (도메인 모델)
-    │   ├── database.md               (DB 스키마)
     │   └── API.md                    (REST API 명세)
     │
     ├── reservation/                  (예약 기능)
@@ -77,20 +71,20 @@ docs/
   - [README.md](features/pricing-policy/README.md) - 기능 개요 및 완료된 이슈
   - [domain.md](features/pricing-policy/domain.md) - 도메인 모델 상세 (Aggregate, Value Objects, Use Cases)
   - [flow.md](features/pricing-policy/flow.md) - 플로우 및 시퀀스 다이어그램 (생성, 계산, 수정, 복사)
-  - [database.md](features/pricing-policy/database.md) - DB 스키마 및 JPA 매핑
   - [API.md](features/pricing-policy/API.md) - REST API 명세 및 사용 예시
+  - DB 스키마는 [implementation/DATABASE_SCHEMA.md](implementation/DATABASE_SCHEMA.md) 참조
 
 - **product/**: 추가상품 기능 (Issue #11, #13, #14)
   - [README.md](features/product/README.md) - 기능 개요 및 완료된 이슈
   - [domain.md](features/product/domain.md) - 도메인 모델 상세 (Aggregate, Value Objects, PricingStrategy)
-  - [database.md](features/product/database.md) - DB 스키마 및 JPA 매핑
   - [API.md](features/product/API.md) - REST API 명세 및 사용 예시
+  - DB 스키마는 [implementation/DATABASE_SCHEMA.md](implementation/DATABASE_SCHEMA.md) 참조
 
 - **reservation-pricing/**: 예약 가격 기능 (Task #74, #88, #89)
   - [README.md](features/reservation-pricing/README.md) - 기능 개요 및 완료된 태스크
   - [domain.md](features/reservation-pricing/domain.md) - 도메인 모델 상세 (ReservationPricing Aggregate, 상태 전이, 재고 관리)
-  - [database.md](features/reservation-pricing/database.md) - DB 스키마, JPA 매핑, 인덱스 전략
   - [API.md](features/reservation-pricing/API.md) - REST API 명세 및 사용 예시 (예약 생성/확정/취소/미리보기/상품 업데이트)
+  - DB 스키마는 [implementation/DATABASE_SCHEMA.md](implementation/DATABASE_SCHEMA.md) 참조
 
 - **reservation/**: 예약 기능 (Issue #68)
   - [RESERVATION_FLOW.md](features/reservation/RESERVATION_FLOW.md) - 예약 플로우 전체 시나리오 (7단계)
@@ -430,7 +424,7 @@ docs/
 2. architecture/DOMAIN_MODEL_DESIGN.md (Product Aggregate 설계)
 3. **features/product/README.md** (기능 개요)
 4. **features/product/domain.md** (도메인 모델 상세)
-5. **features/product/database.md** (DB 스키마 및 JPA 매핑)
+5. **implementation/DATABASE_SCHEMA.md** (전체 DB 스키마 - products 테이블)
 6. adr/ADR_001_ARCHITECTURE_DECISION.md (설계 결정)
 
 #### "예약 가격 계산" 또는 "예약 플로우"에 대해 알고 싶다면?
@@ -438,7 +432,7 @@ docs/
 2. **features/reservation/RESERVATION_FLOW.md** (전체 예약 플로우 시나리오)
 3. **features/reservation-pricing/README.md** (예약 가격 기능 개요)
 4. **features/reservation-pricing/domain.md** (ReservationPricing Aggregate, 상태 전이, 재고 관리)
-5. **features/reservation-pricing/database.md** (DB 스키마 및 인덱스 전략)
+5. **implementation/DATABASE_SCHEMA.md** (전체 DB 스키마 - reservation_pricings 테이블)
 6. **features/reservation-pricing/API.md** (REST API 사용법)
 7. architecture/DOMAIN_MODEL_DESIGN.md (ReservationPricing Aggregate 설계)
 8. adr/ADR_001_ARCHITECTURE_DECISION.md (Value Object Snapshot)
