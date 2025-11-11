@@ -85,8 +85,39 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return ResponseEntity.badRequest().body(errorResponse);
 	}
 
+	/**
+	 * IllegalArgumentException 처리 (도메인 validation 실패)
+	 */
+	@ExceptionHandler(IllegalArgumentException.class)
+	public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
+			IllegalArgumentException ex, HttpServletRequest request) {
+		log.warn("Invalid argument: {}", ex.getMessage());
 
+		ErrorResponse errorResponse = ErrorResponse.of(
+				HttpStatus.BAD_REQUEST.value(),
+				"INVALID_ARGUMENT",
+				ex.getMessage(),
+				request.getRequestURI()
+		);
+		return ResponseEntity.badRequest().body(errorResponse);
+	}
 
+	/**
+	 * IllegalStateException 처리 (도메인 상태 위반)
+	 */
+	@ExceptionHandler(IllegalStateException.class)
+	public ResponseEntity<ErrorResponse> handleIllegalStateException(
+			IllegalStateException ex, HttpServletRequest request) {
+		log.warn("Invalid state: {}", ex.getMessage());
+
+		ErrorResponse errorResponse = ErrorResponse.of(
+				HttpStatus.CONFLICT.value(),
+				"INVALID_STATE",
+				ex.getMessage(),
+				request.getRequestURI()
+		);
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+	}
 
 	/**
 	 * Validation 예외 처리 (필드 에러 상세 정보 포함)
