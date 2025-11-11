@@ -79,14 +79,15 @@ public class ProductAvailabilityService {
   }
 
   /**
-   * PLACE Scope 상품의 가용 수량을 계산합니다.
+   * 시간 기반 Scope(PLACE, ROOM) 상품의 가용 수량을 계산합니다.
+   * 요청 시간대별로 사용 중인 최대 수량을 계산하여 가용 수량을 반환합니다.
    *
    * @param product 확인할 상품
    * @param requestedSlots 요청 시간 슬롯 목록
    * @param overlappingReservations 시간대가 겹치는 예약 목록
    * @return 가용한 수량
    */
-  private int calculatePlaceScopedAvailableQuantity(
+  private int calculateTimeScopedAvailableQuantity(
       final Product product,
       final List<LocalDateTime> requestedSlots,
       final List<ReservationPricing> overlappingReservations) {
@@ -103,6 +104,21 @@ public class ProductAvailabilityService {
   }
 
   /**
+   * PLACE Scope 상품의 가용 수량을 계산합니다.
+   *
+   * @param product 확인할 상품
+   * @param requestedSlots 요청 시간 슬롯 목록
+   * @param overlappingReservations 시간대가 겹치는 예약 목록
+   * @return 가용한 수량
+   */
+  private int calculatePlaceScopedAvailableQuantity(
+      final Product product,
+      final List<LocalDateTime> requestedSlots,
+      final List<ReservationPricing> overlappingReservations) {
+    return calculateTimeScopedAvailableQuantity(product, requestedSlots, overlappingReservations);
+  }
+
+  /**
    * ROOM Scope 상품의 가용 수량을 계산합니다.
    *
    * @param product 확인할 상품
@@ -114,16 +130,7 @@ public class ProductAvailabilityService {
       final Product product,
       final List<LocalDateTime> requestedSlots,
       final List<ReservationPricing> overlappingReservations) {
-
-    validateTimeSlots(requestedSlots);
-
-    final int maxUsedQuantity = requestedSlots.stream()
-        .mapToInt(slot -> calculateUsedAtSlot(overlappingReservations, product.getProductId(),
-            slot))
-        .max()
-        .orElse(0);
-
-    return Math.max(0, product.getTotalQuantity() - maxUsedQuantity);
+    return calculateTimeScopedAvailableQuantity(product, requestedSlots, overlappingReservations);
   }
 
   /**
@@ -142,8 +149,8 @@ public class ProductAvailabilityService {
   }
 
   /**
-   * PLACE Scope 상품의 재고 가용성을 확인합니다.
-   * 플레이스 전체에서 요청 시간대별로 사용 중인 최대 재고를 계산합니다.
+   * 시간 기반 Scope(PLACE, ROOM) 상품의 재고 가용성을 확인합니다.
+   * 요청 시간대별로 사용 중인 최대 재고를 계산하여 가용 여부를 반환합니다.
    *
    * @param product 확인할 상품
    * @param requestedSlots 요청 시간 슬롯 목록
@@ -151,7 +158,7 @@ public class ProductAvailabilityService {
    * @param overlappingReservations 시간대가 겹치는 예약 목록
    * @return 가용하면 true, 아니면 false
    */
-  private boolean checkPlaceScopedAvailability(
+  private boolean checkTimeScopedAvailability(
       final Product product,
       final List<LocalDateTime> requestedSlots,
       final int requestedQuantity,
@@ -170,8 +177,24 @@ public class ProductAvailabilityService {
   }
 
   /**
+   * PLACE Scope 상품의 재고 가용성을 확인합니다.
+   *
+   * @param product 확인할 상품
+   * @param requestedSlots 요청 시간 슬롯 목록
+   * @param requestedQuantity 요청 수량
+   * @param overlappingReservations 시간대가 겹치는 예약 목록
+   * @return 가용하면 true, 아니면 false
+   */
+  private boolean checkPlaceScopedAvailability(
+      final Product product,
+      final List<LocalDateTime> requestedSlots,
+      final int requestedQuantity,
+      final List<ReservationPricing> overlappingReservations) {
+    return checkTimeScopedAvailability(product, requestedSlots, requestedQuantity, overlappingReservations);
+  }
+
+  /**
    * ROOM Scope 상품의 재고 가용성을 확인합니다.
-   * 특정 룸에서 요청 시간대별로 사용 중인 최대 재고를 계산합니다.
    *
    * @param product 확인할 상품
    * @param requestedSlots 요청 시간 슬롯 목록
@@ -184,17 +207,7 @@ public class ProductAvailabilityService {
       final List<LocalDateTime> requestedSlots,
       final int requestedQuantity,
       final List<ReservationPricing> overlappingReservations) {
-
-    validateTimeSlots(requestedSlots);
-
-    // 각 슬롯별 최대 사용량 계산
-    final int maxUsedQuantity = requestedSlots.stream()
-        .mapToInt(slot -> calculateUsedAtSlot(overlappingReservations, product.getProductId(),
-            slot))
-        .max()
-        .orElse(0);
-
-    return maxUsedQuantity + requestedQuantity <= product.getTotalQuantity();
+    return checkTimeScopedAvailability(product, requestedSlots, requestedQuantity, overlappingReservations);
   }
 
   /**
