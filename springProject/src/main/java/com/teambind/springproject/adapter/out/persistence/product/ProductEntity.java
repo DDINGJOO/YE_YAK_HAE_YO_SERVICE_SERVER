@@ -122,7 +122,40 @@ public class ProductEntity {
     };
   }
 
+  /**
+   * 테스트용 ProductEntity 생성 헬퍼 메서드.
+   */
+  public static ProductEntity createForTest(
+      final Long productId,
+      final Long placeId,
+      final Long roomId,
+      final String name,
+      final ProductScope scope,
+      final java.math.BigDecimal price,
+      final int quantity) {
+
+    final PricingStrategyEmbeddable pricingStrategy = new PricingStrategyEmbeddable(
+        com.teambind.springproject.domain.product.PricingType.SIMPLE_STOCK,
+        price,
+        null
+    );
+
+    return new ProductEntity(
+        productId,
+        scope,
+        placeId,
+        roomId,
+        name,
+        pricingStrategy,
+        quantity
+    );
+  }
+
   public Long getId() {
+    return id;
+  }
+
+  public Long getProductId() {
     return id;
   }
 
