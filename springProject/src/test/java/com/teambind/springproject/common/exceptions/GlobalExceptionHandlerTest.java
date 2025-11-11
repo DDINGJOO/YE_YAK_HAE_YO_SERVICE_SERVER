@@ -47,12 +47,12 @@ class GlobalExceptionHandlerTest {
           .thenThrow(new IllegalArgumentException("Room ID cannot be null"));
 
       // when & then
-      mockMvc.perform(get("/api/pricing-policies/1"))
+      mockMvc.perform(get("/api/v1/pricing-policies/1"))
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.status").value(400))
           .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"))
           .andExpect(jsonPath("$.message").value("Room ID cannot be null"))
-          .andExpect(jsonPath("$.path").value("/api/pricing-policies/1"))
+          .andExpect(jsonPath("$.path").value("/api/v1/pricing-policies/1"))
           .andExpect(jsonPath("$.timestamp").exists());
     }
 
@@ -65,7 +65,7 @@ class GlobalExceptionHandlerTest {
           .thenThrow(new IllegalArgumentException(errorMessage));
 
       // when & then
-      mockMvc.perform(get("/api/pricing-policies/123"))
+      mockMvc.perform(get("/api/v1/pricing-policies/123"))
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"))
           .andExpect(jsonPath("$.message").value(errorMessage));
@@ -84,12 +84,12 @@ class GlobalExceptionHandlerTest {
           .thenThrow(new IllegalStateException("Cannot modify confirmed pricing policy"));
 
       // when & then
-      mockMvc.perform(get("/api/pricing-policies/1"))
+      mockMvc.perform(get("/api/v1/pricing-policies/1"))
           .andExpect(status().isConflict())
           .andExpect(jsonPath("$.status").value(409))
           .andExpect(jsonPath("$.code").value("INVALID_STATE"))
           .andExpect(jsonPath("$.message").value("Cannot modify confirmed pricing policy"))
-          .andExpect(jsonPath("$.path").value("/api/pricing-policies/1"))
+          .andExpect(jsonPath("$.path").value("/api/v1/pricing-policies/1"))
           .andExpect(jsonPath("$.timestamp").exists());
     }
   }
@@ -106,7 +106,7 @@ class GlobalExceptionHandlerTest {
           .thenThrow(new IllegalArgumentException("Test error"));
 
       // when & then
-      mockMvc.perform(get("/api/pricing-policies/999"))
+      mockMvc.perform(get("/api/v1/pricing-policies/999"))
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.timestamp").exists())
           .andExpect(jsonPath("$.status").exists())
@@ -123,7 +123,7 @@ class GlobalExceptionHandlerTest {
           .thenThrow(new IllegalArgumentException("Invalid input"));
 
       // when & then
-      mockMvc.perform(get("/api/pricing-policies/1"))
+      mockMvc.perform(get("/api/v1/pricing-policies/1"))
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.fieldErrors").doesNotExist());
     }

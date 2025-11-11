@@ -86,7 +86,7 @@ class RoomAllowedProductE2ETest extends BaseE2ETest {
 
     // When: 룸A에서 상품 가용성 조회
     final ResponseEntity<ProductAvailabilityResponse> response = restTemplate.getForEntity(
-        getBaseUrl() + "/api/products/availability?roomId=" + testRoomAId
+        getBaseUrl() + "/api/v1/products/availability?roomId=" + testRoomAId
             + "&placeId=" + testPlaceId
             + "&timeSlots=" + slot,
         ProductAvailabilityResponse.class
@@ -115,7 +115,7 @@ class RoomAllowedProductE2ETest extends BaseE2ETest {
 
     // When: 룸B에서 상품 가용성 조회
     final ResponseEntity<ProductAvailabilityResponse> response = restTemplate.getForEntity(
-        getBaseUrl() + "/api/products/availability?roomId=" + testRoomBId
+        getBaseUrl() + "/api/v1/products/availability?roomId=" + testRoomBId
             + "&placeId=" + testPlaceId
             + "&timeSlots=" + slot,
         ProductAvailabilityResponse.class

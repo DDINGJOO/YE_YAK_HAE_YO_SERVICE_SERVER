@@ -52,7 +52,7 @@ class ReservationPricingControllerTest {
   private UpdateReservationProductsUseCase updateReservationProductsUseCase;
 
   @Nested
-  @DisplayName("POST /api/reservations/pricing - 예약 생성")
+  @DisplayName("POST /api/v1/reservations - 예약 생성")
   class CreateReservationTests {
 
     @Test
@@ -81,7 +81,7 @@ class ReservationPricingControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(post("/api/reservations/pricing")
+      mockMvc.perform(post("/api/v1/reservations")
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isCreated())
@@ -108,7 +108,7 @@ class ReservationPricingControllerTest {
           .thenThrow(new ProductNotAvailableException(1L, 100));
 
       // when & then
-      mockMvc.perform(post("/api/reservations/pricing")
+      mockMvc.perform(post("/api/v1/reservations")
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isBadRequest())
@@ -129,7 +129,7 @@ class ReservationPricingControllerTest {
       );
 
       // when & then
-      mockMvc.perform(post("/api/reservations/pricing")
+      mockMvc.perform(post("/api/v1/reservations")
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isBadRequest());
@@ -157,7 +157,7 @@ class ReservationPricingControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(put("/api/reservations/{reservationId}/confirm", reservationId))
+      mockMvc.perform(put("/api/v1/reservations/{reservationId}/confirm", reservationId))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.reservationId").value(1))
           .andExpect(jsonPath("$.status").value("CONFIRMED"));
@@ -173,7 +173,7 @@ class ReservationPricingControllerTest {
           .thenThrow(new ReservationPricingNotFoundException(reservationId));
 
       // when & then
-      mockMvc.perform(put("/api/reservations/{reservationId}/confirm", reservationId))
+      mockMvc.perform(put("/api/v1/reservations/{reservationId}/confirm", reservationId))
           .andExpect(status().isNotFound())
           .andExpect(jsonPath("$.code").value("RESERVATION_001"))
           .andExpect(jsonPath("$.exceptionType").value("ReservationPricingNotFoundException"));
@@ -201,7 +201,7 @@ class ReservationPricingControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(put("/api/reservations/{reservationId}/cancel", reservationId))
+      mockMvc.perform(put("/api/v1/reservations/{reservationId}/cancel", reservationId))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.reservationId").value(1))
           .andExpect(jsonPath("$.status").value("CANCELLED"));
@@ -217,7 +217,7 @@ class ReservationPricingControllerTest {
           .thenThrow(new ReservationPricingNotFoundException(reservationId));
 
       // when & then
-      mockMvc.perform(put("/api/reservations/{reservationId}/cancel", reservationId))
+      mockMvc.perform(put("/api/v1/reservations/{reservationId}/cancel", reservationId))
           .andExpect(status().isNotFound())
           .andExpect(jsonPath("$.code").value("RESERVATION_001"))
           .andExpect(jsonPath("$.exceptionType").value("ReservationPricingNotFoundException"));
@@ -253,7 +253,7 @@ class ReservationPricingControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(put("/api/reservations/{reservationId}/products", reservationId)
+      mockMvc.perform(put("/api/v1/reservations/{reservationId}/products", reservationId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isOk())
@@ -278,7 +278,7 @@ class ReservationPricingControllerTest {
           .thenThrow(new InvalidReservationStatusException(ReservationStatus.CONFIRMED, "updateProducts"));
 
       // when & then
-      mockMvc.perform(put("/api/reservations/{reservationId}/products", reservationId)
+      mockMvc.perform(put("/api/v1/reservations/{reservationId}/products", reservationId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isBadRequest())
@@ -302,7 +302,7 @@ class ReservationPricingControllerTest {
           .thenThrow(new ReservationPricingNotFoundException(reservationId));
 
       // when & then
-      mockMvc.perform(put("/api/reservations/{reservationId}/products", reservationId)
+      mockMvc.perform(put("/api/v1/reservations/{reservationId}/products", reservationId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isNotFound())
@@ -326,7 +326,7 @@ class ReservationPricingControllerTest {
           .thenThrow(new ProductNotAvailableException(1L, 100));
 
       // when & then
-      mockMvc.perform(put("/api/reservations/{reservationId}/products", reservationId)
+      mockMvc.perform(put("/api/v1/reservations/{reservationId}/products", reservationId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isBadRequest())
@@ -346,7 +346,7 @@ class ReservationPricingControllerTest {
       );
 
       // when & then
-      mockMvc.perform(put("/api/reservations/{reservationId}/products", invalidReservationId)
+      mockMvc.perform(put("/api/v1/reservations/{reservationId}/products", invalidReservationId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isBadRequest());

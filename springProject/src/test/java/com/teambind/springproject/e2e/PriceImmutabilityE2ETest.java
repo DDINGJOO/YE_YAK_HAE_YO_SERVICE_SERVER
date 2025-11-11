@@ -70,7 +70,7 @@ class PriceImmutabilityE2ETest extends BaseE2ETest {
     );
 
     final ResponseEntity<ReservationPricingResponse> createResponse = restTemplate.postForEntity(
-        getBaseUrl() + "/api/reservations/pricing",
+        getBaseUrl() + "/api/v1/reservations",
         createRequest,
         ReservationPricingResponse.class
     );
@@ -81,7 +81,7 @@ class PriceImmutabilityE2ETest extends BaseE2ETest {
 
     // When: 예약 확정
     restTemplate.exchange(
-        getBaseUrl() + "/api/reservations/" + reservationId + "/confirm",
+        getBaseUrl() + "/api/v1/reservations/" + reservationId + "/confirm",
         org.springframework.http.HttpMethod.PUT,
         null,
         ReservationPricingResponse.class
@@ -113,7 +113,7 @@ class PriceImmutabilityE2ETest extends BaseE2ETest {
     );
 
     final ResponseEntity<ReservationPricingResponse> createResponse = restTemplate.postForEntity(
-        getBaseUrl() + "/api/reservations/pricing",
+        getBaseUrl() + "/api/v1/reservations",
         createRequest,
         ReservationPricingResponse.class
     );
@@ -124,7 +124,7 @@ class PriceImmutabilityE2ETest extends BaseE2ETest {
 
     // When: 예약 확정
     restTemplate.exchange(
-        getBaseUrl() + "/api/reservations/" + reservationId + "/confirm",
+        getBaseUrl() + "/api/v1/reservations/" + reservationId + "/confirm",
         org.springframework.http.HttpMethod.PUT,
         null,
         ReservationPricingResponse.class

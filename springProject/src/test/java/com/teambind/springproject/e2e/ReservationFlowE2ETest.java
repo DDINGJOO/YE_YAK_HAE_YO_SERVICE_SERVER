@@ -80,9 +80,9 @@ class ReservationFlowE2ETest extends BaseE2ETest {
         List.of(new ProductRequest(testProductId, 2))
     );
 
-    // When: POST /api/reservations/pricing
+    // When: POST /api/v1/reservations
     final ResponseEntity<ReservationPricingResponse> createResponse = restTemplate.postForEntity(
-        getBaseUrl() + "/api/reservations/pricing",
+        getBaseUrl() + "/api/v1/reservations",
         createRequest,
         ReservationPricingResponse.class
     );
@@ -98,7 +98,7 @@ class ReservationFlowE2ETest extends BaseE2ETest {
 
     // When: Confirm the reservation - PUT /api/reservations/{id}/confirm
     final ResponseEntity<ReservationPricingResponse> confirmResponse = restTemplate.exchange(
-        getBaseUrl() + "/api/reservations/" + reservationId + "/confirm",
+        getBaseUrl() + "/api/v1/reservations/" + reservationId + "/confirm",
         org.springframework.http.HttpMethod.PUT,
         null,
         ReservationPricingResponse.class
@@ -128,7 +128,7 @@ class ReservationFlowE2ETest extends BaseE2ETest {
     );
 
     final ResponseEntity<ReservationPricingResponse> createResponse = restTemplate.postForEntity(
-        getBaseUrl() + "/api/reservations/pricing",
+        getBaseUrl() + "/api/v1/reservations",
         createRequest,
         ReservationPricingResponse.class
     );
@@ -138,7 +138,7 @@ class ReservationFlowE2ETest extends BaseE2ETest {
 
     // When: Cancel the reservation - PUT /api/reservations/{id}/cancel
     final ResponseEntity<ReservationPricingResponse> cancelResponse = restTemplate.exchange(
-        getBaseUrl() + "/api/reservations/" + reservationId + "/cancel",
+        getBaseUrl() + "/api/v1/reservations/" + reservationId + "/cancel",
         org.springframework.http.HttpMethod.PUT,
         null,
         ReservationPricingResponse.class
@@ -168,7 +168,7 @@ class ReservationFlowE2ETest extends BaseE2ETest {
     );
 
     final ResponseEntity<ReservationPricingResponse> createResponse = restTemplate.postForEntity(
-        getBaseUrl() + "/api/reservations/pricing",
+        getBaseUrl() + "/api/v1/reservations",
         createRequest,
         ReservationPricingResponse.class
     );

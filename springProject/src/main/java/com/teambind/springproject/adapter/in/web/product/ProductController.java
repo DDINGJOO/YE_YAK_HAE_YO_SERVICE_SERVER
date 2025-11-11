@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 추가상품 관리 REST Controller.
  */
 @RestController
-@RequestMapping("/api/products")
+@RequestMapping("/api/v1/products")
 @Validated
 public class ProductController {
 

@@ -101,7 +101,7 @@ class ProductControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(post("/api/products")
+      mockMvc.perform(post("/api/v1/products")
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isCreated())
@@ -147,7 +147,7 @@ class ProductControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(post("/api/products")
+      mockMvc.perform(post("/api/v1/products")
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isCreated())
@@ -192,7 +192,7 @@ class ProductControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(post("/api/products")
+      mockMvc.perform(post("/api/v1/products")
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isCreated())
@@ -218,7 +218,7 @@ class ProductControllerTest {
       );
 
       // when & then
-      mockMvc.perform(post("/api/products")
+      mockMvc.perform(post("/api/v1/products")
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isBadRequest());
@@ -244,7 +244,7 @@ class ProductControllerTest {
       );
 
       // when & then
-      mockMvc.perform(post("/api/products")
+      mockMvc.perform(post("/api/v1/products")
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isBadRequest());
@@ -273,7 +273,7 @@ class ProductControllerTest {
       when(getProductUseCase.getById(any(ProductId.class))).thenReturn(response);
 
       // when & then
-      mockMvc.perform(get("/api/products/{productId}", productId))
+      mockMvc.perform(get("/api/v1/products/{productId}", productId))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.productId").value(productId))
           .andExpect(jsonPath("$.name").value("테스트 상품"));
@@ -289,7 +289,7 @@ class ProductControllerTest {
           .thenThrow(new NoSuchElementException("Product not found"));
 
       // when & then
-      mockMvc.perform(get("/api/products/{productId}", productId))
+      mockMvc.perform(get("/api/v1/products/{productId}", productId))
           .andExpect(status().isNotFound());
     }
 
@@ -297,7 +297,7 @@ class ProductControllerTest {
     @DisplayName("음수 ID 조회 시 400을 반환한다")
     void getProductWithNegativeId() throws Exception {
       // when & then
-      mockMvc.perform(get("/api/products/{productId}", -1))
+      mockMvc.perform(get("/api/v1/products/{productId}", -1))
           .andExpect(status().isBadRequest());
     }
   }
@@ -320,7 +320,7 @@ class ProductControllerTest {
       when(getProductUseCase.getAll()).thenReturn(responses);
 
       // when & then
-      mockMvc.perform(get("/api/products"))
+      mockMvc.perform(get("/api/v1/products"))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.length()").value(2));
     }
@@ -337,7 +337,7 @@ class ProductControllerTest {
       when(getProductUseCase.getByScope(ProductScope.PLACE)).thenReturn(responses);
 
       // when & then
-      mockMvc.perform(get("/api/products").param("scope", "PLACE"))
+      mockMvc.perform(get("/api/v1/products").param("scope", "PLACE"))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.length()").value(1))
           .andExpect(jsonPath("$[0].scope").value("PLACE"));
@@ -355,7 +355,7 @@ class ProductControllerTest {
       when(getProductUseCase.getByPlaceId(any(PlaceId.class))).thenReturn(responses);
 
       // when & then
-      mockMvc.perform(get("/api/products").param("placeId", "100"))
+      mockMvc.perform(get("/api/v1/products").param("placeId", "100"))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.length()").value(1))
           .andExpect(jsonPath("$[0].placeId").value(100));
@@ -373,7 +373,7 @@ class ProductControllerTest {
       when(getProductUseCase.getByRoomId(any(RoomId.class))).thenReturn(responses);
 
       // when & then
-      mockMvc.perform(get("/api/products").param("roomId", "200"))
+      mockMvc.perform(get("/api/v1/products").param("roomId", "200"))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.length()").value(1))
           .andExpect(jsonPath("$[0].roomId").value(200));
@@ -409,7 +409,7 @@ class ProductControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(put("/api/products/{productId}", productId)
+      mockMvc.perform(put("/api/v1/products/{productId}", productId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isOk())
@@ -433,7 +433,7 @@ class ProductControllerTest {
           .thenThrow(new NoSuchElementException("Product not found"));
 
       // when & then
-      mockMvc.perform(put("/api/products/{productId}", productId)
+      mockMvc.perform(put("/api/v1/products/{productId}", productId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isNotFound());
@@ -453,7 +453,7 @@ class ProductControllerTest {
       doNothing().when(deleteProductUseCase).delete(any(ProductId.class));
 
       // when & then
-      mockMvc.perform(delete("/api/products/{productId}", productId))
+      mockMvc.perform(delete("/api/v1/products/{productId}", productId))
           .andExpect(status().isNoContent());
     }
 
@@ -467,7 +467,7 @@ class ProductControllerTest {
           .when(deleteProductUseCase).delete(any(ProductId.class));
 
       // when & then
-      mockMvc.perform(delete("/api/products/{productId}", productId))
+      mockMvc.perform(delete("/api/v1/products/{productId}", productId))
           .andExpect(status().isNotFound());
     }
   }
