@@ -3,7 +3,7 @@ package com.teambind.springproject.adapter.out.persistence.product;
 import com.teambind.springproject.application.port.out.ProductRepository;
 import com.teambind.springproject.application.port.out.RoomAllowedProductRepository;
 import com.teambind.springproject.domain.product.Product;
-import com.teambind.springproject.domain.product.ProductScope;
+import com.teambind.springproject.domain.product.vo.ProductScope;
 import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.ProductId;
 import com.teambind.springproject.domain.shared.RoomId;

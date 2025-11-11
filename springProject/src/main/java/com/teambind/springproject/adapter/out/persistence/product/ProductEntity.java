@@ -3,7 +3,7 @@ package com.teambind.springproject.adapter.out.persistence.product;
 import com.teambind.springproject.adapter.out.persistence.pricingpolicy.PlaceIdEmbeddable;
 import com.teambind.springproject.adapter.out.persistence.pricingpolicy.RoomIdEmbeddable;
 import com.teambind.springproject.domain.product.Product;
-import com.teambind.springproject.domain.product.ProductScope;
+import com.teambind.springproject.domain.product.vo.ProductScope;
 import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.ProductId;
 import com.teambind.springproject.domain.shared.RoomId;
@@ -135,7 +135,7 @@ public class ProductEntity {
       final int quantity) {
 
     final PricingStrategyEmbeddable pricingStrategy = new PricingStrategyEmbeddable(
-        com.teambind.springproject.domain.product.PricingType.SIMPLE_STOCK,
+        com.teambind.springproject.domain.product.vo.PricingType.SIMPLE_STOCK,
         price,
         null
     );

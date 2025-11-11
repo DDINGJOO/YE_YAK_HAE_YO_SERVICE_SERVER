@@ -10,7 +10,7 @@ import com.teambind.springproject.application.port.out.ProductRepository;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
 import com.teambind.springproject.domain.product.Product;
-import com.teambind.springproject.domain.product.PricingStrategy;
+import com.teambind.springproject.domain.product.pricing.PricingStrategy;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.PlaceId;

@@ -1,6 +1,6 @@
 package com.teambind.springproject.adapter.out.persistence.product;
 
-import com.teambind.springproject.domain.product.RoomAllowedProduct;
+import com.teambind.springproject.domain.product.relationship.RoomAllowedProduct;
 import com.teambind.springproject.domain.shared.ProductId;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

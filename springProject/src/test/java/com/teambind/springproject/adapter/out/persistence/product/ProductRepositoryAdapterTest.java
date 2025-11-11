@@ -6,10 +6,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.teambind.springproject.application.port.out.RoomAllowedProductRepository;
-import com.teambind.springproject.domain.product.PricingStrategy;
-import com.teambind.springproject.domain.product.PricingType;
+import com.teambind.springproject.domain.product.pricing.PricingStrategy;
+import com.teambind.springproject.domain.product.vo.PricingType;
 import com.teambind.springproject.domain.product.Product;
-import com.teambind.springproject.domain.product.ProductScope;
+import com.teambind.springproject.domain.product.vo.ProductScope;
 import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.ProductId;

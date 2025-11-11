@@ -1,4 +1,4 @@
-package com.teambind.springproject.domain.product;
+package com.teambind.springproject.domain.product.vo;
 
 import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.ProductId;

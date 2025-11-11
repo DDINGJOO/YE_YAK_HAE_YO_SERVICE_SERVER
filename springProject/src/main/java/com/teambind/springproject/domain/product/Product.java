@@ -1,5 +1,8 @@
 package com.teambind.springproject.domain.product;
 
+import com.teambind.springproject.domain.product.pricing.PricingStrategy;
+import com.teambind.springproject.domain.product.vo.ProductPriceBreakdown;
+import com.teambind.springproject.domain.product.vo.ProductScope;
 import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.ProductId;

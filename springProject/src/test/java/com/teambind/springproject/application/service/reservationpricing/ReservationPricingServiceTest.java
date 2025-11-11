@@ -18,8 +18,8 @@ import com.teambind.springproject.application.port.out.ReservationPricingReposit
 import com.teambind.springproject.common.config.ReservationConfiguration;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
 import com.teambind.springproject.domain.product.Product;
-import com.teambind.springproject.domain.product.ProductAvailabilityService;
-import com.teambind.springproject.domain.product.PricingStrategy;
+import com.teambind.springproject.domain.product.availability.ProductAvailabilityService;
+import com.teambind.springproject.domain.product.pricing.PricingStrategy;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.reservationpricing.exception.ProductNotAvailableException;
 import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;

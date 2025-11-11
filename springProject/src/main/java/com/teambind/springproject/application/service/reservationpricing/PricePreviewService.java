@@ -9,7 +9,7 @@ import com.teambind.springproject.application.port.out.PricingPolicyRepository;
 import com.teambind.springproject.application.port.out.ProductRepository;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
 import com.teambind.springproject.domain.product.Product;
-import com.teambind.springproject.domain.product.ProductPriceBreakdown;
+import com.teambind.springproject.domain.product.vo.ProductPriceBreakdown;
 import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;
 import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.ProductId;

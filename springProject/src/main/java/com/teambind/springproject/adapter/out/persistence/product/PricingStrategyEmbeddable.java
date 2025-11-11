@@ -1,7 +1,7 @@
 package com.teambind.springproject.adapter.out.persistence.product;
 
-import com.teambind.springproject.domain.product.PricingStrategy;
-import com.teambind.springproject.domain.product.PricingType;
+import com.teambind.springproject.domain.product.pricing.PricingStrategy;
+import com.teambind.springproject.domain.product.vo.PricingType;
 import com.teambind.springproject.domain.shared.Money;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;

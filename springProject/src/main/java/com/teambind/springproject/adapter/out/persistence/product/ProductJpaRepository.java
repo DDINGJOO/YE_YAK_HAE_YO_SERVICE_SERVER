@@ -1,6 +1,6 @@
 package com.teambind.springproject.adapter.out.persistence.product;
 
-import com.teambind.springproject.domain.product.ProductScope;
+import com.teambind.springproject.domain.product.vo.ProductScope;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

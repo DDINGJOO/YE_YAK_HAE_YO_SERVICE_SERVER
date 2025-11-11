@@ -1,6 +1,6 @@
 package com.teambind.springproject.domain.reservationpricing;
 
-import com.teambind.springproject.domain.product.ProductPriceBreakdown;
+import com.teambind.springproject.domain.product.vo.ProductPriceBreakdown;
 import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.ReservationId;
 import com.teambind.springproject.domain.shared.ReservationStatus;
