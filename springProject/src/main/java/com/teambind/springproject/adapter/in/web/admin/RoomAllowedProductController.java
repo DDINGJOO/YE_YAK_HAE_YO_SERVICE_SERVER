@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 룸별 허용 상품 관리 Admin REST Controller.
  */
 @RestController
-@RequestMapping("/api/admin/rooms/{roomId}/allowed-products")
+@RequestMapping("/api/v1/admin/rooms/{roomId}/allowed-products")
 @Validated
 public class RoomAllowedProductController {
 

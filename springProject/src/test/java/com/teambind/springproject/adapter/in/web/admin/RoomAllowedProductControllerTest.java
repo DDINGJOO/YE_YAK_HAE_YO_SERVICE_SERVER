@@ -69,7 +69,7 @@ class RoomAllowedProductControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(post("/api/admin/rooms/{roomId}/allowed-products", roomId)
+      mockMvc.perform(post("/api/v1/admin/rooms/{roomId}/allowed-products", roomId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isOk())
@@ -99,7 +99,7 @@ class RoomAllowedProductControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(post("/api/admin/rooms/{roomId}/allowed-products", roomId)
+      mockMvc.perform(post("/api/v1/admin/rooms/{roomId}/allowed-products", roomId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isOk())
@@ -117,7 +117,7 @@ class RoomAllowedProductControllerTest {
       final SetRoomAllowedProductsRequest request = new SetRoomAllowedProductsRequest(productIds);
 
       // when & then
-      mockMvc.perform(post("/api/admin/rooms/{roomId}/allowed-products", invalidRoomId)
+      mockMvc.perform(post("/api/v1/admin/rooms/{roomId}/allowed-products", invalidRoomId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isBadRequest());
@@ -143,7 +143,7 @@ class RoomAllowedProductControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(get("/api/admin/rooms/{roomId}/allowed-products", roomId))
+      mockMvc.perform(get("/api/v1/admin/rooms/{roomId}/allowed-products", roomId))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.roomId").value(roomId))
           .andExpect(jsonPath("$.allowedProductIds").isArray())
@@ -167,7 +167,7 @@ class RoomAllowedProductControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(get("/api/admin/rooms/{roomId}/allowed-products", roomId))
+      mockMvc.perform(get("/api/v1/admin/rooms/{roomId}/allowed-products", roomId))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.roomId").value(roomId))
           .andExpect(jsonPath("$.allowedProductIds").isArray())
@@ -187,7 +187,7 @@ class RoomAllowedProductControllerTest {
       doNothing().when(deleteRoomAllowedProductsUseCase).deleteAllowedProducts(roomId);
 
       // when & then
-      mockMvc.perform(delete("/api/admin/rooms/{roomId}/allowed-products", roomId))
+      mockMvc.perform(delete("/api/v1/admin/rooms/{roomId}/allowed-products", roomId))
           .andExpect(status().isNoContent());
     }
 
@@ -198,7 +198,7 @@ class RoomAllowedProductControllerTest {
       final Long invalidRoomId = 0L;
 
       // when & then
-      mockMvc.perform(delete("/api/admin/rooms/{roomId}/allowed-products", invalidRoomId))
+      mockMvc.perform(delete("/api/v1/admin/rooms/{roomId}/allowed-products", invalidRoomId))
           .andExpect(status().isBadRequest());
     }
   }
@@ -226,7 +226,7 @@ class RoomAllowedProductControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(post("/api/admin/rooms/{roomId}/allowed-products", roomId)
+      mockMvc.perform(post("/api/v1/admin/rooms/{roomId}/allowed-products", roomId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isOk())
@@ -253,7 +253,7 @@ class RoomAllowedProductControllerTest {
           .thenReturn(response);
 
       // when & then
-      mockMvc.perform(post("/api/admin/rooms/{roomId}/allowed-products", roomId)
+      mockMvc.perform(post("/api/v1/admin/rooms/{roomId}/allowed-products", roomId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isOk())

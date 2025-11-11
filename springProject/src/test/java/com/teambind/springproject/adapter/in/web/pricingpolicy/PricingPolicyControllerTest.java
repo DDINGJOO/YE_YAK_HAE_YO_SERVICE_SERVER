@@ -78,7 +78,7 @@ class PricingPolicyControllerTest {
       when(getPricingPolicyUseCase.getPolicy(any(RoomId.class))).thenReturn(policy);
 
       // when & then
-      mockMvc.perform(get("/api/pricing-policies/{roomId}", roomId))
+      mockMvc.perform(get("/api/v1/pricing-policies/{roomId}", roomId))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.roomId").value(roomId))
           .andExpect(jsonPath("$.placeId").value(100))
@@ -96,7 +96,7 @@ class PricingPolicyControllerTest {
           .thenThrow(new PricingPolicyNotFoundException("Pricing policy not found"));
 
       // when & then
-      mockMvc.perform(get("/api/pricing-policies/{roomId}", roomId))
+      mockMvc.perform(get("/api/v1/pricing-policies/{roomId}", roomId))
           .andExpect(status().isNotFound())
           .andExpect(jsonPath("$.code").value("PRICING_001"));
     }
@@ -105,7 +105,7 @@ class PricingPolicyControllerTest {
     @DisplayName("잘못된 roomId 형식 시 400을 반환한다")
     void getPricingPolicyInvalidRoomId() throws Exception {
       // when & then
-      mockMvc.perform(get("/api/pricing-policies/{roomId}", "invalid"))
+      mockMvc.perform(get("/api/v1/pricing-policies/{roomId}", "invalid"))
           .andExpect(status().isBadRequest());
     }
   }
@@ -133,7 +133,7 @@ class PricingPolicyControllerTest {
           .thenReturn(updatedPolicy);
 
       // when & then
-      mockMvc.perform(put("/api/pricing-policies/{roomId}/default-price", roomId)
+      mockMvc.perform(put("/api/v1/pricing-policies/{roomId}/default-price", roomId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isOk())
@@ -149,7 +149,7 @@ class PricingPolicyControllerTest {
           new BigDecimal("-1000"));
 
       // when & then
-      mockMvc.perform(put("/api/pricing-policies/{roomId}/default-price", roomId)
+      mockMvc.perform(put("/api/v1/pricing-policies/{roomId}/default-price", roomId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isBadRequest());
@@ -191,7 +191,7 @@ class PricingPolicyControllerTest {
           .thenReturn(updatedPolicy);
 
       // when & then
-      mockMvc.perform(put("/api/pricing-policies/{roomId}/time-range-prices", roomId)
+      mockMvc.perform(put("/api/v1/pricing-policies/{roomId}/time-range-prices", roomId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isOk())
@@ -223,7 +223,7 @@ class PricingPolicyControllerTest {
           .thenReturn(copiedPolicy);
 
       // when & then
-      mockMvc.perform(post("/api/pricing-policies/{targetRoomId}/copy", targetRoomId)
+      mockMvc.perform(post("/api/v1/pricing-policies/{targetRoomId}/copy", targetRoomId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isOk())
@@ -243,7 +243,7 @@ class PricingPolicyControllerTest {
               "Cannot copy pricing policy between different places"));
 
       // when & then
-      mockMvc.perform(post("/api/pricing-policies/{targetRoomId}/copy", targetRoomId)
+      mockMvc.perform(post("/api/v1/pricing-policies/{targetRoomId}/copy", targetRoomId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isBadRequest())
@@ -258,7 +258,7 @@ class PricingPolicyControllerTest {
       final String invalidRequest = "{\"sourceRoomId\": null}";
 
       // when & then
-      mockMvc.perform(post("/api/pricing-policies/{targetRoomId}/copy", targetRoomId)
+      mockMvc.perform(post("/api/v1/pricing-policies/{targetRoomId}/copy", targetRoomId)
               .contentType(MediaType.APPLICATION_JSON)
               .content(invalidRequest))
           .andExpect(status().isBadRequest());

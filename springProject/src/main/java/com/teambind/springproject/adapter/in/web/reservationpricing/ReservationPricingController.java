@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 예약 가격 관리 REST Controller.
  */
 @RestController
-@RequestMapping("/api/reservations")
+@RequestMapping("/api/v1/reservations")
 @Validated
 public class ReservationPricingController {
 
@@ -41,12 +41,12 @@ public class ReservationPricingController {
   }
 
   /**
-   * 예약 가격 계산 및 생성.
+   * 예약 생성 (가격 계산 포함).
    *
    * @param request 예약 생성 요청
    * @return 생성된 예약 정보
    */
-  @PostMapping("/pricing")
+  @PostMapping
   public ResponseEntity<ReservationPricingResponse> createReservation(
       @RequestBody @Valid final CreateReservationRequest request) {
 
@@ -95,7 +95,7 @@ public class ReservationPricingController {
    * @param request 예약 요청 정보
    * @return 가격 미리보기 (시간대 가격 + 상품별 가격 + 총 합계)
    */
-  @PostMapping("/pricing/preview")
+  @PostMapping("/preview")
   public ResponseEntity<PricePreviewResponse> previewPrice(
       @RequestBody @Valid final CreateReservationRequest request) {
 

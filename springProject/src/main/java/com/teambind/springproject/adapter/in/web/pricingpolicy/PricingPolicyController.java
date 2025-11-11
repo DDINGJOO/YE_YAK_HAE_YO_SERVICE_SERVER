@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 가격 정책 관리 REST Controller.
  */
 @RestController
-@RequestMapping("/api/pricing-policies")
+@RequestMapping("/api/v1/pricing-policies")
 @Validated
 public class PricingPolicyController {
 

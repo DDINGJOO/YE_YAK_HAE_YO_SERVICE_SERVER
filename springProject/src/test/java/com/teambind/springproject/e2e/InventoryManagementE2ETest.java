@@ -75,7 +75,7 @@ class InventoryManagementE2ETest extends BaseE2ETest {
     );
 
     final ResponseEntity<ReservationPricingResponse> response = restTemplate.postForEntity(
-        getBaseUrl() + "/api/reservations/pricing",
+        getBaseUrl() + "/api/v1/reservations",
         request,
         ReservationPricingResponse.class
     );
@@ -100,7 +100,7 @@ class InventoryManagementE2ETest extends BaseE2ETest {
     );
 
     final ResponseEntity<ReservationPricingResponse> response = restTemplate.postForEntity(
-        getBaseUrl() + "/api/reservations/pricing",
+        getBaseUrl() + "/api/v1/reservations",
         request,
         ReservationPricingResponse.class
     );
@@ -125,7 +125,7 @@ class InventoryManagementE2ETest extends BaseE2ETest {
     );
 
     final ResponseEntity<ReservationPricingResponse> response1 = restTemplate.postForEntity(
-        getBaseUrl() + "/api/reservations/pricing",
+        getBaseUrl() + "/api/v1/reservations",
         request1,
         ReservationPricingResponse.class
     );
@@ -141,7 +141,7 @@ class InventoryManagementE2ETest extends BaseE2ETest {
     );
 
     final ResponseEntity<ReservationPricingResponse> response2 = restTemplate.postForEntity(
-        getBaseUrl() + "/api/reservations/pricing",
+        getBaseUrl() + "/api/v1/reservations",
         request2,
         ReservationPricingResponse.class
     );
