@@ -2,7 +2,7 @@ package com.teambind.springproject.application.dto.response;
 
 import com.teambind.springproject.application.dto.request.PricingStrategyDto;
 import com.teambind.springproject.domain.product.Product;
-import com.teambind.springproject.domain.product.ProductScope;
+import com.teambind.springproject.domain.product.vo.ProductScope;
 
 /**
  * 상품 응답 DTO.

@@ -1,5 +1,7 @@
 package com.teambind.springproject.domain.product;
 
+import com.teambind.springproject.domain.product.relationship.RoomAllowedProduct;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

@@ -1,7 +1,7 @@
 package com.teambind.springproject.application.dto.request;
 
-import com.teambind.springproject.domain.product.PricingStrategy;
-import com.teambind.springproject.domain.product.PricingType;
+import com.teambind.springproject.domain.product.pricing.PricingStrategy;
+import com.teambind.springproject.domain.product.vo.PricingType;
 import com.teambind.springproject.domain.shared.Money;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;

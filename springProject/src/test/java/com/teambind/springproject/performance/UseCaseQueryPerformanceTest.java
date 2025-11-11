@@ -16,7 +16,7 @@ import com.teambind.springproject.application.port.in.CalculateReservationPriceU
 import com.teambind.springproject.application.port.in.GetPricingPolicyUseCase;
 import com.teambind.springproject.application.port.in.QueryProductAvailabilityUseCase;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
-import com.teambind.springproject.domain.product.ProductScope;
+import com.teambind.springproject.domain.product.vo.ProductScope;
 import com.teambind.springproject.domain.shared.DayOfWeek;
 import com.teambind.springproject.domain.shared.RoomId;
 import com.teambind.springproject.domain.shared.TimeSlot;

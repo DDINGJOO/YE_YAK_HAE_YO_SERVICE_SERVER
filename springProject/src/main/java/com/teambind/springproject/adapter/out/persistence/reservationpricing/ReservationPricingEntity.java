@@ -1,6 +1,6 @@
 package com.teambind.springproject.adapter.out.persistence.reservationpricing;
 
-import com.teambind.springproject.domain.product.ProductPriceBreakdown;
+import com.teambind.springproject.domain.product.vo.ProductPriceBreakdown;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown;
 import com.teambind.springproject.domain.shared.Money;

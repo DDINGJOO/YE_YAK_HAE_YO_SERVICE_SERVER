@@ -1,5 +1,10 @@
 package com.teambind.springproject.domain.product;
 
+import com.teambind.springproject.domain.product.pricing.PricingStrategy;
+import com.teambind.springproject.domain.product.vo.ProductScope;
+import com.teambind.springproject.domain.product.vo.PricingType;
+import com.teambind.springproject.domain.product.vo.ProductPriceBreakdown;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

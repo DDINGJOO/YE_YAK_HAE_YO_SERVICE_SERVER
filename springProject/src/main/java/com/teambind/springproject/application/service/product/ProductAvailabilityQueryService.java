@@ -7,7 +7,7 @@ import com.teambind.springproject.application.port.in.QueryProductAvailabilityUs
 import com.teambind.springproject.application.port.out.ProductRepository;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
 import com.teambind.springproject.domain.product.Product;
-import com.teambind.springproject.domain.product.ProductAvailabilityService;
+import com.teambind.springproject.domain.product.availability.ProductAvailabilityService;
 import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.RoomId;
 import java.util.List;

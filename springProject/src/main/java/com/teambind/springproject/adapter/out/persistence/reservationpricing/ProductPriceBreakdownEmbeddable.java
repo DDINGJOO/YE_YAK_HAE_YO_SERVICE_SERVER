@@ -1,7 +1,7 @@
 package com.teambind.springproject.adapter.out.persistence.reservationpricing;
 
-import com.teambind.springproject.domain.product.PricingType;
-import com.teambind.springproject.domain.product.ProductPriceBreakdown;
+import com.teambind.springproject.domain.product.vo.PricingType;
+import com.teambind.springproject.domain.product.vo.ProductPriceBreakdown;
 import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.ProductId;
 import jakarta.persistence.Column;

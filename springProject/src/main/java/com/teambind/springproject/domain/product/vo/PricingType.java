@@ -1,4 +1,4 @@
-package com.teambind.springproject.domain.product;
+package com.teambind.springproject.domain.product.vo;
 
 /**
  * 상품의 가격 책정 방식을 나타내는 Enum.

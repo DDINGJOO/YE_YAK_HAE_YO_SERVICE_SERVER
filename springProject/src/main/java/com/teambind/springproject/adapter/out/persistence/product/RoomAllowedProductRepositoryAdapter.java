@@ -1,7 +1,7 @@
 package com.teambind.springproject.adapter.out.persistence.product;
 
 import com.teambind.springproject.application.port.out.RoomAllowedProductRepository;
-import com.teambind.springproject.domain.product.RoomAllowedProduct;
+import com.teambind.springproject.domain.product.relationship.RoomAllowedProduct;
 import com.teambind.springproject.domain.shared.ProductId;
 import java.util.List;
 import java.util.stream.Collectors;

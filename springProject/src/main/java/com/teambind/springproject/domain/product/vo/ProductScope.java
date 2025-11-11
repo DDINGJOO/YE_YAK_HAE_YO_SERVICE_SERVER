@@ -1,4 +1,4 @@
-package com.teambind.springproject.domain.product;
+package com.teambind.springproject.domain.product.vo;
 
 /**
  * 상품의 적용 범위를 나타내는 Enum.

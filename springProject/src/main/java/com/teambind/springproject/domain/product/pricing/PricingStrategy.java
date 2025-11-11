@@ -1,5 +1,6 @@
-package com.teambind.springproject.domain.product;
+package com.teambind.springproject.domain.product.pricing;
 
+import com.teambind.springproject.domain.product.vo.PricingType;
 import com.teambind.springproject.domain.shared.Money;
 import java.util.Objects;
 

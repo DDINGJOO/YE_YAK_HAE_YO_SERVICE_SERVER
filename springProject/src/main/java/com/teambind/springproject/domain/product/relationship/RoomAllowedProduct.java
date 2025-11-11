@@ -1,4 +1,4 @@
-package com.teambind.springproject.domain.product;
+package com.teambind.springproject.domain.product.relationship;
 
 import com.teambind.springproject.domain.shared.ProductId;
 

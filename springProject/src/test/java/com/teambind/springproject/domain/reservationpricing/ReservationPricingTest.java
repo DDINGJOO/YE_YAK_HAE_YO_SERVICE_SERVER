@@ -3,8 +3,8 @@ package com.teambind.springproject.domain.reservationpricing;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.teambind.springproject.domain.product.PricingType;
-import com.teambind.springproject.domain.product.ProductPriceBreakdown;
+import com.teambind.springproject.domain.product.vo.PricingType;
+import com.teambind.springproject.domain.product.vo.ProductPriceBreakdown;
 import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.ProductId;
 import com.teambind.springproject.domain.shared.ReservationId;

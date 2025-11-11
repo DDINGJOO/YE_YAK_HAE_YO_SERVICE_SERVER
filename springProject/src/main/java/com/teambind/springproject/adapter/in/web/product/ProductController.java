@@ -10,7 +10,7 @@ import com.teambind.springproject.application.port.in.GetProductUseCase;
 import com.teambind.springproject.application.port.in.QueryProductAvailabilityUseCase;
 import com.teambind.springproject.application.port.in.RegisterProductUseCase;
 import com.teambind.springproject.application.port.in.UpdateProductUseCase;
-import com.teambind.springproject.domain.product.ProductScope;
+import com.teambind.springproject.domain.product.vo.ProductScope;
 import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.ProductId;
 import com.teambind.springproject.domain.shared.RoomId;

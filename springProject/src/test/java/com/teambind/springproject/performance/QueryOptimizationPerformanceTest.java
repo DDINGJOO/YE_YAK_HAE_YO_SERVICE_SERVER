@@ -8,7 +8,7 @@ import com.teambind.springproject.adapter.out.persistence.pricingpolicy.TimeRang
 import com.teambind.springproject.adapter.out.persistence.reservationpricing.ProductPriceBreakdownEmbeddable;
 import com.teambind.springproject.adapter.out.persistence.reservationpricing.ReservationPricingEntity;
 import com.teambind.springproject.adapter.out.persistence.reservationpricing.ReservationPricingJpaRepository;
-import com.teambind.springproject.domain.product.PricingType;
+import com.teambind.springproject.domain.product.vo.PricingType;
 import com.teambind.springproject.domain.shared.DayOfWeek;
 import com.teambind.springproject.domain.shared.ReservationStatus;
 import com.teambind.springproject.domain.shared.TimeSlot;

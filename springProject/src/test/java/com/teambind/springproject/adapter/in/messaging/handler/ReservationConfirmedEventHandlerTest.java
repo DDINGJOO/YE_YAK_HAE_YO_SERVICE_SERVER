@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.teambind.springproject.adapter.in.messaging.event.ReservationConfirmedEvent;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
-import com.teambind.springproject.domain.product.ProductPriceBreakdown;
+import com.teambind.springproject.domain.product.vo.ProductPriceBreakdown;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown;
 import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;

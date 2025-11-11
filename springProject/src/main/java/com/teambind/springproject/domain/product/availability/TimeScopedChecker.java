@@ -1,5 +1,7 @@
-package com.teambind.springproject.domain.product;
+package com.teambind.springproject.domain.product.availability;
 
+import com.teambind.springproject.domain.product.Product;
+import com.teambind.springproject.domain.product.vo.ProductPriceBreakdown;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.shared.ProductId;
 import java.time.LocalDateTime;
