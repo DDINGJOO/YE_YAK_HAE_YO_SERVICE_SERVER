@@ -1,9 +1,9 @@
 package com.teambind.springproject.domain.product;
 
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
-import com.teambind.springproject.domain.shared.ProductId;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 
 /**
@@ -24,11 +24,26 @@ import org.springframework.stereotype.Service;
  *   <li>순수한 도메인 객체만 의존 (Infrastructure 계층 의존 제거)</li>
  * </ul>
  *
+ * <p>Strategy Pattern을 적용하여 Scope별 검증 로직을 분리했습니다.
+ * 각 Scope는 자신에 맞는 ScopedAvailabilityChecker 구현체를 가집니다.
+ *
  * @see Product
  * @see ProductScope
+ * @see ScopedAvailabilityChecker
  */
 @Service
 public class ProductAvailabilityService {
+
+  private final Map<ProductScope, ScopedAvailabilityChecker> checkers;
+
+  public ProductAvailabilityService() {
+    final TimeScopedChecker timeScopedChecker = new TimeScopedChecker();
+    this.checkers = Map.of(
+        ProductScope.RESERVATION, new ReservationScopedChecker(),
+        ProductScope.PLACE, timeScopedChecker,
+        ProductScope.ROOM, timeScopedChecker
+    );
+  }
 
   /**
    * 상품이 요청한 시간대와 수량에 대해 가용한지 확인합니다.
@@ -48,13 +63,8 @@ public class ProductAvailabilityService {
 
     validateRequestedQuantity(requestedQuantity);
 
-    return switch (product.getScope()) {
-      case RESERVATION -> checkSimpleStockAvailability(product, requestedQuantity);
-      case PLACE -> checkPlaceScopedAvailability(
-          product, requestedSlots, requestedQuantity, overlappingReservations);
-      case ROOM -> checkRoomScopedAvailability(
-          product, requestedSlots, requestedQuantity, overlappingReservations);
-    };
+    final ScopedAvailabilityChecker checker = checkers.get(product.getScope());
+    return checker.isAvailable(product, requestedSlots, requestedQuantity, overlappingReservations);
   }
 
   /**
@@ -71,164 +81,8 @@ public class ProductAvailabilityService {
       final List<LocalDateTime> requestedSlots,
       final List<ReservationPricing> overlappingReservations) {
 
-    return switch (product.getScope()) {
-      case RESERVATION -> product.getTotalQuantity();
-      case PLACE -> calculatePlaceScopedAvailableQuantity(product, requestedSlots, overlappingReservations);
-      case ROOM -> calculateRoomScopedAvailableQuantity(product, requestedSlots, overlappingReservations);
-    };
-  }
-
-  /**
-   * 시간 기반 Scope(PLACE, ROOM) 상품의 가용 수량을 계산합니다.
-   * 요청 시간대별로 사용 중인 최대 수량을 계산하여 가용 수량을 반환합니다.
-   *
-   * @param product 확인할 상품
-   * @param requestedSlots 요청 시간 슬롯 목록
-   * @param overlappingReservations 시간대가 겹치는 예약 목록
-   * @return 가용한 수량
-   */
-  private int calculateTimeScopedAvailableQuantity(
-      final Product product,
-      final List<LocalDateTime> requestedSlots,
-      final List<ReservationPricing> overlappingReservations) {
-
-    validateTimeSlots(requestedSlots);
-
-    final int maxUsedQuantity = requestedSlots.stream()
-        .mapToInt(slot -> calculateUsedAtSlot(overlappingReservations, product.getProductId(),
-            slot))
-        .max()
-        .orElse(0);
-
-    return Math.max(0, product.getTotalQuantity() - maxUsedQuantity);
-  }
-
-  /**
-   * PLACE Scope 상품의 가용 수량을 계산합니다.
-   *
-   * @param product 확인할 상품
-   * @param requestedSlots 요청 시간 슬롯 목록
-   * @param overlappingReservations 시간대가 겹치는 예약 목록
-   * @return 가용한 수량
-   */
-  private int calculatePlaceScopedAvailableQuantity(
-      final Product product,
-      final List<LocalDateTime> requestedSlots,
-      final List<ReservationPricing> overlappingReservations) {
-    return calculateTimeScopedAvailableQuantity(product, requestedSlots, overlappingReservations);
-  }
-
-  /**
-   * ROOM Scope 상품의 가용 수량을 계산합니다.
-   *
-   * @param product 확인할 상품
-   * @param requestedSlots 요청 시간 슬롯 목록
-   * @param overlappingReservations 시간대가 겹치는 예약 목록
-   * @return 가용한 수량
-   */
-  private int calculateRoomScopedAvailableQuantity(
-      final Product product,
-      final List<LocalDateTime> requestedSlots,
-      final List<ReservationPricing> overlappingReservations) {
-    return calculateTimeScopedAvailableQuantity(product, requestedSlots, overlappingReservations);
-  }
-
-  /**
-   * RESERVATION Scope 상품의 재고 가용성을 확인합니다.
-   * 시간과 무관하게 총 재고량만 확인합니다.
-   *
-   * @param product 확인할 상품
-   * @param requestedQuantity 요청 수량
-   * @return 가용하면 true, 아니면 false
-   */
-  private boolean checkSimpleStockAvailability(
-      final Product product,
-      final int requestedQuantity) {
-
-    return requestedQuantity <= product.getTotalQuantity();
-  }
-
-  /**
-   * 시간 기반 Scope(PLACE, ROOM) 상품의 재고 가용성을 확인합니다.
-   * 요청 시간대별로 사용 중인 최대 재고를 계산하여 가용 여부를 반환합니다.
-   *
-   * @param product 확인할 상품
-   * @param requestedSlots 요청 시간 슬롯 목록
-   * @param requestedQuantity 요청 수량
-   * @param overlappingReservations 시간대가 겹치는 예약 목록
-   * @return 가용하면 true, 아니면 false
-   */
-  private boolean checkTimeScopedAvailability(
-      final Product product,
-      final List<LocalDateTime> requestedSlots,
-      final int requestedQuantity,
-      final List<ReservationPricing> overlappingReservations) {
-
-    validateTimeSlots(requestedSlots);
-
-    // 각 슬롯별 최대 사용량 계산
-    final int maxUsedQuantity = requestedSlots.stream()
-        .mapToInt(slot -> calculateUsedAtSlot(overlappingReservations, product.getProductId(),
-            slot))
-        .max()
-        .orElse(0);
-
-    return maxUsedQuantity + requestedQuantity <= product.getTotalQuantity();
-  }
-
-  /**
-   * PLACE Scope 상품의 재고 가용성을 확인합니다.
-   *
-   * @param product 확인할 상품
-   * @param requestedSlots 요청 시간 슬롯 목록
-   * @param requestedQuantity 요청 수량
-   * @param overlappingReservations 시간대가 겹치는 예약 목록
-   * @return 가용하면 true, 아니면 false
-   */
-  private boolean checkPlaceScopedAvailability(
-      final Product product,
-      final List<LocalDateTime> requestedSlots,
-      final int requestedQuantity,
-      final List<ReservationPricing> overlappingReservations) {
-    return checkTimeScopedAvailability(product, requestedSlots, requestedQuantity, overlappingReservations);
-  }
-
-  /**
-   * ROOM Scope 상품의 재고 가용성을 확인합니다.
-   *
-   * @param product 확인할 상품
-   * @param requestedSlots 요청 시간 슬롯 목록
-   * @param requestedQuantity 요청 수량
-   * @param overlappingReservations 시간대가 겹치는 예약 목록
-   * @return 가용하면 true, 아니면 false
-   */
-  private boolean checkRoomScopedAvailability(
-      final Product product,
-      final List<LocalDateTime> requestedSlots,
-      final int requestedQuantity,
-      final List<ReservationPricing> overlappingReservations) {
-    return checkTimeScopedAvailability(product, requestedSlots, requestedQuantity, overlappingReservations);
-  }
-
-  /**
-   * 특정 시간 슬롯에서 해당 상품이 사용 중인 수량을 계산합니다.
-   *
-   * @param reservations 예약 목록
-   * @param productId 상품 ID
-   * @param slot 확인할 시간 슬롯
-   * @return 사용 중인 수량
-   */
-  private int calculateUsedAtSlot(
-      final List<ReservationPricing> reservations,
-      final ProductId productId,
-      final LocalDateTime slot) {
-
-    return reservations.stream()
-        .filter(reservation -> reservation.getTimeSlotBreakdown().slotPrices().containsKey(slot))
-        .flatMap(reservation -> reservation.getProductBreakdowns().stream())
-        .filter(breakdown -> breakdown.productId().equals(productId))
-        .mapToInt(ProductPriceBreakdown::quantity)
-        .sum();
+    final ScopedAvailabilityChecker checker = checkers.get(product.getScope());
+    return checker.calculateAvailableQuantity(product, requestedSlots, overlappingReservations);
   }
 
   /**
@@ -241,18 +95,6 @@ public class ProductAvailabilityService {
     if (requestedQuantity <= 0) {
       throw new IllegalArgumentException(
           "Requested quantity must be positive: " + requestedQuantity);
-    }
-  }
-
-  /**
-   * 시간 슬롯 목록이 유효한지 검증합니다.
-   *
-   * @param requestedSlots 시간 슬롯 목록
-   * @throws IllegalArgumentException 슬롯이 null이거나 비어있는 경우
-   */
-  private void validateTimeSlots(final List<LocalDateTime> requestedSlots) {
-    if (requestedSlots == null || requestedSlots.isEmpty()) {
-      throw new IllegalArgumentException("Requested time slots cannot be null or empty");
     }
   }
 }
