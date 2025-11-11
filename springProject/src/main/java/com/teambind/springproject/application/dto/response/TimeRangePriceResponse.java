@@ -6,9 +6,9 @@ import java.math.BigDecimal;
  * 시간대별 가격 응답 DTO.
  */
 public record TimeRangePriceResponse(
-    String dayOfWeek,
-    String startTime,
-    String endTime,
-    BigDecimal price
+		String dayOfWeek,
+		String startTime,
+		String endTime,
+		BigDecimal price
 ) {
 }

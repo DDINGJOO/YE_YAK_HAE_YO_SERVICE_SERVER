@@ -3,10 +3,10 @@
 -- 가격 정책 메인 테이블
 CREATE TABLE pricing_policies
 (
-    room_id        BIGINT         NOT NULL,
-    place_id       BIGINT         NOT NULL,
-    time_slot      VARCHAR(20)    NOT NULL,
-    default_price  DECIMAL(19, 2) NOT NULL,
+    room_id       BIGINT         NOT NULL,
+    place_id      BIGINT         NOT NULL,
+    time_slot     VARCHAR(20)    NOT NULL,
+    default_price DECIMAL(19, 2) NOT NULL,
     PRIMARY KEY (room_id)
 );
 
@@ -27,15 +27,26 @@ CREATE INDEX idx_time_range_prices_room_id ON time_range_prices (room_id);
 CREATE INDEX idx_time_range_prices_day_of_week ON time_range_prices (day_of_week);
 
 -- 코멘트 추가
-COMMENT ON TABLE pricing_policies IS '룸별 가격 정책 테이블';
-COMMENT ON COLUMN pricing_policies.room_id IS '룸 ID (PK, Aggregate ID)';
-COMMENT ON COLUMN pricing_policies.place_id IS '장소 ID';
-COMMENT ON COLUMN pricing_policies.time_slot IS '시간 단위 (HOUR, HALFHOUR)';
-COMMENT ON COLUMN pricing_policies.default_price IS '기본 가격 (시간대별 가격이 없을 때 적용)';
+COMMENT
+ON TABLE pricing_policies IS '룸별 가격 정책 테이블';
+COMMENT
+ON COLUMN pricing_policies.room_id IS '룸 ID (PK, Aggregate ID)';
+COMMENT
+ON COLUMN pricing_policies.place_id IS '장소 ID';
+COMMENT
+ON COLUMN pricing_policies.time_slot IS '시간 단위 (HOUR, HALFHOUR)';
+COMMENT
+ON COLUMN pricing_policies.default_price IS '기본 가격 (시간대별 가격이 없을 때 적용)';
 
-COMMENT ON TABLE time_range_prices IS '시간대별 차등 가격 테이블';
-COMMENT ON COLUMN time_range_prices.room_id IS '룸 ID (FK)';
-COMMENT ON COLUMN time_range_prices.day_of_week IS '요일 (MONDAY ~ SUNDAY)';
-COMMENT ON COLUMN time_range_prices.start_time IS '시작 시간';
-COMMENT ON COLUMN time_range_prices.end_time IS '종료 시간';
-COMMENT ON COLUMN time_range_prices.price_per_slot IS '슬롯당 가격';
+COMMENT
+ON TABLE time_range_prices IS '시간대별 차등 가격 테이블';
+COMMENT
+ON COLUMN time_range_prices.room_id IS '룸 ID (FK)';
+COMMENT
+ON COLUMN time_range_prices.day_of_week IS '요일 (MONDAY ~ SUNDAY)';
+COMMENT
+ON COLUMN time_range_prices.start_time IS '시작 시간';
+COMMENT
+ON COLUMN time_range_prices.end_time IS '종료 시간';
+COMMENT
+ON COLUMN time_range_prices.price_per_slot IS '슬롯당 가격';

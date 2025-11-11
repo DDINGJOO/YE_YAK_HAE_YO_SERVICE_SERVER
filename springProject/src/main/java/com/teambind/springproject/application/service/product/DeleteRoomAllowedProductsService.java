@@ -14,23 +14,23 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class DeleteRoomAllowedProductsService implements DeleteRoomAllowedProductsUseCase {
-
-  private static final Logger logger = LoggerFactory.getLogger(
-      DeleteRoomAllowedProductsService.class);
-
-  private final RoomAllowedProductRepository roomAllowedProductRepository;
-
-  public DeleteRoomAllowedProductsService(
-      final RoomAllowedProductRepository roomAllowedProductRepository) {
-    this.roomAllowedProductRepository = roomAllowedProductRepository;
-  }
-
-  @Override
-  public void deleteAllowedProducts(final Long roomId) {
-    logger.info("Deleting all allowed products for room: roomId={}", roomId);
-
-    roomAllowedProductRepository.deleteByRoomId(roomId);
-
-    logger.info("Successfully deleted all allowed products for room: roomId={}", roomId);
-  }
+	
+	private static final Logger logger = LoggerFactory.getLogger(
+			DeleteRoomAllowedProductsService.class);
+	
+	private final RoomAllowedProductRepository roomAllowedProductRepository;
+	
+	public DeleteRoomAllowedProductsService(
+			final RoomAllowedProductRepository roomAllowedProductRepository) {
+		this.roomAllowedProductRepository = roomAllowedProductRepository;
+	}
+	
+	@Override
+	public void deleteAllowedProducts(final Long roomId) {
+		logger.info("Deleting all allowed products for room: roomId={}", roomId);
+		
+		roomAllowedProductRepository.deleteByRoomId(roomId);
+		
+		logger.info("Successfully deleted all allowed products for room: roomId={}", roomId);
+	}
 }

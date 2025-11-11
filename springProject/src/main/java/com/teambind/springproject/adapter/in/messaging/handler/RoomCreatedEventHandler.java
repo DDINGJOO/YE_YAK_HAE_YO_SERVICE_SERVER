@@ -15,35 +15,35 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class RoomCreatedEventHandler implements EventHandler<RoomCreatedEvent> {
-
-  private static final Logger logger = LoggerFactory.getLogger(RoomCreatedEventHandler.class);
-
-  private final CreatePricingPolicyUseCase createPricingPolicyUseCase;
-
-  public RoomCreatedEventHandler(final CreatePricingPolicyUseCase createPricingPolicyUseCase) {
-    this.createPricingPolicyUseCase = createPricingPolicyUseCase;
-  }
-
-  @Override
-  public void handle(final RoomCreatedEvent event) {
-    logger.info("Handling RoomCreatedEvent: {}", event);
-
-    try {
-      final RoomId roomId = RoomId.of(event.getRoomId());
-      final PlaceId placeId = PlaceId.of(event.getPlaceId());
-      final TimeSlot timeSlot = TimeSlot.valueOf(event.getTimeSlot());
-
-      createPricingPolicyUseCase.createDefaultPolicy(roomId, placeId, timeSlot);
-
-      logger.info("Successfully handled RoomCreatedEvent for roomId={}", event.getRoomId());
-    } catch (final Exception e) {
-      logger.error("Failed to handle RoomCreatedEvent: {}", event, e);
-      throw new RuntimeException("Failed to handle RoomCreatedEvent", e);
-    }
-  }
-
-  @Override
-  public String getSupportedEventType() {
-    return "RoomCreated";
-  }
+	
+	private static final Logger logger = LoggerFactory.getLogger(RoomCreatedEventHandler.class);
+	
+	private final CreatePricingPolicyUseCase createPricingPolicyUseCase;
+	
+	public RoomCreatedEventHandler(final CreatePricingPolicyUseCase createPricingPolicyUseCase) {
+		this.createPricingPolicyUseCase = createPricingPolicyUseCase;
+	}
+	
+	@Override
+	public void handle(final RoomCreatedEvent event) {
+		logger.info("Handling RoomCreatedEvent: {}", event);
+		
+		try {
+			final RoomId roomId = RoomId.of(event.getRoomId());
+			final PlaceId placeId = PlaceId.of(event.getPlaceId());
+			final TimeSlot timeSlot = TimeSlot.valueOf(event.getTimeSlot());
+			
+			createPricingPolicyUseCase.createDefaultPolicy(roomId, placeId, timeSlot);
+			
+			logger.info("Successfully handled RoomCreatedEvent for roomId={}", event.getRoomId());
+		} catch (final Exception e) {
+			logger.error("Failed to handle RoomCreatedEvent: {}", event, e);
+			throw new RuntimeException("Failed to handle RoomCreatedEvent", e);
+		}
+	}
+	
+	@Override
+	public String getSupportedEventType() {
+		return "RoomCreated";
+	}
 }

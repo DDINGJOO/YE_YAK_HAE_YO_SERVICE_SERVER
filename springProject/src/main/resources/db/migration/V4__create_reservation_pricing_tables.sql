@@ -4,12 +4,12 @@
 CREATE TABLE reservation_pricings
 (
     reservation_id BIGSERIAL PRIMARY KEY,
-    room_id        BIGINT         NOT NULL,
-    place_id       BIGINT         NOT NULL,
-    status         VARCHAR(20)    NOT NULL,
-    time_slot      VARCHAR(10)    NOT NULL,
-    total_price    DECIMAL(12, 2) NOT NULL,
-    calculated_at  TIMESTAMP      NOT NULL,
+    room_id       BIGINT         NOT NULL,
+    place_id      BIGINT         NOT NULL,
+    status        VARCHAR(20)    NOT NULL,
+    time_slot     VARCHAR(10)    NOT NULL,
+    total_price   DECIMAL(12, 2) NOT NULL,
+    calculated_at TIMESTAMP      NOT NULL,
     CONSTRAINT chk_status CHECK (status IN ('PENDING', 'CONFIRMED', 'CANCELLED')),
     CONSTRAINT chk_time_slot CHECK (time_slot IN ('HOUR', 'HALFHOUR'))
 );
@@ -54,25 +54,45 @@ CREATE INDEX idx_reservation_pricing_slots_reservation_time ON reservation_prici
 CREATE INDEX idx_reservation_pricing_products_product_id ON reservation_pricing_products (product_id);
 
 -- 코멘트 추가
-COMMENT ON TABLE reservation_pricings IS '예약 가격 스냅샷 테이블 - 예약 시점의 가격 정보를 불변 스냅샷으로 저장';
-COMMENT ON COLUMN reservation_pricings.reservation_id IS '예약 ID (PK, Auto Increment)';
-COMMENT ON COLUMN reservation_pricings.room_id IS '룸 ID';
-COMMENT ON COLUMN reservation_pricings.place_id IS '플레이스 ID (쿼리 효율성을 위한 비정규화)';
-COMMENT ON COLUMN reservation_pricings.status IS '예약 상태 (PENDING: 대기, CONFIRMED: 확정, CANCELLED: 취소)';
-COMMENT ON COLUMN reservation_pricings.time_slot IS '시간 단위 (HOUR: 1시간, HALFHOUR: 30분)';
-COMMENT ON COLUMN reservation_pricings.total_price IS '총 가격 (시간대 가격 + 상품 가격 합계)';
-COMMENT ON COLUMN reservation_pricings.calculated_at IS '가격 계산 시각';
+COMMENT
+ON TABLE reservation_pricings IS '예약 가격 스냅샷 테이블 - 예약 시점의 가격 정보를 불변 스냅샷으로 저장';
+COMMENT
+ON COLUMN reservation_pricings.reservation_id IS '예약 ID (PK, Auto Increment)';
+COMMENT
+ON COLUMN reservation_pricings.room_id IS '룸 ID';
+COMMENT
+ON COLUMN reservation_pricings.place_id IS '플레이스 ID (쿼리 효율성을 위한 비정규화)';
+COMMENT
+ON COLUMN reservation_pricings.status IS '예약 상태 (PENDING: 대기, CONFIRMED: 확정, CANCELLED: 취소)';
+COMMENT
+ON COLUMN reservation_pricings.time_slot IS '시간 단위 (HOUR: 1시간, HALFHOUR: 30분)';
+COMMENT
+ON COLUMN reservation_pricings.total_price IS '총 가격 (시간대 가격 + 상품 가격 합계)';
+COMMENT
+ON COLUMN reservation_pricings.calculated_at IS '가격 계산 시각';
 
-COMMENT ON TABLE reservation_pricing_slots IS '예약의 시간대별 가격 내역';
-COMMENT ON COLUMN reservation_pricing_slots.reservation_id IS '예약 ID (FK)';
-COMMENT ON COLUMN reservation_pricing_slots.slot_time IS '시간 슬롯 (예: 2025-01-15 10:00:00)';
-COMMENT ON COLUMN reservation_pricing_slots.slot_price IS '해당 슬롯의 가격';
+COMMENT
+ON TABLE reservation_pricing_slots IS '예약의 시간대별 가격 내역';
+COMMENT
+ON COLUMN reservation_pricing_slots.reservation_id IS '예약 ID (FK)';
+COMMENT
+ON COLUMN reservation_pricing_slots.slot_time IS '시간 슬롯 (예: 2025-01-15 10:00:00)';
+COMMENT
+ON COLUMN reservation_pricing_slots.slot_price IS '해당 슬롯의 가격';
 
-COMMENT ON TABLE reservation_pricing_products IS '예약에 포함된 상품별 가격 내역';
-COMMENT ON COLUMN reservation_pricing_products.reservation_id IS '예약 ID (FK)';
-COMMENT ON COLUMN reservation_pricing_products.product_id IS '상품 ID (스냅샷)';
-COMMENT ON COLUMN reservation_pricing_products.product_name IS '상품명 (스냅샷)';
-COMMENT ON COLUMN reservation_pricing_products.quantity IS '수량';
-COMMENT ON COLUMN reservation_pricing_products.unit_price IS '단가 (스냅샷)';
-COMMENT ON COLUMN reservation_pricing_products.total_price IS '총 가격 (단가 × 수량)';
-COMMENT ON COLUMN reservation_pricing_products.pricing_type IS '가격 책정 방식 (스냅샷)';
+COMMENT
+ON TABLE reservation_pricing_products IS '예약에 포함된 상품별 가격 내역';
+COMMENT
+ON COLUMN reservation_pricing_products.reservation_id IS '예약 ID (FK)';
+COMMENT
+ON COLUMN reservation_pricing_products.product_id IS '상품 ID (스냅샷)';
+COMMENT
+ON COLUMN reservation_pricing_products.product_name IS '상품명 (스냅샷)';
+COMMENT
+ON COLUMN reservation_pricing_products.quantity IS '수량';
+COMMENT
+ON COLUMN reservation_pricing_products.unit_price IS '단가 (스냅샷)';
+COMMENT
+ON COLUMN reservation_pricing_products.total_price IS '총 가격 (단가 × 수량)';
+COMMENT
+ON COLUMN reservation_pricing_products.pricing_type IS '가격 책정 방식 (스냅샷)';

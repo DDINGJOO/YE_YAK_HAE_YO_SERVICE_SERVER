@@ -8,30 +8,30 @@ import org.springframework.http.HttpStatus;
  */
 @Getter
 public abstract class ReservationPricingException extends RuntimeException {
-
-  private final ReservationPricingErrorCode errorCode;
-  private final HttpStatus httpStatus;
-
-  protected ReservationPricingException(final ReservationPricingErrorCode errorCode) {
-    super(errorCode.getMessage());
-    this.errorCode = errorCode;
-    this.httpStatus = errorCode.getStatus();
-  }
-
-  protected ReservationPricingException(final ReservationPricingErrorCode errorCode,
-      final String message) {
-    super(message);
-    this.errorCode = errorCode;
-    this.httpStatus = errorCode.getStatus();
-  }
-
-  protected ReservationPricingException(final ReservationPricingErrorCode errorCode,
-      final String message,
-      final Throwable cause) {
-    super(message, cause);
-    this.errorCode = errorCode;
-    this.httpStatus = errorCode.getStatus();
-  }
-
-  public abstract String getExceptionType();
+	
+	private final ReservationPricingErrorCode errorCode;
+	private final HttpStatus httpStatus;
+	
+	protected ReservationPricingException(final ReservationPricingErrorCode errorCode) {
+		super(errorCode.getMessage());
+		this.errorCode = errorCode;
+		this.httpStatus = errorCode.getStatus();
+	}
+	
+	protected ReservationPricingException(final ReservationPricingErrorCode errorCode,
+	                                      final String message) {
+		super(message);
+		this.errorCode = errorCode;
+		this.httpStatus = errorCode.getStatus();
+	}
+	
+	protected ReservationPricingException(final ReservationPricingErrorCode errorCode,
+	                                      final String message,
+	                                      final Throwable cause) {
+		super(message, cause);
+		this.errorCode = errorCode;
+		this.httpStatus = errorCode.getStatus();
+	}
+	
+	public abstract String getExceptionType();
 }

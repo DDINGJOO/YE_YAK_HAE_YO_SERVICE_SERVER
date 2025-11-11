@@ -1,20 +1,20 @@
 <?xml version="1.0"?>
 <!DOCTYPE suppressions PUBLIC
-    "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
-    "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+        "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+        "https://checkstyle.org/dtds/suppressions_1_2.dtd">
 
 <suppressions>
     <!-- Suppress checks for generated code -->
     <suppress checks=".*" files="[\\/]generated[\\/].*"/>
     <suppress checks=".*" files="[\\/]generated-sources[\\/].*"/>
-    
+
     <!-- Suppress package-info.java files from certain checks -->
     <suppress checks="JavadocType" files="package-info\.java"/>
-    
+
     <!-- Suppress test files from certain checks -->
     <suppress checks="MagicNumber" files=".*Test\.java"/>
     <suppress checks="Javadoc.*" files=".*Test\.java"/>
-    
+
     <!-- Allow longer lines in test files for readability -->
     <suppress checks="LineLength" files=".*Test\.java"/>
 </suppressions>

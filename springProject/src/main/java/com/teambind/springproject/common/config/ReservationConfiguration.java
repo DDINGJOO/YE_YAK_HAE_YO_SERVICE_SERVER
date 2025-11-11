@@ -9,26 +9,26 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "reservation")
 public class ReservationConfiguration {
-
-  private Pending pending = new Pending();
-
-  public Pending getPending() {
-    return pending;
-  }
-
-  public void setPending(final Pending pending) {
-    this.pending = pending;
-  }
-
-  public static class Pending {
-    private long timeoutMinutes = 10;
-
-    public long getTimeoutMinutes() {
-      return timeoutMinutes;
-    }
-
-    public void setTimeoutMinutes(final long timeoutMinutes) {
-      this.timeoutMinutes = timeoutMinutes;
-    }
-  }
+	
+	private Pending pending = new Pending();
+	
+	public Pending getPending() {
+		return pending;
+	}
+	
+	public void setPending(final Pending pending) {
+		this.pending = pending;
+	}
+	
+	public static class Pending {
+		private long timeoutMinutes = 10;
+		
+		public long getTimeoutMinutes() {
+			return timeoutMinutes;
+		}
+		
+		public void setTimeoutMinutes(final long timeoutMinutes) {
+			this.timeoutMinutes = timeoutMinutes;
+		}
+	}
 }

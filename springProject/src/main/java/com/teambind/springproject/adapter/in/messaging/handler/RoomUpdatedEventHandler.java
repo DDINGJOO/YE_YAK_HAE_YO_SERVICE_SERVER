@@ -15,38 +15,38 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class RoomUpdatedEventHandler implements EventHandler<RoomUpdatedEvent> {
-
-  private static final Logger logger = LoggerFactory.getLogger(RoomUpdatedEventHandler.class);
-
-  private final UpdatePricingPolicyUseCase updatePricingPolicyUseCase;
-
-  public RoomUpdatedEventHandler(final UpdatePricingPolicyUseCase updatePricingPolicyUseCase) {
-    this.updatePricingPolicyUseCase = updatePricingPolicyUseCase;
-  }
-
-  @Override
-  public void handle(final RoomUpdatedEvent event) {
-    logger.info("Handling RoomUpdatedEvent: roomId={}, placeId={}, timeSlot={}",
-        event.getRoomId(), event.getPlaceId(), event.getTimeSlot());
-
-    try {
-      final RoomId roomId = RoomId.of(event.getRoomId());
-      final TimeSlot newTimeSlot = TimeSlot.valueOf(event.getTimeSlot());
-
-      updatePricingPolicyUseCase.updateTimeSlot(roomId, newTimeSlot);
-
-      logger.info("Successfully updated TimeSlot for roomId={}", event.getRoomId());
-    } catch (final PricingPolicyNotFoundException e) {
-      logger.warn("PricingPolicy not found for roomId={}, skipping TimeSlot update",
-          event.getRoomId());
-    } catch (final Exception e) {
-      logger.error("Failed to handle RoomUpdatedEvent: {}", event, e);
-      throw new RuntimeException("Failed to handle RoomUpdatedEvent", e);
-    }
-  }
-
-  @Override
-  public String getSupportedEventType() {
-    return "RoomUpdated";
-  }
+	
+	private static final Logger logger = LoggerFactory.getLogger(RoomUpdatedEventHandler.class);
+	
+	private final UpdatePricingPolicyUseCase updatePricingPolicyUseCase;
+	
+	public RoomUpdatedEventHandler(final UpdatePricingPolicyUseCase updatePricingPolicyUseCase) {
+		this.updatePricingPolicyUseCase = updatePricingPolicyUseCase;
+	}
+	
+	@Override
+	public void handle(final RoomUpdatedEvent event) {
+		logger.info("Handling RoomUpdatedEvent: roomId={}, placeId={}, timeSlot={}",
+				event.getRoomId(), event.getPlaceId(), event.getTimeSlot());
+		
+		try {
+			final RoomId roomId = RoomId.of(event.getRoomId());
+			final TimeSlot newTimeSlot = TimeSlot.valueOf(event.getTimeSlot());
+			
+			updatePricingPolicyUseCase.updateTimeSlot(roomId, newTimeSlot);
+			
+			logger.info("Successfully updated TimeSlot for roomId={}", event.getRoomId());
+		} catch (final PricingPolicyNotFoundException e) {
+			logger.warn("PricingPolicy not found for roomId={}, skipping TimeSlot update",
+					event.getRoomId());
+		} catch (final Exception e) {
+			logger.error("Failed to handle RoomUpdatedEvent: {}", event, e);
+			throw new RuntimeException("Failed to handle RoomUpdatedEvent", e);
+		}
+	}
+	
+	@Override
+	public String getSupportedEventType() {
+		return "RoomUpdated";
+	}
 }

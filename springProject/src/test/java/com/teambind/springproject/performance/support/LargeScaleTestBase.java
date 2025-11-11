@@ -20,38 +20,38 @@ import org.testcontainers.containers.PostgreSQLContainer;
 @SpringBootTest
 @ActiveProfiles("test")
 public abstract class LargeScaleTestBase {
-
-  /**
-   * Singleton PostgreSQL Container.
-   * <p>
-   * 여러 테스트 클래스에서 공유되는 단일 컨테이너 인스턴스입니다.
-   * 컨테이너는 첫 번째 테스트 시작 시 한 번만 생성되고,
-   * 모든 테스트가 끝날 때까지 유지됩니다.
-   */
-  protected static final PostgreSQLContainer<?> postgres;
-
-  static {
-    postgres = new PostgreSQLContainer<>("postgres:16-alpine")
-        .withDatabaseName("performance_test_db")
-        .withUsername("test")
-        .withPassword("test")
-        .withReuse(true);
-    postgres.start();
-  }
-
-  @DynamicPropertySource
-  static void configureProperties(final DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", postgres::getJdbcUrl);
-    registry.add("spring.datasource.username", postgres::getUsername);
-    registry.add("spring.datasource.password", postgres::getPassword);
-    registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-
-    // JPA 설정
-    registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
-    registry.add("spring.jpa.show-sql", () -> "false");
-    registry.add("spring.jpa.properties.hibernate.format_sql", () -> "false");
-
-    // Flyway 비활성화 (ddl-auto로 스키마 생성)
-    registry.add("spring.flyway.enabled", () -> "false");
-  }
+	
+	/**
+	 * Singleton PostgreSQL Container.
+	 * <p>
+	 * 여러 테스트 클래스에서 공유되는 단일 컨테이너 인스턴스입니다.
+	 * 컨테이너는 첫 번째 테스트 시작 시 한 번만 생성되고,
+	 * 모든 테스트가 끝날 때까지 유지됩니다.
+	 */
+	protected static final PostgreSQLContainer<?> postgres;
+	
+	static {
+		postgres = new PostgreSQLContainer<>("postgres:16-alpine")
+				.withDatabaseName("performance_test_db")
+				.withUsername("test")
+				.withPassword("test")
+				.withReuse(true);
+		postgres.start();
+	}
+	
+	@DynamicPropertySource
+	static void configureProperties(final DynamicPropertyRegistry registry) {
+		registry.add("spring.datasource.url", postgres::getJdbcUrl);
+		registry.add("spring.datasource.username", postgres::getUsername);
+		registry.add("spring.datasource.password", postgres::getPassword);
+		registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+		
+		// JPA 설정
+		registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+		registry.add("spring.jpa.show-sql", () -> "false");
+		registry.add("spring.jpa.properties.hibernate.format_sql", () -> "false");
+		
+		// Flyway 비활성화 (ddl-auto로 스키마 생성)
+		registry.add("spring.flyway.enabled", () -> "false");
+	}
 }

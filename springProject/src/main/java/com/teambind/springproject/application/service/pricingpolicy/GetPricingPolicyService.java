@@ -16,21 +16,21 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class GetPricingPolicyService implements GetPricingPolicyUseCase {
-
-  private static final Logger logger = LoggerFactory.getLogger(GetPricingPolicyService.class);
-
-  private final PricingPolicyRepository pricingPolicyRepository;
-
-  public GetPricingPolicyService(final PricingPolicyRepository pricingPolicyRepository) {
-    this.pricingPolicyRepository = pricingPolicyRepository;
-  }
-
-  @Override
-  public PricingPolicy getPolicy(final RoomId roomId) {
-    logger.info("Fetching pricing policy for roomId={}", roomId.getValue());
-
-    return pricingPolicyRepository.findById(roomId)
-        .orElseThrow(() -> new PricingPolicyNotFoundException(
-            "Pricing policy not found for roomId: " + roomId.getValue()));
-  }
+	
+	private static final Logger logger = LoggerFactory.getLogger(GetPricingPolicyService.class);
+	
+	private final PricingPolicyRepository pricingPolicyRepository;
+	
+	public GetPricingPolicyService(final PricingPolicyRepository pricingPolicyRepository) {
+		this.pricingPolicyRepository = pricingPolicyRepository;
+	}
+	
+	@Override
+	public PricingPolicy getPolicy(final RoomId roomId) {
+		logger.info("Fetching pricing policy for roomId={}", roomId.getValue());
+		
+		return pricingPolicyRepository.findById(roomId)
+				.orElseThrow(() -> new PricingPolicyNotFoundException(
+						"Pricing policy not found for roomId: " + roomId.getValue()));
+	}
 }

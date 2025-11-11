@@ -9,16 +9,19 @@
 ## 빠른 시작
 
 ### 1. 인프라 실행
+
 ```bash
 docker-compose up -d
 ```
 
 ### 2. 애플리케이션 실행
+
 ```bash
 ./gradlew bootRun
 ```
 
 ### 3. 동작 확인
+
 ```bash
 curl http://localhost:8080/actuator/health
 ```
@@ -28,16 +31,19 @@ curl http://localhost:8080/actuator/health
 ## 개발 명령어
 
 ### 코드 품질 검사
+
 ```bash
 ./gradlew codeQuality
 ```
 
 ### 테스트 실행
+
 ```bash
 ./gradlew test
 ```
 
 ### 빌드
+
 ```bash
 ./gradlew build
 ```

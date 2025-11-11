@@ -16,54 +16,54 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ReservationCancelledEventHandler implements
-    EventHandler<ReservationCancelledEvent> {
-
-  private static final Logger logger = LoggerFactory.getLogger(
-      ReservationCancelledEventHandler.class);
-
-  private final ReservationPricingRepository reservationPricingRepository;
-
-  public ReservationCancelledEventHandler(
-      final ReservationPricingRepository reservationPricingRepository) {
-    this.reservationPricingRepository = reservationPricingRepository;
-  }
-
-  @Override
-  public void handle(final ReservationCancelledEvent event) {
-    logger.info("Handling ReservationCancelledEvent: reservationId={}, occurredAt={}",
-        event.getReservationId(), event.getOccurredAt());
-
-    try {
-      final ReservationId reservationId = ReservationId.of(event.getReservationId());
-
-      // 1. 예약 조회
-      final ReservationPricing reservation = reservationPricingRepository.findById(reservationId)
-          .orElseThrow(() -> new ReservationPricingNotFoundException(event.getReservationId()));
-
-      // 2. 상태 변경 (PENDING/CONFIRMED → CANCELLED)
-      reservation.cancel();
-
-      // 3. 저장
-      reservationPricingRepository.save(reservation);
-
-      logger.info("Successfully cancelled reservation: reservationId={}, status={}",
-          event.getReservationId(), reservation.getStatus());
-
-    } catch (final ReservationPricingNotFoundException e) {
-      logger.error("Reservation not found: reservationId={}", event.getReservationId(), e);
-      throw e;
-    } catch (final IllegalStateException e) {
-      logger.error("Invalid state transition: reservationId={}, message={}",
-          event.getReservationId(), e.getMessage(), e);
-      throw e;
-    } catch (final Exception e) {
-      logger.error("Failed to handle ReservationCancelledEvent: {}", event, e);
-      throw new RuntimeException("Failed to handle ReservationCancelledEvent", e);
-    }
-  }
-
-  @Override
-  public String getSupportedEventType() {
-    return "ReservationCancelled";
-  }
+		EventHandler<ReservationCancelledEvent> {
+	
+	private static final Logger logger = LoggerFactory.getLogger(
+			ReservationCancelledEventHandler.class);
+	
+	private final ReservationPricingRepository reservationPricingRepository;
+	
+	public ReservationCancelledEventHandler(
+			final ReservationPricingRepository reservationPricingRepository) {
+		this.reservationPricingRepository = reservationPricingRepository;
+	}
+	
+	@Override
+	public void handle(final ReservationCancelledEvent event) {
+		logger.info("Handling ReservationCancelledEvent: reservationId={}, occurredAt={}",
+				event.getReservationId(), event.getOccurredAt());
+		
+		try {
+			final ReservationId reservationId = ReservationId.of(event.getReservationId());
+			
+			// 1. 예약 조회
+			final ReservationPricing reservation = reservationPricingRepository.findById(reservationId)
+					.orElseThrow(() -> new ReservationPricingNotFoundException(event.getReservationId()));
+			
+			// 2. 상태 변경 (PENDING/CONFIRMED → CANCELLED)
+			reservation.cancel();
+			
+			// 3. 저장
+			reservationPricingRepository.save(reservation);
+			
+			logger.info("Successfully cancelled reservation: reservationId={}, status={}",
+					event.getReservationId(), reservation.getStatus());
+			
+		} catch (final ReservationPricingNotFoundException e) {
+			logger.error("Reservation not found: reservationId={}", event.getReservationId(), e);
+			throw e;
+		} catch (final IllegalStateException e) {
+			logger.error("Invalid state transition: reservationId={}, message={}",
+					event.getReservationId(), e.getMessage(), e);
+			throw e;
+		} catch (final Exception e) {
+			logger.error("Failed to handle ReservationCancelledEvent: {}", event, e);
+			throw new RuntimeException("Failed to handle ReservationCancelledEvent", e);
+		}
+	}
+	
+	@Override
+	public String getSupportedEventType() {
+		return "ReservationCancelled";
+	}
 }

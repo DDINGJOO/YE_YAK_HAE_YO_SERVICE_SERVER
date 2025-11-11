@@ -9,9 +9,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest
 @ImportAutoConfiguration(exclude = {FlywayAutoConfiguration.class, KafkaAutoConfiguration.class})
 class SpringProjectApplicationTests {
-
+	
 	@Test
 	void contextLoads() {
 	}
-
+	
 }

@@ -17,13 +17,13 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
-
-
+	
+	
 	@ExceptionHandler(PricingPolicyException.class)
 	public ResponseEntity<ErrorResponse> handlePricingPolicyException(
 			PricingPolicyException ex, HttpServletRequest request) {
 		log.warn("PricingPolicyException [{}]: {}", ex.getExceptionType(), ex.getMessage());
-
+		
 		ErrorResponse errorResponse = ErrorResponse.builder()
 				.timestamp(java.time.LocalDateTime.now())
 				.status(ex.getHttpStatus().value())
@@ -34,12 +34,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				.build();
 		return ResponseEntity.status(ex.getHttpStatus()).body(errorResponse);
 	}
-
+	
 	@ExceptionHandler(ReservationPricingException.class)
 	public ResponseEntity<ErrorResponse> handleReservationPricingException(
 			ReservationPricingException ex, HttpServletRequest request) {
 		log.warn("ReservationPricingException [{}]: {}", ex.getExceptionType(), ex.getMessage());
-
+		
 		ErrorResponse errorResponse = ErrorResponse.builder()
 				.timestamp(java.time.LocalDateTime.now())
 				.status(ex.getHttpStatus().value())
@@ -50,7 +50,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				.build();
 		return ResponseEntity.status(ex.getHttpStatus()).body(errorResponse);
 	}
-
+	
 	/**
 	 * NoSuchElementException 처리 (리소스 없음)
 	 */
@@ -58,7 +58,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleNoSuchElementException(
 			java.util.NoSuchElementException ex, HttpServletRequest request) {
 		log.warn("Resource not found: {}", ex.getMessage());
-
+		
 		ErrorResponse errorResponse = ErrorResponse.of(
 				HttpStatus.NOT_FOUND.value(),
 				"RESOURCE_NOT_FOUND",
@@ -67,7 +67,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		);
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
 	}
-
+	
 	/**
 	 * ConstraintViolationException 처리 (@PathVariable, @RequestParam validation 실패)
 	 */
@@ -75,7 +75,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleConstraintViolationException(
 			jakarta.validation.ConstraintViolationException ex, HttpServletRequest request) {
 		log.warn("Constraint violation: {}", ex.getMessage());
-
+		
 		ErrorResponse errorResponse = ErrorResponse.of(
 				HttpStatus.BAD_REQUEST.value(),
 				"CONSTRAINT_VIOLATION",
@@ -84,7 +84,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		);
 		return ResponseEntity.badRequest().body(errorResponse);
 	}
-
+	
 	/**
 	 * IllegalArgumentException 처리 (도메인 validation 실패)
 	 */
@@ -92,7 +92,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
 			IllegalArgumentException ex, HttpServletRequest request) {
 		log.warn("Invalid argument: {}", ex.getMessage());
-
+		
 		ErrorResponse errorResponse = ErrorResponse.of(
 				HttpStatus.BAD_REQUEST.value(),
 				"INVALID_ARGUMENT",
@@ -101,7 +101,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		);
 		return ResponseEntity.badRequest().body(errorResponse);
 	}
-
+	
 	/**
 	 * IllegalStateException 처리 (도메인 상태 위반)
 	 */
@@ -109,7 +109,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleIllegalStateException(
 			IllegalStateException ex, HttpServletRequest request) {
 		log.warn("Invalid state: {}", ex.getMessage());
-
+		
 		ErrorResponse errorResponse = ErrorResponse.of(
 				HttpStatus.CONFLICT.value(),
 				"INVALID_STATE",
@@ -118,7 +118,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		);
 		return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
 	}
-
+	
 	/**
 	 * Validation 예외 처리 (필드 에러 상세 정보 포함)
 	 */
@@ -129,7 +129,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 			org.springframework.http.HttpStatusCode status,
 			WebRequest request) {
 		log.warn("Validation failed: {} field errors", ex.getBindingResult().getFieldErrorCount());
-
+		
 		ErrorResponse body = ErrorResponse.ofValidation(
 				HttpStatus.BAD_REQUEST.value(),
 				"VALIDATION_ERROR",
@@ -139,7 +139,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		);
 		return ResponseEntity.badRequest().body(body);
 	}
-
+	
 	/**
 	 * 일반 예외 처리 (최종 fallback)
 	 */
@@ -147,7 +147,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleGeneralException(
 			Exception ex, HttpServletRequest request) {
 		log.error("Unexpected exception occurred", ex);
-
+		
 		ErrorResponse errorResponse = ErrorResponse.of(
 				HttpStatus.INTERNAL_SERVER_ERROR.value(),
 				"INTERNAL_SERVER_ERROR",
@@ -156,7 +156,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		);
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
 	}
-
+	
 	private String extractPath(WebRequest request) {
 		String description = request.getDescription(false);
 		return description.replace("uri=", "");

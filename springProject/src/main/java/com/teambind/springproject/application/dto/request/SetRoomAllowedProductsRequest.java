@@ -8,12 +8,12 @@ import java.util.List;
  * @param productIds 허용할 PLACE 상품 ID 목록
  */
 public record SetRoomAllowedProductsRequest(
-    List<Long> productIds
+		List<Long> productIds
 ) {
-
-  public SetRoomAllowedProductsRequest {
-    if (productIds == null) {
-      throw new IllegalArgumentException("Product IDs cannot be null");
-    }
-  }
+	
+	public SetRoomAllowedProductsRequest {
+		if (productIds == null) {
+			throw new IllegalArgumentException("Product IDs cannot be null");
+		}
+	}
 }

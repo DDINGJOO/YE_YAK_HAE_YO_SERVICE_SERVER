@@ -2,6 +2,7 @@ package com.teambind.springproject.domain.product.availability;
 
 import com.teambind.springproject.domain.product.Product;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,34 +23,34 @@ import java.util.List;
  * @see ProductScope
  */
 public interface ScopedAvailabilityChecker {
-
-  /**
-   * 상품이 요청한 시간대와 수량에 대해 가용한지 확인합니다.
-   *
-   * @param product                 확인할 상품
-   * @param requestedSlots          요청 시간 슬롯 목록 (시간 무관 Scope는 무시 가능)
-   * @param requestedQuantity       요청 수량
-   * @param overlappingReservations 시간대가 겹치는 예약 목록 (시간 무관 Scope는 무시 가능)
-   * @return 가용하면 true, 아니면 false
-   * @throws IllegalArgumentException 필수 파라미터가 누락된 경우
-   */
-  boolean isAvailable(
-      Product product,
-      List<LocalDateTime> requestedSlots,
-      int requestedQuantity,
-      List<ReservationPricing> overlappingReservations);
-
-  /**
-   * 상품의 가용 수량을 계산합니다.
-   *
-   * @param product                 확인할 상품
-   * @param requestedSlots          요청 시간 슬롯 목록 (시간 무관 Scope는 무시 가능)
-   * @param overlappingReservations 시간대가 겹치는 예약 목록 (시간 무관 Scope는 무시 가능)
-   * @return 가용한 수량 (0 이상)
-   * @throws IllegalArgumentException 필수 파라미터가 누락된 경우
-   */
-  int calculateAvailableQuantity(
-      Product product,
-      List<LocalDateTime> requestedSlots,
-      List<ReservationPricing> overlappingReservations);
+	
+	/**
+	 * 상품이 요청한 시간대와 수량에 대해 가용한지 확인합니다.
+	 *
+	 * @param product                 확인할 상품
+	 * @param requestedSlots          요청 시간 슬롯 목록 (시간 무관 Scope는 무시 가능)
+	 * @param requestedQuantity       요청 수량
+	 * @param overlappingReservations 시간대가 겹치는 예약 목록 (시간 무관 Scope는 무시 가능)
+	 * @return 가용하면 true, 아니면 false
+	 * @throws IllegalArgumentException 필수 파라미터가 누락된 경우
+	 */
+	boolean isAvailable(
+			Product product,
+			List<LocalDateTime> requestedSlots,
+			int requestedQuantity,
+			List<ReservationPricing> overlappingReservations);
+	
+	/**
+	 * 상품의 가용 수량을 계산합니다.
+	 *
+	 * @param product                 확인할 상품
+	 * @param requestedSlots          요청 시간 슬롯 목록 (시간 무관 Scope는 무시 가능)
+	 * @param overlappingReservations 시간대가 겹치는 예약 목록 (시간 무관 Scope는 무시 가능)
+	 * @return 가용한 수량 (0 이상)
+	 * @throws IllegalArgumentException 필수 파라미터가 누락된 경우
+	 */
+	int calculateAvailableQuantity(
+			Product product,
+			List<LocalDateTime> requestedSlots,
+			List<ReservationPricing> overlappingReservations);
 }

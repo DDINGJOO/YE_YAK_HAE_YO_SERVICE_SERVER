@@ -17,29 +17,29 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class RegisterProductService implements RegisterProductUseCase {
-
-  private static final Logger logger = LoggerFactory.getLogger(RegisterProductService.class);
-
-  private final ProductRepository productRepository;
-
-  public RegisterProductService(final ProductRepository productRepository) {
-    this.productRepository = productRepository;
-  }
-
-  @Override
-  public ProductResponse register(final RegisterProductRequest request) {
-    logger.info("Registering product: scope={}, name={}", request.scope(), request.name());
-
-    // DTO를 도메인 객체로 변환
-    final Product product = request.toDomain();
-
-    // Repository에 저장
-    final Product savedProduct = productRepository.save(product);
-
-    logger.info("Successfully registered product: productId={}, scope={}",
-        savedProduct.getProductId().getValue(), savedProduct.getScope());
-
-    // 도메인 객체를 DTO로 변환하여 반환
-    return ProductResponse.from(savedProduct);
-  }
+	
+	private static final Logger logger = LoggerFactory.getLogger(RegisterProductService.class);
+	
+	private final ProductRepository productRepository;
+	
+	public RegisterProductService(final ProductRepository productRepository) {
+		this.productRepository = productRepository;
+	}
+	
+	@Override
+	public ProductResponse register(final RegisterProductRequest request) {
+		logger.info("Registering product: scope={}, name={}", request.scope(), request.name());
+		
+		// DTO를 도메인 객체로 변환
+		final Product product = request.toDomain();
+		
+		// Repository에 저장
+		final Product savedProduct = productRepository.save(product);
+		
+		logger.info("Successfully registered product: productId={}, scope={}",
+				savedProduct.getProductId().getValue(), savedProduct.getScope());
+		
+		// 도메인 객체를 DTO로 변환하여 반환
+		return ProductResponse.from(savedProduct);
+	}
 }

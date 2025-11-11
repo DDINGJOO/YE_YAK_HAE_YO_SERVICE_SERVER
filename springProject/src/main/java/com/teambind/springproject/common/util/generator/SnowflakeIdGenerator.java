@@ -11,16 +11,16 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class SnowflakeIdGenerator implements IdentifierGenerator {
-
-  private static PrimaryKeyGenerator primaryKeyGenerator;
-
-  @Autowired
-  public void setPrimaryKeyGenerator(final PrimaryKeyGenerator primaryKeyGenerator) {
-    SnowflakeIdGenerator.primaryKeyGenerator = primaryKeyGenerator;
-  }
-
-  @Override
-  public Object generate(final SharedSessionContractImplementor session, final Object object) {
-    return primaryKeyGenerator.generateLongKey();
-  }
+	
+	private static PrimaryKeyGenerator primaryKeyGenerator;
+	
+	@Autowired
+	public void setPrimaryKeyGenerator(final PrimaryKeyGenerator primaryKeyGenerator) {
+		SnowflakeIdGenerator.primaryKeyGenerator = primaryKeyGenerator;
+	}
+	
+	@Override
+	public Object generate(final SharedSessionContractImplementor session, final Object object) {
+		return primaryKeyGenerator.generateLongKey();
+	}
 }
