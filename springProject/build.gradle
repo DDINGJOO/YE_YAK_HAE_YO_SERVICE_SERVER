@@ -68,7 +68,26 @@ dependencies {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'large-scale'
+    }
+}
+
+task largeScaleTest(type: Test) {
+    group = 'verification'
+    description = 'Run large-scale performance tests (manual execution only)'
+
+    useJUnitPlatform {
+        includeTags 'large-scale'
+    }
+
+    testLogging {
+        events "passed", "skipped", "failed", "standardOut", "standardError"
+        showStandardStreams = true
+        exceptionFormat = 'full'
+    }
+
+    maxHeapSize = '4g'
 }
 
 // CheckStyle Configuration

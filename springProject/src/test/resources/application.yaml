@@ -35,5 +35,5 @@ spring:
 logging:
   level:
     root: INFO
-    com.teambind.springproject: DEBUG
-    org.hibernate.SQL: DEBUG
+    com.teambind.springproject: INFO
+    org.hibernate.SQL: INFO
