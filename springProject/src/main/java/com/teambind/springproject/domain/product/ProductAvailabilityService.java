@@ -1,11 +1,7 @@
 package com.teambind.springproject.domain.product;
 
-import com.teambind.springproject.application.port.out.ReservationPricingRepository;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
-import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.ProductId;
-import com.teambind.springproject.domain.shared.ReservationStatus;
-import com.teambind.springproject.domain.shared.RoomId;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -25,7 +21,7 @@ import org.springframework.stereotype.Service;
  * <ul>
  *   <li>상태를 갖지 않음 (Stateless)</li>
  *   <li>여러 Aggregate를 조율하는 로직 포함</li>
- *   <li>Repository에 의존 가능</li>
+ *   <li>순수한 도메인 객체만 의존 (Infrastructure 계층 의존 제거)</li>
  * </ul>
  *
  * @see Product
@@ -40,7 +36,7 @@ public class ProductAvailabilityService {
    * @param product 확인할 상품
    * @param requestedSlots 요청 시간 슬롯 목록 (PLACE, ROOM Scope에서 필요)
    * @param requestedQuantity 요청 수량
-   * @param repository 예약 가격 Repository (PLACE, ROOM Scope에서 필요)
+   * @param overlappingReservations 시간대가 겹치는 예약 목록 (PLACE, ROOM Scope에서 필요)
    * @return 가용하면 true, 아니면 false
    * @throws IllegalArgumentException 수량이 0 이하이거나, Scope에 따라 필수 파라미터가 누락된 경우
    */
@@ -48,16 +44,16 @@ public class ProductAvailabilityService {
       final Product product,
       final List<LocalDateTime> requestedSlots,
       final int requestedQuantity,
-      final ReservationPricingRepository repository) {
+      final List<ReservationPricing> overlappingReservations) {
 
     validateRequestedQuantity(requestedQuantity);
 
     return switch (product.getScope()) {
       case RESERVATION -> checkSimpleStockAvailability(product, requestedQuantity);
       case PLACE -> checkPlaceScopedAvailability(
-          product, requestedSlots, requestedQuantity, repository);
+          product, requestedSlots, requestedQuantity, overlappingReservations);
       case ROOM -> checkRoomScopedAvailability(
-          product, requestedSlots, requestedQuantity, repository);
+          product, requestedSlots, requestedQuantity, overlappingReservations);
     };
   }
 
@@ -67,18 +63,18 @@ public class ProductAvailabilityService {
    *
    * @param product 확인할 상품
    * @param requestedSlots 요청 시간 슬롯 목록
-   * @param repository 예약 가격 Repository
+   * @param overlappingReservations 시간대가 겹치는 예약 목록
    * @return 가용한 수량 (0 이상)
    */
   public int calculateAvailableQuantity(
       final Product product,
       final List<LocalDateTime> requestedSlots,
-      final ReservationPricingRepository repository) {
+      final List<ReservationPricing> overlappingReservations) {
 
     return switch (product.getScope()) {
       case RESERVATION -> product.getTotalQuantity();
-      case PLACE -> calculatePlaceScopedAvailableQuantity(product, requestedSlots, repository);
-      case ROOM -> calculateRoomScopedAvailableQuantity(product, requestedSlots, repository);
+      case PLACE -> calculatePlaceScopedAvailableQuantity(product, requestedSlots, overlappingReservations);
+      case ROOM -> calculateRoomScopedAvailableQuantity(product, requestedSlots, overlappingReservations);
     };
   }
 
@@ -87,25 +83,15 @@ public class ProductAvailabilityService {
    *
    * @param product 확인할 상품
    * @param requestedSlots 요청 시간 슬롯 목록
-   * @param repository 예약 가격 Repository
+   * @param overlappingReservations 시간대가 겹치는 예약 목록
    * @return 가용한 수량
    */
   private int calculatePlaceScopedAvailableQuantity(
       final Product product,
       final List<LocalDateTime> requestedSlots,
-      final ReservationPricingRepository repository) {
+      final List<ReservationPricing> overlappingReservations) {
 
     validateTimeSlots(requestedSlots);
-    final PlaceId placeId = product.getPlaceId();
-    final LocalDateTime start = requestedSlots.get(0);
-    final LocalDateTime end = requestedSlots.get(requestedSlots.size() - 1);
-
-    final List<ReservationPricing> overlappingReservations =
-        repository.findByPlaceIdAndTimeRange(
-            placeId,
-            start,
-            end,
-            List.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
 
     final int maxUsedQuantity = requestedSlots.stream()
         .mapToInt(slot -> calculateUsedAtSlot(overlappingReservations, product.getProductId(),
@@ -121,25 +107,15 @@ public class ProductAvailabilityService {
    *
    * @param product 확인할 상품
    * @param requestedSlots 요청 시간 슬롯 목록
-   * @param repository 예약 가격 Repository
+   * @param overlappingReservations 시간대가 겹치는 예약 목록
    * @return 가용한 수량
    */
   private int calculateRoomScopedAvailableQuantity(
       final Product product,
       final List<LocalDateTime> requestedSlots,
-      final ReservationPricingRepository repository) {
+      final List<ReservationPricing> overlappingReservations) {
 
     validateTimeSlots(requestedSlots);
-    final RoomId roomId = product.getRoomId();
-    final LocalDateTime start = requestedSlots.get(0);
-    final LocalDateTime end = requestedSlots.get(requestedSlots.size() - 1);
-
-    final List<ReservationPricing> overlappingReservations =
-        repository.findByRoomIdAndTimeRange(
-            roomId,
-            start,
-            end,
-            List.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
 
     final int maxUsedQuantity = requestedSlots.stream()
         .mapToInt(slot -> calculateUsedAtSlot(overlappingReservations, product.getProductId(),
@@ -172,27 +148,16 @@ public class ProductAvailabilityService {
    * @param product 확인할 상품
    * @param requestedSlots 요청 시간 슬롯 목록
    * @param requestedQuantity 요청 수량
-   * @param repository 예약 가격 Repository
+   * @param overlappingReservations 시간대가 겹치는 예약 목록
    * @return 가용하면 true, 아니면 false
    */
   private boolean checkPlaceScopedAvailability(
       final Product product,
       final List<LocalDateTime> requestedSlots,
       final int requestedQuantity,
-      final ReservationPricingRepository repository) {
+      final List<ReservationPricing> overlappingReservations) {
 
     validateTimeSlots(requestedSlots);
-    final PlaceId placeId = product.getPlaceId();
-    final LocalDateTime start = requestedSlots.get(0);
-    final LocalDateTime end = requestedSlots.get(requestedSlots.size() - 1);
-
-    // PENDING과 CONFIRMED 상태의 예약만 조회
-    final List<ReservationPricing> overlappingReservations =
-        repository.findByPlaceIdAndTimeRange(
-            placeId,
-            start,
-            end,
-            List.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
 
     // 각 슬롯별 최대 사용량 계산
     final int maxUsedQuantity = requestedSlots.stream()
@@ -211,27 +176,16 @@ public class ProductAvailabilityService {
    * @param product 확인할 상품
    * @param requestedSlots 요청 시간 슬롯 목록
    * @param requestedQuantity 요청 수량
-   * @param repository 예약 가격 Repository
+   * @param overlappingReservations 시간대가 겹치는 예약 목록
    * @return 가용하면 true, 아니면 false
    */
   private boolean checkRoomScopedAvailability(
       final Product product,
       final List<LocalDateTime> requestedSlots,
       final int requestedQuantity,
-      final ReservationPricingRepository repository) {
+      final List<ReservationPricing> overlappingReservations) {
 
     validateTimeSlots(requestedSlots);
-    final RoomId roomId = product.getRoomId();
-    final LocalDateTime start = requestedSlots.get(0);
-    final LocalDateTime end = requestedSlots.get(requestedSlots.size() - 1);
-
-    // PENDING과 CONFIRMED 상태의 예약만 조회
-    final List<ReservationPricing> overlappingReservations =
-        repository.findByRoomIdAndTimeRange(
-            roomId,
-            start,
-            end,
-            List.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
 
     // 각 슬롯별 최대 사용량 계산
     final int maxUsedQuantity = requestedSlots.stream()

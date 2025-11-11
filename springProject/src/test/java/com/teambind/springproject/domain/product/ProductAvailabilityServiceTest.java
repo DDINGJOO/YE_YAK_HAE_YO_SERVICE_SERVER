@@ -31,11 +31,9 @@ import org.junit.jupiter.api.Test;
 class ProductAvailabilityServiceTest {
 
   private ProductAvailabilityService service;
-  private ReservationPricingRepository repository;
 
   @BeforeEach
   void setUp() {
-    repository = mock(ReservationPricingRepository.class);
     service = new ProductAvailabilityService();
   }
 
@@ -215,11 +213,8 @@ class ProductAvailabilityServiceTest {
       final LocalDateTime slot2 = LocalDateTime.of(2025, 1, 15, 11, 0);
       final List<LocalDateTime> requestedSlots = List.of(slot1, slot2);
 
-      when(repository.findByPlaceIdAndTimeRange(any(), any(), any(), anyList()))
-          .thenReturn(Collections.emptyList());
-
-      // when
-      final boolean available = service.isAvailable(product, requestedSlots, 3, repository);
+      // when - No existing reservations
+      final boolean available = service.isAvailable(product, requestedSlots, 3, Collections.emptyList());
 
       // then
       assertThat(available).isTrue();
@@ -269,11 +264,8 @@ class ProductAvailabilityServiceTest {
           10L
       );
 
-      when(repository.findByPlaceIdAndTimeRange(any(), any(), any(), anyList()))
-          .thenReturn(List.of(existingReservation));
-
       // when - 5개 요청 (2개 사용 중 + 5개 요청 = 7개 < 10개)
-      final boolean available = service.isAvailable(product, requestedSlots, 5, repository);
+      final boolean available = service.isAvailable(product, requestedSlots, 5, List.of(existingReservation));
 
       // then
       assertThat(available).isTrue();
@@ -323,11 +315,8 @@ class ProductAvailabilityServiceTest {
           10L
       );
 
-      when(repository.findByPlaceIdAndTimeRange(any(), any(), any(), anyList()))
-          .thenReturn(List.of(existingReservation));
-
       // when - 3개 요청 (4개 사용 중 + 3개 요청 = 7개 > 5개)
-      final boolean available = service.isAvailable(product, requestedSlots, 3, repository);
+      final boolean available = service.isAvailable(product, requestedSlots, 3, List.of(existingReservation));
 
       // then
       assertThat(available).isFalse();
@@ -346,7 +335,7 @@ class ProductAvailabilityServiceTest {
       );
 
       // when & then
-      assertThatThrownBy(() -> service.isAvailable(product, null, 1, repository))
+      assertThatThrownBy(() -> service.isAvailable(product, null, 1, Collections.emptyList()))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("Requested time slots cannot be null or empty");
     }
@@ -365,7 +354,7 @@ class ProductAvailabilityServiceTest {
 
       // when & then
       assertThatThrownBy(() ->
-          service.isAvailable(product, Collections.emptyList(), 1, repository))
+          service.isAvailable(product, Collections.emptyList(), 1, Collections.emptyList()))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("Requested time slots cannot be null or empty");
     }
@@ -392,11 +381,8 @@ class ProductAvailabilityServiceTest {
       final LocalDateTime slot1 = LocalDateTime.of(2025, 1, 15, 10, 0);
       final List<LocalDateTime> requestedSlots = List.of(slot1);
 
-      when(repository.findByRoomIdAndTimeRange(any(), any(), any(), anyList()))
-          .thenReturn(Collections.emptyList());
-
-      // when
-      final boolean available = service.isAvailable(product, requestedSlots, 2, repository);
+      // when - No existing reservations
+      final boolean available = service.isAvailable(product, requestedSlots, 2, Collections.emptyList());
 
       // then
       assertThat(available).isTrue();
@@ -447,11 +433,8 @@ class ProductAvailabilityServiceTest {
           10L
       );
 
-      when(repository.findByRoomIdAndTimeRange(any(), any(), any(), anyList()))
-          .thenReturn(List.of(existingReservation));
-
       // when - 3개 요청 (2개 사용 중 + 3개 요청 = 5개, 정확히 소진)
-      final boolean available = service.isAvailable(product, requestedSlots, 3, repository);
+      final boolean available = service.isAvailable(product, requestedSlots, 3, List.of(existingReservation));
 
       // then
       assertThat(available).isTrue();
@@ -471,7 +454,7 @@ class ProductAvailabilityServiceTest {
       );
 
       // when & then
-      assertThatThrownBy(() -> service.isAvailable(product, null, 1, repository))
+      assertThatThrownBy(() -> service.isAvailable(product, null, 1, Collections.emptyList()))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("Requested time slots cannot be null or empty");
     }

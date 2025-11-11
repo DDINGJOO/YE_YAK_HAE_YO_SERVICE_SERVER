@@ -18,6 +18,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -130,7 +132,7 @@ public class PricePreviewService implements CalculateReservationPriceUseCase {
 
     // 4. 요청 순서대로 정렬 (productRequests 순서 보장)
     final java.util.Map<ProductId, Product> productMap = foundProducts.stream()
-        .collect(java.util.stream.Collectors.toMap(Product::getProductId, p -> p));
+        .collect(Collectors.toMap(Product::getProductId, p -> p));
 
     return productIds.stream()
         .map(productMap::get)
