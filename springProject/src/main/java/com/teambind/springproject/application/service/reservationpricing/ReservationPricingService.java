@@ -17,15 +17,15 @@ import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown;
 import com.teambind.springproject.domain.reservationpricing.exception.ProductNotAvailableException;
 import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;
-import com.teambind.springproject.domain.shared.Money;
-import com.teambind.springproject.domain.shared.ProductId;
-import com.teambind.springproject.domain.shared.ReservationId;
-import com.teambind.springproject.domain.shared.RoomId;
+import com.teambind.springproject.domain.shared.*;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -203,7 +203,7 @@ public class ReservationPricingService implements CreateReservationUseCase,
 
     // 4. 요청 순서대로 정렬 (productRequests 순서 보장)
     final java.util.Map<ProductId, Product> productMap = foundProducts.stream()
-        .collect(java.util.stream.Collectors.toMap(Product::getProductId, p -> p));
+        .collect(Collectors.toMap(Product::getProductId, p -> p));
 
     return productIds.stream()
         .map(productMap::get)
@@ -221,11 +221,15 @@ public class ReservationPricingService implements CreateReservationUseCase,
       final Product product = products.get(i);
       final ProductRequest productRequest = request.products().get(i);
 
+      // Scope별로 overlapping reservations 조회
+      final List<ReservationPricing> overlappingReservations =
+          getOverlappingReservations(product, request.timeSlots());
+
       final boolean available = productAvailabilityService.isAvailable(
           product,
           request.timeSlots(),
           productRequest.quantity(),
-          reservationPricingRepository
+          overlappingReservations
       );
 
       if (!available) {
@@ -296,11 +300,15 @@ public class ReservationPricingService implements CreateReservationUseCase,
       final Product product = products.get(i);
       final ProductRequest productRequest = productRequests.get(i);
 
+      // Scope별로 overlapping reservations 조회
+      final List<ReservationPricing> overlappingReservations =
+          getOverlappingReservations(product, timeSlots);
+
       final boolean available = productAvailabilityService.isAvailable(
           product,
           timeSlots,
           productRequest.quantity(),
-          reservationPricingRepository
+          overlappingReservations
       );
 
       if (!available) {
@@ -308,5 +316,46 @@ public class ReservationPricingService implements CreateReservationUseCase,
             product.getProductId().getValue(), productRequest.quantity());
       }
     }
+  }
+
+  /**
+   * 상품의 Scope에 따라 시간대가 겹치는 예약 목록을 조회합니다.
+   *
+   * @param product 상품
+   * @param timeSlots 시간 슬롯 목록
+   * @return 겹치는 예약 목록 (RESERVATION Scope인 경우 빈 리스트)
+   */
+  private List<ReservationPricing> getOverlappingReservations(
+      final Product product,
+      final List<LocalDateTime> timeSlots) {
+
+    if (timeSlots == null || timeSlots.isEmpty()) {
+      return List.of();
+    }
+
+    final LocalDateTime start = timeSlots.get(0);
+    final LocalDateTime end = timeSlots.get(timeSlots.size() - 1);
+
+    return switch (product.getScope()) {
+      case RESERVATION -> List.of();  // RESERVATION Scope는 시간과 무관
+      case PLACE -> reservationPricingRepository.findByPlaceIdAndTimeRange(
+          product.getPlaceId(),
+          start,
+          end,
+          List.of(
+              ReservationStatus.PENDING,
+              ReservationStatus.CONFIRMED
+          )
+      );
+      case ROOM -> reservationPricingRepository.findByRoomIdAndTimeRange(
+          product.getRoomId(),
+          start,
+          end,
+          List.of(
+              ReservationStatus.PENDING,
+              ReservationStatus.CONFIRMED
+          )
+      );
+    };
   }
 }

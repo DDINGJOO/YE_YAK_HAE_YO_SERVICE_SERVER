@@ -55,10 +55,14 @@ public class ProductAvailabilityQueryService implements QueryProductAvailability
     // 2. 각 상품별 가용 수량 계산
     final List<AvailableProductDto> availableProducts = products.stream()
         .map(product -> {
+          // Scope별로 overlapping reservations 조회
+          final List<com.teambind.springproject.domain.reservationpricing.ReservationPricing> overlappingReservations =
+              getOverlappingReservations(product, request.timeSlots(), placeId, roomId);
+
           final int availableQuantity = productAvailabilityService.calculateAvailableQuantity(
               product,
               request.timeSlots(),
-              reservationPricingRepository
+              overlappingReservations
           );
 
           return new AvailableProductDto(
@@ -79,5 +83,50 @@ public class ProductAvailabilityQueryService implements QueryProductAvailability
         request.placeId(),
         availableProducts
     );
+  }
+
+  /**
+   * 상품의 Scope에 따라 시간대가 겹치는 예약 목록을 조회합니다.
+   *
+   * @param product 상품
+   * @param timeSlots 시간 슬롯 목록
+   * @param placeId 플레이스 ID
+   * @param roomId 룸 ID
+   * @return 겹치는 예약 목록 (RESERVATION Scope인 경우 빈 리스트)
+   */
+  private List<com.teambind.springproject.domain.reservationpricing.ReservationPricing> getOverlappingReservations(
+      final Product product,
+      final List<java.time.LocalDateTime> timeSlots,
+      final PlaceId placeId,
+      final RoomId roomId) {
+
+    if (timeSlots == null || timeSlots.isEmpty()) {
+      return List.of();
+    }
+
+    final java.time.LocalDateTime start = timeSlots.get(0);
+    final java.time.LocalDateTime end = timeSlots.get(timeSlots.size() - 1);
+
+    return switch (product.getScope()) {
+      case RESERVATION -> List.of();  // RESERVATION Scope는 시간과 무관
+      case PLACE -> reservationPricingRepository.findByPlaceIdAndTimeRange(
+          placeId,
+          start,
+          end,
+          List.of(
+              com.teambind.springproject.domain.shared.ReservationStatus.PENDING,
+              com.teambind.springproject.domain.shared.ReservationStatus.CONFIRMED
+          )
+      );
+      case ROOM -> reservationPricingRepository.findByRoomIdAndTimeRange(
+          roomId,
+          start,
+          end,
+          List.of(
+              com.teambind.springproject.domain.shared.ReservationStatus.PENDING,
+              com.teambind.springproject.domain.shared.ReservationStatus.CONFIRMED
+          )
+      );
+    };
   }
 }
