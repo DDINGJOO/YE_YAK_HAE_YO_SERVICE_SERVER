@@ -124,32 +124,30 @@ public class Product {
       final RoomId roomId,
       final ProductScope scope) {
     switch (scope) {
-      case PLACE:
+      case PLACE -> {
         if (placeId == null) {
           throw new IllegalArgumentException("PLACE scope requires placeId");
         }
         if (roomId != null) {
           throw new IllegalArgumentException("PLACE scope must not have roomId");
         }
-        break;
-      case ROOM:
+      }
+      case ROOM -> {
         if (placeId == null) {
           throw new IllegalArgumentException("ROOM scope requires placeId");
         }
         if (roomId == null) {
           throw new IllegalArgumentException("ROOM scope requires roomId");
         }
-        break;
-      case RESERVATION:
+      }
+      case RESERVATION -> {
         if (placeId != null) {
           throw new IllegalArgumentException("RESERVATION scope must not have placeId");
         }
         if (roomId != null) {
           throw new IllegalArgumentException("RESERVATION scope must not have roomId");
         }
-        break;
-      default:
-        throw new IllegalArgumentException("Unknown product scope: " + scope);
+      }
     }
   }
 
