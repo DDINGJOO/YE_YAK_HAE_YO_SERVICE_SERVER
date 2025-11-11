@@ -319,4 +319,175 @@ class PricingStrategyTest {
       assertThat(result).contains("5000");
     }
   }
+
+  @Nested
+  @DisplayName("엣지 케이스 및 경계값 테스트")
+  class EdgeCaseTests {
+
+    @Test
+    @DisplayName("INITIAL_PLUS_ADDITIONAL - 매우 큰 수량 (10000개) 계산")
+    void calculateInitialPlusAdditionalWithVeryLargeQuantity() {
+      // given
+      final PricingStrategy strategy = PricingStrategy.initialPlusAdditional(
+          Money.of(10000), Money.of(5000));
+
+      // when
+      final Money result = strategy.calculate(10000);
+
+      // then
+      // 10,000 + (10000-1) * 5,000 = 10,000 + 49,995,000 = 50,005,000
+      assertThat(result).isEqualTo(Money.of(50005000));
+    }
+
+    @Test
+    @DisplayName("INITIAL_PLUS_ADDITIONAL - 추가 가격이 0원인 경우")
+    void calculateInitialPlusAdditionalWithZeroAdditionalPrice() {
+      // given
+      final PricingStrategy strategy = PricingStrategy.initialPlusAdditional(
+          Money.of(10000), Money.ZERO);
+
+      // when - 5개 요청
+      final Money result = strategy.calculate(5);
+
+      // then - 초기 가격만 적용 (추가 가격 0원)
+      assertThat(result).isEqualTo(Money.of(10000));
+    }
+
+    @Test
+    @DisplayName("INITIAL_PLUS_ADDITIONAL - 초기 가격이 0원인 경우")
+    void calculateInitialPlusAdditionalWithZeroInitialPrice() {
+      // given
+      final PricingStrategy strategy = PricingStrategy.initialPlusAdditional(
+          Money.ZERO, Money.of(5000));
+
+      // when - 3개 요청
+      final Money result = strategy.calculate(3);
+
+      // then - (3-1) * 5,000 = 10,000
+      assertThat(result).isEqualTo(Money.of(10000));
+    }
+
+    @Test
+    @DisplayName("INITIAL_PLUS_ADDITIONAL - 둘 다 0원인 경우")
+    void calculateInitialPlusAdditionalWithBothZero() {
+      // given
+      final PricingStrategy strategy = PricingStrategy.initialPlusAdditional(
+          Money.ZERO, Money.ZERO);
+
+      // when
+      final Money result = strategy.calculate(100);
+
+      // then
+      assertThat(result).isEqualTo(Money.ZERO);
+    }
+
+    @Test
+    @DisplayName("ONE_TIME - 0원 가격으로 생성 및 계산")
+    void calculateOneTimeWithZeroPrice() {
+      // given
+      final PricingStrategy strategy = PricingStrategy.oneTime(Money.ZERO);
+
+      // when
+      final Money result = strategy.calculate(100);
+
+      // then
+      assertThat(result).isEqualTo(Money.ZERO);
+    }
+
+    @Test
+    @DisplayName("SIMPLE_STOCK - 0원 가격으로 생성 및 계산")
+    void calculateSimpleStockWithZeroPrice() {
+      // given
+      final PricingStrategy strategy = PricingStrategy.simpleStock(Money.ZERO);
+
+      // when
+      final Money result = strategy.calculate(100);
+
+      // then
+      assertThat(result).isEqualTo(Money.ZERO);
+    }
+
+    @Test
+    @DisplayName("SIMPLE_STOCK - 매우 큰 단가로 계산")
+    void calculateSimpleStockWithVeryLargeUnitPrice() {
+      // given
+      final Money largeUnitPrice = Money.of(new BigDecimal("999999999"));
+      final PricingStrategy strategy = PricingStrategy.simpleStock(largeUnitPrice);
+
+      // when
+      final Money result = strategy.calculate(1);
+
+      // then
+      assertThat(result).isEqualTo(largeUnitPrice);
+    }
+
+    @Test
+    @DisplayName("ONE_TIME - 매우 큰 가격으로 계산")
+    void calculateOneTimeWithVeryLargePrice() {
+      // given
+      final Money largePrice = Money.of(new BigDecimal("999999999"));
+      final PricingStrategy strategy = PricingStrategy.oneTime(largePrice);
+
+      // when
+      final Money result = strategy.calculate(1000);
+
+      // then - 수량과 무관하게 1회 가격만 반환
+      assertThat(result).isEqualTo(largePrice);
+    }
+
+    @Test
+    @DisplayName("매우 작은 소수점 가격으로 SIMPLE_STOCK 계산")
+    void calculateSimpleStockWithVerySmallDecimal() {
+      // given
+      final Money smallPrice = Money.of(new BigDecimal("0.01"));
+      final PricingStrategy strategy = PricingStrategy.simpleStock(smallPrice);
+
+      // when
+      final Money result = strategy.calculate(1);
+
+      // then
+      assertThat(result).isEqualTo(Money.of(new BigDecimal("0.01")));
+    }
+
+    @Test
+    @DisplayName("INITIAL_PLUS_ADDITIONAL - 수량 1개일 때 추가 가격 무시")
+    void calculateInitialPlusAdditionalWithQuantityOneIgnoresAdditionalPrice() {
+      // given - 추가 가격이 매우 크더라도
+      final PricingStrategy strategy = PricingStrategy.initialPlusAdditional(
+          Money.of(1000), Money.of(999999));
+
+      // when - 수량 1개
+      final Money result = strategy.calculate(1);
+
+      // then - 초기 가격만 반환
+      assertThat(result).isEqualTo(Money.of(1000));
+    }
+
+    @Test
+    @DisplayName("INITIAL_PLUS_ADDITIONAL - 추가 가격이 초기 가격보다 훨씬 큰 경우")
+    void calculateInitialPlusAdditionalWithMuchLargerAdditionalPrice() {
+      // given - 추가 가격이 초기 가격의 100배
+      final PricingStrategy strategy = PricingStrategy.initialPlusAdditional(
+          Money.of(100), Money.of(10000));
+
+      // when - 5개 요청
+      final Money result = strategy.calculate(5);
+
+      // then - 100 + (5-1) * 10,000 = 40,100
+      assertThat(result).isEqualTo(Money.of(40100));
+    }
+
+    @Test
+    @DisplayName("Integer.MAX_VALUE 수량으로 SIMPLE_STOCK 계산 시 예외 없이 처리")
+    void calculateSimpleStockWithMaxIntQuantity() {
+      // given
+      final PricingStrategy strategy = PricingStrategy.simpleStock(Money.of(1));
+
+      // when - Integer.MAX_VALUE는 양수이므로 유효
+      final Money result = strategy.calculate(Integer.MAX_VALUE);
+
+      // then - 수량과 무관하게 단가만 반환
+      assertThat(result).isEqualTo(Money.of(1));
+    }
+  }
 }
