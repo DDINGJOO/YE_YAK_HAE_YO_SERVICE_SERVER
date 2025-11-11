@@ -397,4 +397,163 @@ class ProductTest {
       assertThat(product1).isNotEqualTo(product2);
     }
   }
+
+  @Nested
+  @DisplayName("엣지 케이스 및 경계값 테스트")
+  class EdgeCaseTests {
+
+    @Test
+    @DisplayName("매우 긴 상품명 (1000자) 생성 성공")
+    void createProductWithVeryLongName() {
+      // given
+      final String longName = "A".repeat(1000);
+      final ProductId productId = ProductId.of(1L);
+
+      // when
+      final Product product = Product.createReservationScoped(
+          productId, longName, PricingStrategy.simpleStock(Money.of(1000)), 10);
+
+      // then
+      assertThat(product.getName()).hasSize(1000);
+    }
+
+    @Test
+    @DisplayName("특수문자가 포함된 상품명 생성 성공")
+    void createProductWithSpecialCharactersName() {
+      // given
+      final String specialName = "상품!@#$%^&*()_+-=[]{}|;:',.<>?/~`";
+      final ProductId productId = ProductId.of(1L);
+
+      // when
+      final Product product = Product.createReservationScoped(
+          productId, specialName, PricingStrategy.simpleStock(Money.of(1000)), 10);
+
+      // then
+      assertThat(product.getName()).isEqualTo(specialName);
+    }
+
+    @Test
+    @DisplayName("매우 큰 수량 (Integer.MAX_VALUE) 생성 성공")
+    void createProductWithMaxIntegerQuantity() {
+      // given
+      final int maxQuantity = Integer.MAX_VALUE;
+      final ProductId productId = ProductId.of(1L);
+
+      // when
+      final Product product = Product.createReservationScoped(
+          productId, "대량 재고 상품", PricingStrategy.simpleStock(Money.of(1000)), maxQuantity);
+
+      // then
+      assertThat(product.getTotalQuantity()).isEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
+    @DisplayName("대량 수량 (10000개)으로 가격 계산 성공")
+    void calculatePriceWithLargeQuantity() {
+      // given
+      final Product product = Product.createReservationScoped(
+          ProductId.of(1L),
+          "대량 상품",
+          PricingStrategy.simpleStock(Money.of(1000)),
+          100000
+      );
+
+      // when
+      final ProductPriceBreakdown breakdown = product.calculatePrice(10000);
+
+      // then
+      assertThat(breakdown.quantity()).isEqualTo(10000);
+      assertThat(breakdown.totalPrice()).isEqualTo(Money.of(10000000));
+    }
+
+    @Test
+    @DisplayName("가격이 0원인 상품 생성 및 계산 성공")
+    void createAndCalculatePriceWithZeroPrice() {
+      // given
+      final Product product = Product.createReservationScoped(
+          ProductId.of(1L),
+          "무료 상품",
+          PricingStrategy.simpleStock(Money.ZERO),
+          10
+      );
+
+      // when
+      final ProductPriceBreakdown breakdown = product.calculatePrice(5);
+
+      // then
+      assertThat(breakdown.unitPrice()).isEqualTo(Money.ZERO);
+      assertThat(breakdown.totalPrice()).isEqualTo(Money.ZERO);
+    }
+
+    @Test
+    @DisplayName("INITIAL_PLUS_ADDITIONAL 방식에서 매우 큰 수량 계산")
+    void calculateInitialPlusAdditionalWithLargeQuantity() {
+      // given
+      final Product product = Product.createPlaceScoped(
+          ProductId.of(1L),
+          PlaceId.of(100L),
+          "시간 대여 상품",
+          PricingStrategy.initialPlusAdditional(Money.of(10000), Money.of(5000)),
+          10000
+      );
+
+      // when
+      final ProductPriceBreakdown breakdown = product.calculatePrice(100);
+
+      // then
+      // 10,000 + (100-1) * 5,000 = 505,000 per unit
+      // 505,000 * 100 = 50,500,000
+      assertThat(breakdown.unitPrice()).isEqualTo(Money.of(505000));
+      assertThat(breakdown.totalPrice()).isEqualTo(Money.of(50500000));
+    }
+
+    @Test
+    @DisplayName("단일 문자 상품명 생성 성공")
+    void createProductWithSingleCharacterName() {
+      // given
+      final String singleChar = "A";
+
+      // when
+      final Product product = Product.createReservationScoped(
+          ProductId.of(1L),
+          singleChar,
+          PricingStrategy.simpleStock(Money.of(1000)),
+          10
+      );
+
+      // then
+      assertThat(product.getName()).isEqualTo("A");
+    }
+
+    @Test
+    @DisplayName("공백만 있는 상품명으로 변경 시 예외 발생")
+    void throwExceptionWhenUpdatingWithWhitespaceName() {
+      // given
+      final Product product = Product.createReservationScoped(
+          ProductId.of(1L),
+          "상품",
+          PricingStrategy.simpleStock(Money.of(1000)),
+          10
+      );
+
+      // when & then
+      assertThatThrownBy(() -> product.updateName("     "))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage("Product name cannot be null or empty");
+    }
+
+    @Test
+    @DisplayName("탭과 개행 문자만 있는 상품명으로 생성 시 예외 발생")
+    void throwExceptionWhenCreatingWithTabAndNewlineName() {
+      // when & then
+      assertThatThrownBy(() -> Product.createReservationScoped(
+          ProductId.of(1L),
+          "\t\n\r",
+          PricingStrategy.simpleStock(Money.of(1000)),
+          10
+      ))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage("Product name cannot be null or empty");
+    }
+  }
 }

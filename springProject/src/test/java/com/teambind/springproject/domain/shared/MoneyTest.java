@@ -392,4 +392,160 @@ class MoneyTest {
       assertThat(money.isZero()).isFalse();
     }
   }
+
+  @Nested
+  @DisplayName("엣지 케이스 및 경계값 테스트")
+  class EdgeCaseTests {
+
+    @Test
+    @DisplayName("매우 큰 금액 (Long.MAX_VALUE) 생성 성공")
+    void createMoneyWithVeryLargeAmount() {
+      // given
+      final long maxAmount = Long.MAX_VALUE;
+
+      // when
+      final Money money = Money.of(maxAmount);
+
+      // then
+      assertThat(money.getAmount()).isEqualByComparingTo(new BigDecimal(Long.MAX_VALUE));
+    }
+
+    @Test
+    @DisplayName("매우 작은 소수 금액 (0.01) 생성 성공")
+    void createMoneyWithVerySmallDecimal() {
+      // given
+      final BigDecimal smallAmount = new BigDecimal("0.01");
+
+      // when
+      final Money money = Money.of(smallAmount);
+
+      // then
+      assertThat(money.getAmount()).isEqualByComparingTo(new BigDecimal("0.01"));
+    }
+
+    @Test
+    @DisplayName("소수점 3자리 금액은 2자리로 반올림")
+    void roundThreeDecimalPlacesToTwo() {
+      // given
+      final BigDecimal amount1 = new BigDecimal("100.123");
+      final BigDecimal amount2 = new BigDecimal("100.126");
+
+      // when
+      final Money money1 = Money.of(amount1);
+      final Money money2 = Money.of(amount2);
+
+      // then
+      assertThat(money1.getAmount()).isEqualByComparingTo(new BigDecimal("100.12"));
+      assertThat(money2.getAmount()).isEqualByComparingTo(new BigDecimal("100.13"));
+    }
+
+    @Test
+    @DisplayName("매우 큰 금액끼리 더하기")
+    void addVeryLargeAmounts() {
+      // given
+      final Money money1 = Money.of(new BigDecimal("999999999999999"));
+      final Money money2 = Money.of(new BigDecimal("1"));
+
+      // when
+      final Money result = money1.add(money2);
+
+      // then
+      assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("1000000000000000.00"));
+    }
+
+    @Test
+    @DisplayName("매우 큰 금액에 큰 정수 곱하기")
+    void multiplyVeryLargeAmountByLargeMultiplier() {
+      // given
+      final Money money = Money.of(new BigDecimal("1000000"));
+      final int multiplier = 10000;
+
+      // when
+      final Money result = money.multiply(multiplier);
+
+      // then
+      assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("10000000000.00"));
+    }
+
+    @Test
+    @DisplayName("1원 미만의 금액 (0.001) 반올림 확인")
+    void roundSubWonAmount() {
+      // given
+      final BigDecimal subWonAmount = new BigDecimal("0.001");
+
+      // when
+      final Money money = Money.of(subWonAmount);
+
+      // then
+      assertThat(money.getAmount()).isEqualByComparingTo(new BigDecimal("0.00"));
+    }
+
+    @Test
+    @DisplayName("반올림 경계값 테스트 (0.005 -> 0.01)")
+    void roundingBoundaryValue() {
+      // given
+      final BigDecimal boundaryAmount = new BigDecimal("0.005");
+
+      // when
+      final Money money = Money.of(boundaryAmount);
+
+      // then
+      assertThat(money.getAmount()).isEqualByComparingTo(new BigDecimal("0.01"));
+    }
+
+    @Test
+    @DisplayName("빼기 결과가 정확히 0인 경우")
+    void subtractResultingInExactlyZero() {
+      // given
+      final Money money1 = Money.of(new BigDecimal("1000.50"));
+      final Money money2 = Money.of(new BigDecimal("1000.50"));
+
+      // when
+      final Money result = money1.subtract(money2);
+
+      // then
+      assertThat(result.isZero()).isTrue();
+      assertThat(result).isEqualTo(Money.ZERO);
+    }
+
+    @Test
+    @DisplayName("1 곱하기는 원래 금액과 동일")
+    void multiplyByOneReturnsSameAmount() {
+      // given
+      final Money money = Money.of(new BigDecimal("12345.67"));
+
+      // when
+      final Money result = money.multiply(1);
+
+      // then
+      assertThat(result).isEqualTo(money);
+    }
+
+    @Test
+    @DisplayName("소수점이 있는 금액끼리 더하기 후 반올림 확인")
+    void addDecimalAmountsAndVerifyRounding() {
+      // given
+      final Money money1 = Money.of(new BigDecimal("10.555"));
+      final Money money2 = Money.of(new BigDecimal("20.445"));
+
+      // when
+      final Money result = money1.add(money2);
+
+      // then
+      // 10.56 + 20.45 = 31.01
+      assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("31.01"));
+    }
+
+    @Test
+    @DisplayName("매우 작은 금액끼리 비교")
+    void compareTinyAmounts() {
+      // given
+      final Money money1 = Money.of(new BigDecimal("0.01"));
+      final Money money2 = Money.of(new BigDecimal("0.02"));
+
+      // when & then
+      assertThat(money1.isLessThan(money2)).isTrue();
+      assertThat(money2.isGreaterThan(money1)).isTrue();
+    }
+  }
 }
