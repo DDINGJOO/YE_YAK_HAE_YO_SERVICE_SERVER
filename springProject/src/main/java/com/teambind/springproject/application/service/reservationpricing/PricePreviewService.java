@@ -104,16 +104,37 @@ public class PricePreviewService implements CalculateReservationPriceUseCase {
 
   /**
    * 상품 목록을 조회합니다.
+   * N+1 쿼리를 방지하기 위해 일괄 조회합니다.
    */
   private List<Product> fetchProducts(final List<ProductRequest> productRequests) {
-    final List<Product> products = new ArrayList<>();
-    for (final ProductRequest productRequest : productRequests) {
-      final Product product = productRepository.findById(ProductId.of(productRequest.productId()))
-          .orElseThrow(() -> new ReservationPricingNotFoundException(
-              "Product not found: " + productRequest.productId()));
-      products.add(product);
+    // 1. ProductId 목록 추출
+    final List<ProductId> productIds = productRequests.stream()
+        .map(req -> ProductId.of(req.productId()))
+        .toList();
+
+    // 2. 일괄 조회 (1번의 쿼리)
+    final List<Product> foundProducts = productRepository.findAllById(productIds);
+
+    // 3. 존재하지 않는 상품 검증
+    if (foundProducts.size() != productIds.size()) {
+      final List<ProductId> foundIds = foundProducts.stream()
+          .map(Product::getProductId)
+          .toList();
+      final List<Long> missingIds = productIds.stream()
+          .filter(id -> !foundIds.contains(id))
+          .map(ProductId::getValue)
+          .toList();
+      throw new ReservationPricingNotFoundException(
+          "Products not found: " + missingIds);
     }
-    return products;
+
+    // 4. 요청 순서대로 정렬 (productRequests 순서 보장)
+    final java.util.Map<ProductId, Product> productMap = foundProducts.stream()
+        .collect(java.util.stream.Collectors.toMap(Product::getProductId, p -> p));
+
+    return productIds.stream()
+        .map(productMap::get)
+        .toList();
   }
 
   /**

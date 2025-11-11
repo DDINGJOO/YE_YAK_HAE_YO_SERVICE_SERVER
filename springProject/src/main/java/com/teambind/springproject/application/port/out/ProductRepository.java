@@ -23,6 +23,15 @@ public interface ProductRepository {
   Optional<Product> findById(ProductId productId);
 
   /**
+   * 여러 ProductId로 상품들을 일괄 조회합니다.
+   * N+1 쿼리를 방지하기 위해 한 번의 쿼리로 조회합니다.
+   *
+   * @param productIds 상품 ID 목록
+   * @return 상품 목록 (존재하는 상품만 반환)
+   */
+  List<Product> findAllById(List<ProductId> productIds);
+
+  /**
    * PlaceId로 해당 플레이스의 모든 상품을 조회합니다.
    * PLACE 범위 상품과 ROOM 범위 상품을 모두 포함합니다.
    *

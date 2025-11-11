@@ -36,6 +36,18 @@ public class ProductRepositoryAdapter implements ProductRepository {
   }
 
   @Override
+  public List<Product> findAllById(final List<ProductId> productIds) {
+    final List<Long> ids = productIds.stream()
+        .map(ProductId::getValue)
+        .collect(Collectors.toList());
+
+    return jpaRepository.findAllById(ids)
+        .stream()
+        .map(ProductEntity::toDomain)
+        .collect(Collectors.toList());
+  }
+
+  @Override
   public List<Product> findByPlaceId(final PlaceId placeId) {
     return jpaRepository.findByPlaceId(placeId.getValue())
         .stream()
