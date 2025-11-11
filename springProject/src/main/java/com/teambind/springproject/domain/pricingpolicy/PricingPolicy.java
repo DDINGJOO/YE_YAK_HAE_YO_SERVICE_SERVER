@@ -21,7 +21,7 @@ public class PricingPolicy {
 
   private final RoomId roomId;
   private final PlaceId placeId;
-  private final TimeSlot timeSlot;
+  private TimeSlot timeSlot;
   private Money defaultPrice;
   private TimeRangePrices timeRangePrices;
 
@@ -128,6 +128,23 @@ public class PricingPolicy {
   public void resetPrices(final TimeRangePrices newTimeRangePrices) {
     validateTimeRangePrices(newTimeRangePrices);
     this.timeRangePrices = newTimeRangePrices;
+  }
+
+  /**
+   * TimeSlot을 변경합니다.
+   * Room의 운영 시간 정책 변경 시 사용됩니다.
+   * 기존 예약에는 영향을 주지 않으며, 신규 예약부터 새로운 TimeSlot이 적용됩니다.
+   *
+   * @param newTimeSlot 새로운 TimeSlot
+   */
+  public void updateTimeSlot(final TimeSlot newTimeSlot) {
+    validateTimeSlot(newTimeSlot);
+
+    if (this.timeSlot.equals(newTimeSlot)) {
+      return; // 동일하면 변경하지 않음
+    }
+
+    this.timeSlot = newTimeSlot;
   }
 
   /**
