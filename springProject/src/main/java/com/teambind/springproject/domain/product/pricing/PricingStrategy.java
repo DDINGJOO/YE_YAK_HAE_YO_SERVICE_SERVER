@@ -78,21 +78,18 @@ public class PricingStrategy {
     }
 
     switch (pricingType) {
-      case INITIAL_PLUS_ADDITIONAL:
+      case INITIAL_PLUS_ADDITIONAL -> {
         if (additionalPrice == null) {
           throw new IllegalArgumentException(
               "Additional price is required for INITIAL_PLUS_ADDITIONAL type");
         }
-        break;
-      case ONE_TIME:
-      case SIMPLE_STOCK:
+      }
+      case ONE_TIME, SIMPLE_STOCK -> {
         if (additionalPrice != null) {
           throw new IllegalArgumentException(
               "Additional price must be null for " + pricingType + " type");
         }
-        break;
-      default:
-        throw new IllegalArgumentException("Unknown pricing type: " + pricingType);
+      }
     }
   }
 
@@ -107,26 +104,19 @@ public class PricingStrategy {
       throw new IllegalArgumentException("Quantity must be positive: " + quantity);
     }
 
-    switch (pricingType) {
-      case INITIAL_PLUS_ADDITIONAL:
+    return switch (pricingType) {
+      case INITIAL_PLUS_ADDITIONAL -> {
         // 초기 가격 + (수량 - 1) * 추가 가격
         if (quantity == 1) {
-          return initialPrice;
+          yield initialPrice;
         }
         final Money additionalCost = additionalPrice.multiply(quantity - 1);
-        return initialPrice.add(additionalCost);
-
-      case ONE_TIME:
-        // 수량과 무관하게 1회 가격
-        return initialPrice;
-
-      case SIMPLE_STOCK:
-        // 단가 (수량과 무관)
-        return initialPrice;
-
-      default:
-        throw new IllegalStateException("Unknown pricing type: " + pricingType);
-    }
+        yield initialPrice.add(additionalCost);
+      }
+      case ONE_TIME, SIMPLE_STOCK ->
+          // 수량과 무관하게 초기 가격 또는 단가 반환
+          initialPrice;
+    };
   }
 
   public PricingType getPricingType() {
