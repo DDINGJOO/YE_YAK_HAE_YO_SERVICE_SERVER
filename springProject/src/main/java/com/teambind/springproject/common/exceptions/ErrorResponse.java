@@ -24,6 +24,7 @@ public class ErrorResponse {
 	private String path;
 	private String exceptionType;
 
+	@JsonInclude(JsonInclude.Include.NON_EMPTY)
 	@Builder.Default
 	private List<FieldErrorDetail> fieldErrors = new ArrayList<>();
 
