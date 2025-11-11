@@ -300,6 +300,323 @@ LIMIT 10;
 
 ---
 
+## Large-Scale 성능 테스트 인프라
+
+### 개요
+
+실제 PostgreSQL 환경에서 대량 데이터(2,000~4,000건)를 이용한 자동화된 성능 테스트 인프라입니다.
+
+**핵심 특징:**
+- Testcontainers PostgreSQL (Singleton 패턴)
+- 50회 반복 측정으로 통계적 신뢰성 확보
+- QPS, Throughput, Memory, Cache Hit Rate 등 종합 지표 측정
+- Use Case 레벨 종단간 성능 추적
+
+### 테스트 인프라 구조
+
+#### 1. LargeScaleTestBase
+
+모든 large-scale 테스트의 base 클래스로, Testcontainers PostgreSQL을 Singleton 패턴으로 관리합니다.
+
+**주요 기능:**
+- 단일 PostgreSQL 컨테이너를 모든 테스트가 공유
+- JVM heap과 분리된 Docker 컨테이너에서 데이터 관리
+- OutOfMemoryError 방지
+- 실제 프로덕션 환경과 동일한 성능 측정
+
+**위치:** `src/test/java/com/teambind/springproject/performance/support/LargeScaleTestBase.java`
+
+```java
+@SpringBootTest
+@ActiveProfiles("test")
+public abstract class LargeScaleTestBase {
+
+  protected static final PostgreSQLContainer<?> postgres;
+
+  static {
+    postgres = new PostgreSQLContainer<>("postgres:16-alpine")
+        .withDatabaseName("performance_test_db")
+        .withUsername("test")
+        .withPassword("test")
+        .withReuse(true);
+    postgres.start();
+  }
+
+  @DynamicPropertySource
+  static void configureProperties(final DynamicPropertyRegistry registry) {
+    registry.add("spring.datasource.url", postgres::getJdbcUrl);
+    registry.add("spring.datasource.username", postgres::getUsername);
+    registry.add("spring.datasource.password", postgres::getPassword);
+    registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+    registry.add("spring.flyway.enabled", () -> "false");
+  }
+}
+```
+
+#### 2. PerformanceReportAggregator
+
+여러 번의 측정 결과를 수집하고 통계를 계산하는 집계기입니다.
+
+**측정 지표:**
+- Query Count (평균, 최소, 최대)
+- Execution Time (평균, P50, P95, P99, 표준편차)
+- QPS (Queries Per Second)
+- Time per Query (ms/query)
+- Throughput (operations/sec)
+- Memory Used (MB)
+- Cache Hit Rate (%)
+
+**위치:** `src/test/java/com/teambind/springproject/performance/support/PerformanceReportAggregator.java`
+
+```java
+public class PerformanceReportAggregator {
+
+  public void addMeasurement(
+      final long queryCount,
+      final long duration,
+      final Statistics statistics) {
+    // 쿼리, 실행 시간, 메모리, 캐시 히트 수집
+  }
+
+  public AggregatedPerformanceReport aggregate() {
+    // 통계 계산 및 리포트 생성
+    return new AggregatedPerformanceReport(...);
+  }
+}
+```
+
+#### 3. Gradle largeScaleTest Task
+
+large-scale 태그가 붙은 테스트만 실행하는 커스텀 Gradle 태스크입니다.
+
+**build.gradle 설정:**
+
+```gradle
+// Large Scale 테스트 태스크 등록
+tasks.register('largeScaleTest', Test) {
+  description = 'Runs large-scale performance tests with increased heap size'
+  group = 'verification'
+
+  useJUnitPlatform {
+    includeTags 'large-scale'
+  }
+
+  // 대용량 데이터 처리를 위한 힙 사이즈 증가
+  maxHeapSize = '4g'
+
+  testLogging {
+    events "passed", "skipped", "failed"
+    showStandardStreams = false
+  }
+}
+```
+
+### 테스트 시나리오
+
+#### QueryOptimizationLargeScalePerformanceTest
+
+N+1 쿼리 최적화 효과를 대규모 데이터셋에서 검증합니다.
+
+**시나리오:**
+
+1. **PricingPolicy 랜덤 조회 (2,000개)**
+   - 2,000개 데이터 생성
+   - 50회 랜덤 조회 (단건)
+   - EAGER 로딩 효과 측정
+
+2. **ReservationPricing 랜덤 조회 (4,000개)**
+   - 4,000개 데이터 생성
+   - 50회 랜덤 조회 (단건)
+   - 복잡한 연관관계 성능 측정
+
+3. **PricingPolicy 전체 조회**
+   - 2,000개 전체 조회
+   - Batch 성능 측정
+
+4. **ReservationPricing 상태별 조회**
+   - 상태별 필터링 쿼리 성능 측정
+
+**위치:** `src/test/java/com/teambind/springproject/performance/QueryOptimizationLargeScalePerformanceTest.java`
+
+#### UseCaseQueryPerformanceTest
+
+실제 비즈니스 Use Case 레벨에서 종단간 성능을 측정합니다.
+
+**시나리오:**
+
+1. **GetPricingPolicy Use Case (100개)**
+   - Use Case 실행 50회
+   - Application Layer 포함 종단간 측정
+
+2. **PricePreview Use Case (10 products)**
+   - 상품 포함 가격 미리보기
+   - 복잡한 계산 로직 성능 측정
+
+3. **ProductAvailability Use Case (20 products)**
+   - 재고 확인 로직 성능 측정
+   - 대량 TimeSlot 조회 최적화 검증
+
+4. **Large Scale Use Case (1,000 products)**
+   - 1,000개 상품 대량 처리 성능
+
+**위치:** `src/test/java/com/teambind/springproject/performance/UseCaseQueryPerformanceTest.java`
+
+### 실행 방법
+
+#### 전체 Large-Scale 테스트 실행
+
+```bash
+./gradlew clean largeScaleTest --no-daemon
+```
+
+#### 특정 테스트만 실행
+
+```bash
+# Query 최적화 테스트만
+./gradlew largeScaleTest --tests "QueryOptimizationLargeScalePerformanceTest"
+
+# Use Case 성능 테스트만
+./gradlew largeScaleTest --tests "UseCaseQueryPerformanceTest"
+
+# 특정 시나리오만
+./gradlew largeScaleTest --tests "*.testLargeScalePricingPolicyRandomAccess"
+```
+
+#### 테스트 결과 분석
+
+테스트 실행 후 콘솔에 다음 형식의 리포트가 출력됩니다:
+
+```
+============================================================
+[Scenario 1] PricingPolicy 랜덤 조회 (2000개)
+============================================================
+
+Sample Count: 50
+
+Query Count:
+  Average: 1.00
+  Min: 1
+  Max: 1
+
+Execution Time (ms):
+  Average: 971.60 ms
+  Min: 845 ms
+  Max: 1234 ms
+  Std Dev: 82.34 ms
+  P50: 952 ms
+  P95: 1123 ms
+  P99: 1198 ms
+
+Performance Metrics:
+  QPS (Queries/sec): 1.03
+  Time per Query (ms/query): 971.60 ms
+  Throughput (ops/sec): 1.03
+  Memory Used: 456.23 MB
+  Cache Hit Rate: 0.00%
+```
+
+### Baseline 성능 지표
+
+최적화 전 baseline 지표는 [GitHub Issue #108](https://github.com/DDINGJOO/YE_YAK_HAE_YO_SERVICE_SERVER/issues/108)에서 확인할 수 있습니다.
+
+**주요 Baseline (50회 평균):**
+
+| 시나리오 | 평균 시간 | QPS | Throughput |
+|---------|----------|-----|------------|
+| PricingPolicy 랜덤 조회 (2000개) | 971.60ms | 1.03 | 1.03 ops/sec |
+| ReservationPricing 랜덤 조회 (4000개) | 4195.06ms | 0.24 | 0.24 ops/sec |
+| GetPricingPolicy Use Case (100개) | 14.48ms | 69.06 | 69.06 ops/sec |
+| PricePreview Use Case (10 products) | 2.22ms | - | 450.45 ops/sec |
+
+### 성능 회귀 방지
+
+#### CI/CD 통합
+
+`.github/workflows/performance-test.yml`에 추가:
+
+```yaml
+- name: Run Large Scale Performance Tests
+  run: |
+    cd springProject
+    ./gradlew clean largeScaleTest --no-daemon
+
+- name: Check Performance Regression
+  run: |
+    # 성능 회귀 검증 로직
+    # P95가 baseline 대비 20% 이상 증가 시 실패
+```
+
+#### 테스트 태그 활용
+
+```java
+@Test
+@Tag("large-scale")
+@Tag("performance")
+@DisplayName("PricingPolicy 랜덤 조회 (2000개)")
+void testLargeScalePricingPolicyRandomAccess() {
+  // 테스트 로직
+}
+```
+
+### 최적화 검증 프로세스
+
+#### Step 1: Baseline 수집
+
+```bash
+# 최적화 전 성능 측정
+./gradlew clean largeScaleTest --no-daemon 2>&1 | tee baseline-results.log
+
+# Baseline 이슈에 댓글로 기록
+gh issue comment 108 -F baseline-results.log
+```
+
+#### Step 2: 최적화 적용 후 재측정
+
+```bash
+# 최적화 후 성능 측정
+./gradlew clean largeScaleTest --no-daemon 2>&1 | tee optimized-results.log
+```
+
+#### Step 3: 결과 비교
+
+```bash
+# 두 결과 파일 비교
+diff baseline-results.log optimized-results.log
+```
+
+**비교 지표:**
+- 쿼리 수: 50% 이상 감소 목표
+- P95 응답 시간: 40% 이상 단축 목표
+- QPS: 80% 이상 향상 목표
+- Throughput: 100% 이상 향상 목표
+
+### Troubleshooting
+
+#### OutOfMemoryError 발생 시
+
+```bash
+# Heap 사이즈 증가
+./gradlew largeScaleTest -Dorg.gradle.jvmargs="-Xmx6g"
+```
+
+#### Testcontainers 연결 실패 시
+
+```bash
+# Docker 상태 확인
+docker ps
+
+# 컨테이너 재시작
+docker restart $(docker ps -q --filter ancestor=postgres:16-alpine)
+```
+
+#### 테스트 격리 문제 시
+
+LargeScaleTestBase는 Singleton 패턴을 사용하므로 테스트 간 격리를 위해:
+- 각 테스트 전 `@BeforeEach`에서 데이터 초기화
+- `@Transactional` 사용하지 않음 (실제 환경 시뮬레이션)
+
+---
+
 ## 자동화된 성능 비교 테스트
 
 ### 통합 테스트로 성능 회귀 방지
