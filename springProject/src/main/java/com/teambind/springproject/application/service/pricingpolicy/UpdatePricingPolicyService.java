@@ -8,6 +8,7 @@ import com.teambind.springproject.domain.pricingpolicy.TimeRangePrices;
 import com.teambind.springproject.domain.pricingpolicy.exception.PricingPolicyNotFoundException;
 import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.RoomId;
+import com.teambind.springproject.domain.shared.TimeSlot;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +64,23 @@ public class UpdatePricingPolicyService implements UpdatePricingPolicyUseCase {
     final PricingPolicy updatedPolicy = pricingPolicyRepository.save(policy);
 
     logger.info("Successfully updated time range prices for roomId={}", roomId.getValue());
+
+    return updatedPolicy;
+  }
+
+  @Override
+  public PricingPolicy updateTimeSlot(final RoomId roomId, final TimeSlot newTimeSlot) {
+    logger.info("Updating TimeSlot for roomId={} to {}", roomId.getValue(), newTimeSlot);
+
+    final PricingPolicy policy = pricingPolicyRepository.findById(roomId)
+        .orElseThrow(() -> new PricingPolicyNotFoundException(
+            "Pricing policy not found for roomId: " + roomId.getValue()));
+
+    policy.updateTimeSlot(newTimeSlot);
+
+    final PricingPolicy updatedPolicy = pricingPolicyRepository.save(policy);
+
+    logger.info("Successfully updated TimeSlot for roomId={}", roomId.getValue());
 
     return updatedPolicy;
   }
