@@ -124,7 +124,7 @@ class ReservationPricingServiceTest {
       );
 
       when(pricingPolicyRepository.findById(roomId)).thenReturn(Optional.of(pricingPolicy));
-      when(productRepository.findById(ProductId.of(1L))).thenReturn(Optional.of(product));
+      when(productRepository.findAllById(anyList())).thenReturn(List.of(product));
       when(productAvailabilityService.isAvailable(
           eq(product), eq(timeSlots), eq(2), any())).thenReturn(true);
 
@@ -165,7 +165,7 @@ class ReservationPricingServiceTest {
       assertThat(response.status()).isEqualTo(ReservationStatus.PENDING);
 
       verify(pricingPolicyRepository).findById(roomId);
-      verify(productRepository).findById(ProductId.of(1L));
+      verify(productRepository).findAllById(anyList());
       verify(productAvailabilityService).isAvailable(eq(product), eq(timeSlots), eq(2), any());
       verify(reservationPricingRepository).save(any(ReservationPricing.class));
     }
@@ -205,15 +205,15 @@ class ReservationPricingServiceTest {
       );
 
       when(pricingPolicyRepository.findById(roomId)).thenReturn(Optional.of(pricingPolicy));
-      when(productRepository.findById(ProductId.of(999L))).thenReturn(Optional.empty());
+      when(productRepository.findAllById(anyList())).thenReturn(List.of());
 
       // when & then
       assertThatThrownBy(() -> reservationPricingService.createReservation(request))
           .isInstanceOf(ReservationPricingNotFoundException.class)
-          .hasMessageContaining("Product not found");
+          .hasMessageContaining("Products not found");
 
       verify(pricingPolicyRepository).findById(roomId);
-      verify(productRepository).findById(ProductId.of(999L));
+      verify(productRepository).findAllById(anyList());
     }
 
     @Test
@@ -229,7 +229,7 @@ class ReservationPricingServiceTest {
       );
 
       when(pricingPolicyRepository.findById(roomId)).thenReturn(Optional.of(pricingPolicy));
-      when(productRepository.findById(ProductId.of(1L))).thenReturn(Optional.of(product));
+      when(productRepository.findAllById(anyList())).thenReturn(List.of(product));
       when(productAvailabilityService.isAvailable(
           eq(product), eq(timeSlots), eq(100), any())).thenReturn(false);
 
@@ -239,7 +239,7 @@ class ReservationPricingServiceTest {
           .hasMessageContaining("Product is not available");
 
       verify(pricingPolicyRepository).findById(roomId);
-      verify(productRepository).findById(ProductId.of(1L));
+      verify(productRepository).findAllById(anyList());
       verify(productAvailabilityService).isAvailable(eq(product), eq(timeSlots), eq(100), any());
     }
   }
