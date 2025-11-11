@@ -6,6 +6,7 @@ import com.teambind.springproject.adapter.in.messaging.event.Event;
 import com.teambind.springproject.adapter.in.messaging.event.ReservationCancelledEvent;
 import com.teambind.springproject.adapter.in.messaging.event.ReservationConfirmedEvent;
 import com.teambind.springproject.adapter.in.messaging.event.RoomCreatedEvent;
+import com.teambind.springproject.adapter.in.messaging.event.RoomUpdatedEvent;
 import com.teambind.springproject.adapter.in.messaging.event.SlotReservedEvent;
 import com.teambind.springproject.adapter.in.messaging.handler.EventHandler;
 import com.teambind.springproject.common.util.json.JsonUtil;
@@ -30,6 +31,7 @@ public class EventConsumer {
 
   static {
     EVENT_TYPE_MAP.put("RoomCreated", RoomCreatedEvent.class);
+    EVENT_TYPE_MAP.put("RoomUpdated", RoomUpdatedEvent.class);
     EVENT_TYPE_MAP.put("SlotReserved", SlotReservedEvent.class);
     EVENT_TYPE_MAP.put("ReservationConfirmed", ReservationConfirmedEvent.class);
     EVENT_TYPE_MAP.put("ReservationCancelled", ReservationCancelledEvent.class);
@@ -49,14 +51,14 @@ public class EventConsumer {
   }
 
   /**
-   * room-events 토픽에서 이벤트를 수신합니다.
+   * room-created, room-updated 토픽에서 이벤트를 수신합니다.
    *
    * @param message        Kafka 메시지 (JSON)
    * @param acknowledgment Kafka acknowledgment
    */
-  @KafkaListener(topics = "room-events", groupId = "${spring.kafka.consumer.group-id}")
+  @KafkaListener(topics = {"room-created", "room-updated"}, groupId = "${spring.kafka.consumer.group-id}")
   public void consume(final String message, final Acknowledgment acknowledgment) {
-    logger.info("Received message from room-events topic: {}", message);
+    logger.info("Received message from room topics: {}", message);
 
     try {
       // 1. eventType 추출
