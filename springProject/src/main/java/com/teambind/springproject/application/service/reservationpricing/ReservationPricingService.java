@@ -77,7 +77,7 @@ public class ReservationPricingService implements CreateReservationUseCase,
     final List<Product> products = fetchProducts(request.products());
 
     // 3. 재고 검증
-    validateProductAvailability(products, request);
+    validateProductAvailability(products, request.products(), request.timeSlots());
 
     // 4. 시간대별 가격 계산
     final TimeSlotPriceBreakdown timeSlotBreakdown = calculateTimeSlotBreakdown(
@@ -157,7 +157,7 @@ public class ReservationPricingService implements CreateReservationUseCase,
 
     // 3. 재고 검증 (예약의 시간대 정보 추출)
     final List<LocalDateTime> timeSlots = extractTimeSlots(reservation);
-    validateProductAvailabilityForUpdate(products, request.products(), timeSlots);
+    validateProductAvailability(products, request.products(), timeSlots);
 
     // 4. 상품별 가격 계산
     final List<ProductPriceBreakdown> productBreakdowns = calculateProductBreakdowns(
@@ -212,22 +212,28 @@ public class ReservationPricingService implements CreateReservationUseCase,
 
   /**
    * 상품 재고 가용성을 검증합니다.
+   *
+   * @param products 검증할 상품 목록
+   * @param productRequests 상품 요청 목록 (수량 포함)
+   * @param timeSlots 예약 시간 슬롯 목록
+   * @throws ProductNotAvailableException 재고가 부족한 경우
    */
   private void validateProductAvailability(
       final List<Product> products,
-      final CreateReservationRequest request) {
+      final List<ProductRequest> productRequests,
+      final List<LocalDateTime> timeSlots) {
 
     for (int i = 0; i < products.size(); i++) {
       final Product product = products.get(i);
-      final ProductRequest productRequest = request.products().get(i);
+      final ProductRequest productRequest = productRequests.get(i);
 
       // Scope별로 overlapping reservations 조회
       final List<ReservationPricing> overlappingReservations =
-          getOverlappingReservations(product, request.timeSlots());
+          getOverlappingReservations(product, timeSlots);
 
       final boolean available = productAvailabilityService.isAvailable(
           product,
-          request.timeSlots(),
+          timeSlots,
           productRequest.quantity(),
           overlappingReservations
       );
@@ -286,36 +292,6 @@ public class ReservationPricingService implements CreateReservationUseCase,
   private List<LocalDateTime> extractTimeSlots(final ReservationPricing reservation) {
     final TimeSlotPriceBreakdown breakdown = reservation.getTimeSlotBreakdown();
     return new ArrayList<>(breakdown.slotPrices().keySet());
-  }
-
-  /**
-   * 상품 업데이트 시 재고 가용성을 검증합니다.
-   */
-  private void validateProductAvailabilityForUpdate(
-      final List<Product> products,
-      final List<ProductRequest> productRequests,
-      final List<LocalDateTime> timeSlots) {
-
-    for (int i = 0; i < products.size(); i++) {
-      final Product product = products.get(i);
-      final ProductRequest productRequest = productRequests.get(i);
-
-      // Scope별로 overlapping reservations 조회
-      final List<ReservationPricing> overlappingReservations =
-          getOverlappingReservations(product, timeSlots);
-
-      final boolean available = productAvailabilityService.isAvailable(
-          product,
-          timeSlots,
-          productRequest.quantity(),
-          overlappingReservations
-      );
-
-      if (!available) {
-        throw new ProductNotAvailableException(
-            product.getProductId().getValue(), productRequest.quantity());
-      }
-    }
   }
 
   /**
