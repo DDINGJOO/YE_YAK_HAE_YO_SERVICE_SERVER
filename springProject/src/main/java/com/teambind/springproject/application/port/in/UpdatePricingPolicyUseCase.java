@@ -4,11 +4,12 @@ import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
 import com.teambind.springproject.domain.pricingpolicy.TimeRangePrice;
 import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.RoomId;
+import com.teambind.springproject.domain.shared.TimeSlot;
 import java.util.List;
 
 /**
  * 가격 정책 업데이트 Use Case.
- * 기본 가격 및 시간대별 가격을 수정합니다.
+ * 기본 가격, 시간대별 가격, TimeSlot을 수정합니다.
  */
 public interface UpdatePricingPolicyUseCase {
 
@@ -30,4 +31,14 @@ public interface UpdatePricingPolicyUseCase {
    * @return 업데이트된 가격 정책
    */
   PricingPolicy updateTimeRangePrices(RoomId roomId, List<TimeRangePrice> timeRangePrices);
+
+  /**
+   * 가격 정책의 TimeSlot을 업데이트합니다.
+   * Room의 운영 시간 정책 변경 시 사용됩니다.
+   *
+   * @param roomId      룸 ID
+   * @param newTimeSlot 새로운 TimeSlot
+   * @return 업데이트된 가격 정책
+   */
+  PricingPolicy updateTimeSlot(RoomId roomId, TimeSlot newTimeSlot);
 }
