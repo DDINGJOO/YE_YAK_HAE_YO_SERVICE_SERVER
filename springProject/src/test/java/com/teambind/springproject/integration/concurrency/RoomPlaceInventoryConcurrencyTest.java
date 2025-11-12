@@ -293,6 +293,20 @@ class RoomPlaceInventoryConcurrencyTest extends BaseConcurrencyTest {
 		);
 		pricingPolicyRepository.save(pricingPolicy3);
 
+		// PLACE 상품을 각 룸에서 접근 가능하도록 화이트리스트 등록
+		jdbcTemplate.update(
+				"INSERT INTO room_allowed_products (room_id, product_id, created_at) VALUES (?, ?, NOW())",
+				testRoomId, placeProductId
+		);
+		jdbcTemplate.update(
+				"INSERT INTO room_allowed_products (room_id, product_id, created_at) VALUES (?, ?, NOW())",
+				room2Id, placeProductId
+		);
+		jdbcTemplate.update(
+				"INSERT INTO room_allowed_products (room_id, product_id, created_at) VALUES (?, ?, NOW())",
+				room3Id, placeProductId
+		);
+
 		// when - 3개 룸에서 각각 동시에 예약 시도 (총 15명, 재고 5개)
 		final int threadsPerRoom = 5;
 		final int totalThreads = threadsPerRoom * 3;
@@ -313,6 +327,7 @@ class RoomPlaceInventoryConcurrencyTest extends BaseConcurrencyTest {
 					createReservationUseCase.createReservation(request);
 					successCount.incrementAndGet();
 				} catch (Exception e) {
+					System.out.println("[PLACE Test] Room1 예약 실패: " + e.getMessage());
 					failCount.incrementAndGet();
 				} finally {
 					latch.countDown();
@@ -332,6 +347,7 @@ class RoomPlaceInventoryConcurrencyTest extends BaseConcurrencyTest {
 					createReservationUseCase.createReservation(request);
 					successCount.incrementAndGet();
 				} catch (Exception e) {
+					System.out.println("[PLACE Test] Room2 예약 실패: " + e.getMessage());
 					failCount.incrementAndGet();
 				} finally {
 					latch.countDown();
@@ -351,6 +367,7 @@ class RoomPlaceInventoryConcurrencyTest extends BaseConcurrencyTest {
 					createReservationUseCase.createReservation(request);
 					successCount.incrementAndGet();
 				} catch (Exception e) {
+					System.out.println("[PLACE Test] Room3 예약 실패: " + e.getMessage());
 					failCount.incrementAndGet();
 				} finally {
 					latch.countDown();

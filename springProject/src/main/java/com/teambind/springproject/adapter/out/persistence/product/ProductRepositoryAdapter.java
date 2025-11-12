@@ -187,18 +187,11 @@ public class ProductRepositoryAdapter implements ProductRepository {
 				DO UPDATE SET
 				    reserved_quantity = product_time_slot_inventory.reserved_quantity + EXCLUDED.reserved_quantity,
 				    updated_at = NOW()
-				WHERE EXISTS (
-				    SELECT 1 FROM products p
+				WHERE (
+				    SELECT p.total_quantity
+				    FROM products p
 				    WHERE p.product_id = EXCLUDED.product_id
-				      AND (p.total_quantity - COALESCE(
-				          (SELECT SUM(reserved_quantity)
-				           FROM product_time_slot_inventory
-				           WHERE product_id = EXCLUDED.product_id
-				             AND room_id = EXCLUDED.room_id
-				             AND time_slot = EXCLUDED.time_slot),
-				          0
-				      )) >= EXCLUDED.reserved_quantity
-				)
+				) >= (product_time_slot_inventory.reserved_quantity + EXCLUDED.reserved_quantity)
 				""";
 
 		final int updatedRows = jdbcTemplate.update(
@@ -222,7 +215,47 @@ public class ProductRepositoryAdapter implements ProductRepository {
 			throw new IllegalArgumentException("Quantity must be positive: " + quantity);
 		}
 
-		final String sql = """
+		// PLACE Scope: Lock product row first, then check total across all rooms
+		// Step 1: Lock the product row to prevent concurrent modifications
+		final String lockSql = """
+				SELECT total_quantity
+				FROM products
+				WHERE product_id = ?
+				FOR UPDATE
+				""";
+
+		final Integer totalQuantity = jdbcTemplate.queryForObject(
+				lockSql,
+				Integer.class,
+				productId.getValue()
+		);
+
+		if (totalQuantity == null) {
+			return false;  // Product not found
+		}
+
+		// Step 2: Calculate current total reserved quantity across all rooms for this time slot
+		final String currentTotalSql = """
+				SELECT COALESCE(SUM(reserved_quantity), 0)
+				FROM product_time_slot_inventory
+				WHERE product_id = ?
+				  AND time_slot = ?
+				""";
+
+		final Integer currentTotal = jdbcTemplate.queryForObject(
+				currentTotalSql,
+				Integer.class,
+				productId.getValue(),
+				timeSlot
+		);
+
+		// Step 3: Check if reservation is possible
+		if (totalQuantity < (currentTotal != null ? currentTotal : 0) + quantity) {
+			return false;  // Not enough inventory
+		}
+
+		// Step 4: Insert or update the inventory record
+		final String upsertSql = """
 				INSERT INTO product_time_slot_inventory
 				    (product_id, room_id, time_slot, reserved_quantity)
 				VALUES (?, ?, ?, ?)
@@ -230,21 +263,10 @@ public class ProductRepositoryAdapter implements ProductRepository {
 				DO UPDATE SET
 				    reserved_quantity = product_time_slot_inventory.reserved_quantity + EXCLUDED.reserved_quantity,
 				    updated_at = NOW()
-				WHERE EXISTS (
-				    SELECT 1 FROM products p
-				    WHERE p.product_id = EXCLUDED.product_id
-				      AND (p.total_quantity - COALESCE(
-				          (SELECT SUM(reserved_quantity)
-				           FROM product_time_slot_inventory
-				           WHERE product_id = EXCLUDED.product_id
-				             AND time_slot = EXCLUDED.time_slot),
-				          0
-				      )) >= EXCLUDED.reserved_quantity
-				)
 				""";
 
 		final int updatedRows = jdbcTemplate.update(
-				sql,
+				upsertSql,
 				productId.getValue(),
 				roomId.getValue(),
 				timeSlot,
