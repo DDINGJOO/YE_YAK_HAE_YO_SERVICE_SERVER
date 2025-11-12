@@ -7,7 +7,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * pg_partman 자동 파티션 유지보수 스케줄러.
@@ -48,33 +47,28 @@ public class PartitionMaintenanceScheduler {
 	 *   <li>12개월 이상 된 파티션 삭제</li>
 	 * </ol>
 	 *
-	 * <p>트랜잭션:
-	 * <ul>
-	 *   <li>전체 작업이 하나의 트랜잭션으로 실행됨</li>
-	 *   <li>실패 시 자동 롤백으로 일관성 보장</li>
-	 * </ul>
+	 * <p>주의: DDL 작업(CREATE TABLE, DROP TABLE)은 PostgreSQL에서 암묵적으로 커밋되므로
+	 * 트랜잭션 어노테이션을 사용하지 않습니다.
 	 *
 	 * <p>ShedLock 설정:
 	 * <ul>
-	 *   <li>lockAtMostFor: 최대 10분간 락 유지 (작업이 10분 이상 걸리면 강제 해제)</li>
-	 *   <li>lockAtLeastFor: 최소 1분간 락 유지 (빠르게 완료되어도 1분간 재실행 방지)</li>
+	 *   <li>lockAtMostFor: 최대 30분간 락 유지 (대용량 파티션 삭제 대응)</li>
+	 *   <li>lockAtLeastFor: 최소 5분간 락 유지 (빠르게 완료되어도 5분간 재실행 방지)</li>
 	 * </ul>
 	 */
 	@Scheduled(cron = "0 0 3 * * *")  // 매일 오전 3시
-	@SchedulerLock(name = "partitionMaintenance", lockAtMostFor = "10m", lockAtLeastFor = "1m")
-	@Transactional
+	@SchedulerLock(name = "partitionMaintenance", lockAtMostFor = "30m", lockAtLeastFor = "5m")
 	public void runPartitionMaintenance() {
 		logger.info("Starting pg_partman maintenance for product_time_slot_inventory");
 
 		try {
-			// Run pg_partman maintenance within transaction
 			jdbcTemplate.execute("SELECT partman.run_maintenance('public.product_time_slot_inventory')");
 
 			logger.info("Successfully completed pg_partman maintenance");
 
 		} catch (final DataAccessException e) {
-			logger.error("Database error during partition maintenance. Transaction will be rolled back.", e);
-			throw e;  // Re-throw to trigger transaction rollback
+			logger.error("Database error during partition maintenance.", e);
+			throw e;
 		} catch (final Exception e) {
 			logger.error("Unexpected error during partition maintenance. " +
 					"Manual intervention may be required to create partitions.", e);
@@ -92,6 +86,8 @@ public class PartitionMaintenanceScheduler {
 	 *   <li>시작 시 10초 후 1회만 실행</li>
 	 * </ul>
 	 *
+	 * <p>주의: DDL 작업이므로 트랜잭션 어노테이션 미사용
+	 *
 	 * <p>ShedLock 설정:
 	 * <ul>
 	 *   <li>lockAtMostFor: 최대 5분간 락 유지</li>
@@ -100,7 +96,6 @@ public class PartitionMaintenanceScheduler {
 	 */
 	@Scheduled(initialDelay = 10000, fixedDelay = Long.MAX_VALUE)  // 시작 10초 후 1회 실행
 	@SchedulerLock(name = "partitionStartupCheck", lockAtMostFor = "5m", lockAtLeastFor = "30s")
-	@Transactional
 	public void checkPartitionsOnStartup() {
 		logger.info("Checking partition status on application startup");
 

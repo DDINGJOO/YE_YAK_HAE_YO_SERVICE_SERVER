@@ -19,7 +19,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * OutOfMemoryError를 방지하고 실제 환경과 동일한 성능 측정이 가능합니다.
  */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("integration")
 @Tag("integration")
 public abstract class LargeScaleTestBase {
 	

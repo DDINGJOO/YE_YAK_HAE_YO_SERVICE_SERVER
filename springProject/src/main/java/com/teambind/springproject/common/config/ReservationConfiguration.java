@@ -23,6 +23,7 @@ public class ReservationConfiguration {
 	public static class Pending {
 		private long timeoutMinutes = 20;
 		
+		
 		public long getTimeoutMinutes() {
 			return timeoutMinutes;
 		}

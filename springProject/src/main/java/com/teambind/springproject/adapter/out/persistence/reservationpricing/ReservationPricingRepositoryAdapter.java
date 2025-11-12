@@ -44,14 +44,22 @@ public class ReservationPricingRepositoryAdapter implements ReservationPricingRe
 			final LocalDateTime start,
 			final LocalDateTime end,
 			final List<ReservationStatus> statuses) {
-		
-		return jpaRepository.findByPlaceIdAndTimeRange(
-						placeId.getValue(),
-						start,
-						end,
-						statuses
-				)
-				.stream()
+
+		// N+1 최적화: 2단계 Fetch Join으로 컬렉션 로딩
+		// 1단계: slotPrices fetch join (이미 쿼리에 포함됨)
+		final List<ReservationPricingEntity> reservations = jpaRepository.findByPlaceIdAndTimeRange(
+				placeId.getValue(),
+				start,
+				end,
+				statuses
+		);
+
+		// 2단계: productBreakdowns fetch join (MultipleBagFetchException 방지)
+		if (!reservations.isEmpty()) {
+			jpaRepository.fetchProductBreakdowns(reservations);
+		}
+
+		return reservations.stream()
 				.map(ReservationPricingEntity::toDomain)
 				.toList();
 	}
@@ -62,22 +70,39 @@ public class ReservationPricingRepositoryAdapter implements ReservationPricingRe
 			final LocalDateTime start,
 			final LocalDateTime end,
 			final List<ReservationStatus> statuses) {
-		
-		return jpaRepository.findByRoomIdAndTimeRange(
-						roomId.getValue(),
-						start,
-						end,
-						statuses
-				)
-				.stream()
+
+		// N+1 최적화: 2단계 Fetch Join으로 컬렉션 로딩
+		// 1단계: slotPrices fetch join (이미 쿼리에 포함됨)
+		final List<ReservationPricingEntity> reservations = jpaRepository.findByRoomIdAndTimeRange(
+				roomId.getValue(),
+				start,
+				end,
+				statuses
+		);
+
+		// 2단계: productBreakdowns fetch join (MultipleBagFetchException 방지)
+		if (!reservations.isEmpty()) {
+			jpaRepository.fetchProductBreakdowns(reservations);
+		}
+
+		return reservations.stream()
 				.map(ReservationPricingEntity::toDomain)
 				.toList();
 	}
 	
 	@Override
 	public List<ReservationPricing> findByStatusIn(final List<ReservationStatus> statuses) {
-		return jpaRepository.findByStatusIn(statuses)
-				.stream()
+		// N+1 최적화: 2단계 Fetch Join으로 컬렉션 로딩
+		// 1단계: slotPrices fetch join
+		final List<ReservationPricingEntity> reservations =
+				jpaRepository.findByStatusInWithSlots(statuses);
+
+		// 2단계: productBreakdowns fetch join (MultipleBagFetchException 방지)
+		if (!reservations.isEmpty()) {
+			jpaRepository.fetchProductBreakdowns(reservations);
+		}
+
+		return reservations.stream()
 				.map(ReservationPricingEntity::toDomain)
 				.toList();
 	}
@@ -110,8 +135,17 @@ public class ReservationPricingRepositoryAdapter implements ReservationPricingRe
 	
 	@Override
 	public List<ReservationPricing> findExpiredPendingReservations() {
-		return jpaRepository.findExpiredPendingReservations(LocalDateTime.now())
-				.stream()
+		// N+1 최적화: 2단계 Fetch Join으로 컬렉션 로딩
+		// 1단계: slotPrices fetch join (이미 쿼리에 포함됨)
+		final List<ReservationPricingEntity> reservations =
+				jpaRepository.findExpiredPendingReservations(LocalDateTime.now());
+
+		// 2단계: productBreakdowns fetch join (MultipleBagFetchException 방지)
+		if (!reservations.isEmpty()) {
+			jpaRepository.fetchProductBreakdowns(reservations);
+		}
+
+		return reservations.stream()
 				.map(ReservationPricingEntity::toDomain)
 				.toList();
 	}

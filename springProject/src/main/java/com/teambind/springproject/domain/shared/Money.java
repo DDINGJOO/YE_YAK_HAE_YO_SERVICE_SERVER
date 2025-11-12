@@ -127,8 +127,15 @@ public class Money {
 
 	@Override
 	public int hashCode() {
-		// Use stripTrailingZeros to ensure same hashCode for equal amounts
-		// 100.0 and 100.00 must have same hash code
+		// compareTo와 일관성을 유지하기 위해 정규화된 값 사용
+		// Money.of(100.0)과 Money.of(100.00)은 동일한 hashCode를 가져야 함
+
+		// 0은 항상 동일한 hashCode
+		if (amount.compareTo(BigDecimal.ZERO) == 0) {
+			return Objects.hash(BigDecimal.ZERO);
+		}
+
+		// scale을 제거한 정규화된 값으로 hashCode 계산
 		return Objects.hash(amount.stripTrailingZeros());
 	}
 	
