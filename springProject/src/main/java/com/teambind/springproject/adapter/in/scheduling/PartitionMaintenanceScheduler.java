@@ -13,17 +13,17 @@ import org.springframework.transaction.annotation.Transactional;
  * pg_partman 자동 파티션 유지보수 스케줄러.
  * 매일 오전 3시에 실행되어 새로운 파티션을 생성하고 오래된 파티션을 정리합니다.
  *
- * <p>pg_partman은 다음 작업을 수행합니다:
- * <ul>
- *   <li>미래 파티션 생성 (premake 설정값만큼, 기본 3개월)</li>
- *   <li>오래된 파티션 삭제 (retention 설정값 기준, 기본 12개월)</li>
- * </ul>
+ * pg_partman은 다음 작업을 수행합니다:
  *
- * <p>동시성 제어:
- * <ul>
- *   <li>ShedLock을 사용하여 다중 인스턴스 환경에서 중복 실행 방지</li>
- *   <li>데이터베이스 기반 분산 락으로 클러스터 환경에서 안전하게 작동</li>
- * </ul>
+ *   미래 파티션 생성 (premake 설정값만큼, 기본 3개월)</li>
+ *   오래된 파티션 삭제 (retention 설정값 기준, 기본 12개월)</li>
+ *
+ *
+ * 동시성 제어:
+ *
+ *   ShedLock을 사용하여 다중 인스턴스 환경에서 중복 실행 방지</li>
+ *   데이터베이스 기반 분산 락으로 클러스터 환경에서 안전하게 작동</li>
+ *
  */
 @Component
 public class PartitionMaintenanceScheduler {
