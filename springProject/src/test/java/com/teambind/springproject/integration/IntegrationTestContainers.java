@@ -1,14 +1,14 @@
-package com.teambind.springproject.e2e;
+package com.teambind.springproject.integration;
 
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Singleton Testcontainers for E2E tests.
- * All test classes share the same container instances.
+ * Singleton Testcontainers for integration tests.
+ * All integration test classes share the same container instances.
  */
-public class E2ETestContainers {
+public class IntegrationTestContainers {
 	
 	private static final PostgreSQLContainer<?> postgresContainer;
 	private static final KafkaContainer kafkaContainer;

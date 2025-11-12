@@ -9,7 +9,6 @@ import com.teambind.springproject.application.port.out.ReservationPricingReposit
 import com.teambind.springproject.common.config.ReservationConfiguration;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
 import com.teambind.springproject.domain.product.Product;
-import com.teambind.springproject.domain.product.availability.ProductAvailabilityService;
 import com.teambind.springproject.domain.product.pricing.PricingStrategy;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown;
@@ -38,55 +37,51 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ReservationPricingService 단위 테스트")
 class ReservationPricingServiceTest {
-	
+
 	@Mock
 	private PricingPolicyRepository pricingPolicyRepository;
-	
+
 	@Mock
 	private ProductRepository productRepository;
-	
+
 	@Mock
 	private ReservationPricingRepository reservationPricingRepository;
-	
-	@Mock
-	private ProductAvailabilityService productAvailabilityService;
-	
+
 	@Mock
 	private ReservationConfiguration reservationConfiguration;
-	
+
 	private ReservationPricingService reservationPricingService;
-	
+
 	private RoomId roomId;
 	private PlaceId placeId;
 	private PricingPolicy pricingPolicy;
 	private Product product;
 	private LocalDateTime startTime;
 	private LocalDateTime endTime;
-	
+
 	@BeforeEach
 	void setUp() {
 		final ReservationConfiguration.Pending pending = new ReservationConfiguration.Pending();
 		pending.setTimeoutMinutes(10L);
 		when(reservationConfiguration.getPending()).thenReturn(pending);
-		
+
 		reservationPricingService = new ReservationPricingService(
 				pricingPolicyRepository,
 				productRepository,
 				reservationPricingRepository,
-				productAvailabilityService,
 				reservationConfiguration
 		);
-		
+
 		roomId = RoomId.of(1L);
 		placeId = PlaceId.of(100L);
-		
+
 		pricingPolicy = PricingPolicy.create(
 				roomId,
 				placeId,
 				TimeSlot.HOUR,
 				Money.of(new BigDecimal("10000"))
 		);
-		
+
 		product = Product.createRoomScoped(
 				ProductId.of(1L),
 				placeId,
@@ -95,15 +90,15 @@ class ReservationPricingServiceTest {
 				PricingStrategy.oneTime(Money.of(new BigDecimal("5000"))),
 				10
 		);
-		
+
 		startTime = LocalDateTime.of(2025, 1, 15, 10, 0);
 		endTime = LocalDateTime.of(2025, 1, 15, 12, 0);
 	}
-	
+
 	@Nested
 	@DisplayName("createReservation 테스트")
 	class CreateReservationTests {
-		
+
 		@Test
 		@DisplayName("예약 생성 성공")
 		void createReservationSuccess() {
@@ -115,12 +110,13 @@ class ReservationPricingServiceTest {
 					timeSlots,
 					List.of(productRequest)
 			);
-			
+
 			when(pricingPolicyRepository.findById(roomId)).thenReturn(Optional.of(pricingPolicy));
 			when(productRepository.findAllById(anyList())).thenReturn(List.of(product));
-			when(productAvailabilityService.isAvailable(
-					eq(product), eq(timeSlots), eq(2), any())).thenReturn(true);
-			
+			when(productRepository.reserveRoomTimeSlotQuantity(
+					eq(product.getProductId()), eq(roomId), any(LocalDateTime.class), eq(2)))
+					.thenReturn(true);
+
 			final java.util.Map<LocalDateTime, Money> slotPriceMap = pricingPolicy
 					.calculatePriceBreakdown(startTime, endTime)
 					.getSlotPrices()
@@ -131,11 +127,11 @@ class ReservationPricingServiceTest {
 									PricingPolicy.SlotPrice::price
 							)
 					);
-			
+
 			final TimeSlotPriceBreakdown timeSlotBreakdown =
 					new TimeSlotPriceBreakdown(
 							slotPriceMap, pricingPolicy.getTimeSlot());
-			
+
 			final ReservationPricing savedReservation = ReservationPricing.calculate(
 					ReservationId.of(1L),
 					roomId,
@@ -143,26 +139,27 @@ class ReservationPricingServiceTest {
 					List.of(product.calculatePrice(2)),
 					10L
 			);
-			
+
 			when(reservationPricingRepository.save(any(ReservationPricing.class)))
 					.thenReturn(savedReservation);
-			
+
 			// when
 			final ReservationPricingResponse response = reservationPricingService.createReservation(
 					request);
-			
+
 			// then
 			assertThat(response).isNotNull();
 			assertThat(response.reservationId()).isEqualTo(1L);
 			assertThat(response.roomId()).isEqualTo(1L);
 			assertThat(response.status()).isEqualTo(ReservationStatus.PENDING);
-			
+
 			verify(pricingPolicyRepository).findById(roomId);
 			verify(productRepository).findAllById(anyList());
-			verify(productAvailabilityService).isAvailable(eq(product), eq(timeSlots), eq(2), any());
+			verify(productRepository, org.mockito.Mockito.atLeastOnce())
+					.reserveRoomTimeSlotQuantity(eq(product.getProductId()), eq(roomId), any(LocalDateTime.class), eq(2));
 			verify(reservationPricingRepository).save(any(ReservationPricing.class));
 		}
-		
+
 		@Test
 		@DisplayName("가격 정책이 없으면 예외 발생")
 		void throwsExceptionWhenPricingPolicyNotFound() {
@@ -174,17 +171,17 @@ class ReservationPricingServiceTest {
 					timeSlots,
 					List.of(productRequest)
 			);
-			
+
 			when(pricingPolicyRepository.findById(roomId)).thenReturn(Optional.empty());
-			
+
 			// when & then
 			assertThatThrownBy(() -> reservationPricingService.createReservation(request))
 					.isInstanceOf(ReservationPricingNotFoundException.class)
 					.hasMessageContaining("Pricing policy not found");
-			
+
 			verify(pricingPolicyRepository).findById(roomId);
 		}
-		
+
 		@Test
 		@DisplayName("상품이 없으면 예외 발생")
 		void throwsExceptionWhenProductNotFound() {
@@ -196,19 +193,19 @@ class ReservationPricingServiceTest {
 					timeSlots,
 					List.of(productRequest)
 			);
-			
+
 			when(pricingPolicyRepository.findById(roomId)).thenReturn(Optional.of(pricingPolicy));
 			when(productRepository.findAllById(anyList())).thenReturn(List.of());
-			
+
 			// when & then
 			assertThatThrownBy(() -> reservationPricingService.createReservation(request))
 					.isInstanceOf(ReservationPricingNotFoundException.class)
 					.hasMessageContaining("Products not found");
-			
+
 			verify(pricingPolicyRepository).findById(roomId);
 			verify(productRepository).findAllById(anyList());
 		}
-		
+
 		@Test
 		@DisplayName("재고가 부족하면 예외 발생")
 		void throwsExceptionWhenProductNotAvailable() {
@@ -220,27 +217,29 @@ class ReservationPricingServiceTest {
 					timeSlots,
 					List.of(productRequest)
 			);
-			
+
 			when(pricingPolicyRepository.findById(roomId)).thenReturn(Optional.of(pricingPolicy));
 			when(productRepository.findAllById(anyList())).thenReturn(List.of(product));
-			when(productAvailabilityService.isAvailable(
-					eq(product), eq(timeSlots), eq(100), any())).thenReturn(false);
-			
+			when(productRepository.reserveRoomTimeSlotQuantity(
+					eq(product.getProductId()), eq(roomId), any(LocalDateTime.class), eq(100)))
+					.thenReturn(false);
+
 			// when & then
 			assertThatThrownBy(() -> reservationPricingService.createReservation(request))
 					.isInstanceOf(ProductNotAvailableException.class)
 					.hasMessageContaining("Product is not available");
-			
+
 			verify(pricingPolicyRepository).findById(roomId);
 			verify(productRepository).findAllById(anyList());
-			verify(productAvailabilityService).isAvailable(eq(product), eq(timeSlots), eq(100), any());
+			verify(productRepository).reserveRoomTimeSlotQuantity(
+					eq(product.getProductId()), eq(roomId), any(LocalDateTime.class), eq(100));
 		}
 	}
-	
+
 	@Nested
 	@DisplayName("confirmReservation 테스트")
 	class ConfirmReservationTests {
-		
+
 		@Test
 		@DisplayName("예약 확정 성공")
 		void confirmReservationSuccess() {
@@ -256,11 +255,11 @@ class ReservationPricingServiceTest {
 									PricingPolicy.SlotPrice::price
 							)
 					);
-			
+
 			final TimeSlotPriceBreakdown timeSlotBreakdown =
 					new TimeSlotPriceBreakdown(
 							slotPriceMap, pricingPolicy.getTimeSlot());
-			
+
 			final ReservationPricing reservation = ReservationPricing.calculate(
 					ReservationId.of(reservationId),
 					roomId,
@@ -268,24 +267,24 @@ class ReservationPricingServiceTest {
 					List.of(product.calculatePrice(1)),
 					10L
 			);
-			
+
 			when(reservationPricingRepository.findById(ReservationId.of(reservationId)))
 					.thenReturn(Optional.of(reservation));
 			when(reservationPricingRepository.save(any(ReservationPricing.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			
+
 			// when
 			final ReservationPricingResponse response = reservationPricingService.confirmReservation(
 					reservationId);
-			
+
 			// then
 			assertThat(response).isNotNull();
 			assertThat(response.status()).isEqualTo(ReservationStatus.CONFIRMED);
-			
+
 			verify(reservationPricingRepository).findById(ReservationId.of(reservationId));
 			verify(reservationPricingRepository).save(any(ReservationPricing.class));
 		}
-		
+
 		@Test
 		@DisplayName("예약이 없으면 예외 발생")
 		void throwsExceptionWhenReservationNotFound() {
@@ -293,20 +292,20 @@ class ReservationPricingServiceTest {
 			final Long reservationId = 999L;
 			when(reservationPricingRepository.findById(ReservationId.of(reservationId)))
 					.thenReturn(Optional.empty());
-			
+
 			// when & then
 			assertThatThrownBy(() -> reservationPricingService.confirmReservation(reservationId))
 					.isInstanceOf(ReservationPricingNotFoundException.class)
 					.hasMessageContaining("Reservation pricing not found");
-			
+
 			verify(reservationPricingRepository).findById(ReservationId.of(reservationId));
 		}
 	}
-	
+
 	@Nested
 	@DisplayName("cancelReservation 테스트")
 	class CancelReservationTests {
-		
+
 		@Test
 		@DisplayName("예약 취소 성공")
 		void cancelReservationSuccess() {
@@ -341,19 +340,22 @@ class ReservationPricingServiceTest {
 					.thenAnswer(invocation -> invocation.getArgument(0));
 			when(productRepository.findById(product.getProductId()))
 					.thenReturn(Optional.of(product));
+			when(productRepository.releaseTimeSlotQuantity(
+					eq(product.getProductId()), eq(roomId), any(LocalDateTime.class), eq(1)))
+					.thenReturn(true);
 
 			// when
 			final ReservationPricingResponse response = reservationPricingService.cancelReservation(
 					reservationId);
-			
+
 			// then
 			assertThat(response).isNotNull();
 			assertThat(response.status()).isEqualTo(ReservationStatus.CANCELLED);
-			
+
 			verify(reservationPricingRepository).findById(ReservationId.of(reservationId));
 			verify(reservationPricingRepository).save(any(ReservationPricing.class));
 		}
-		
+
 		@Test
 		@DisplayName("예약이 없으면 예외 발생")
 		void throwsExceptionWhenReservationNotFound() {
@@ -361,12 +363,12 @@ class ReservationPricingServiceTest {
 			final Long reservationId = 999L;
 			when(reservationPricingRepository.findById(ReservationId.of(reservationId)))
 					.thenReturn(Optional.empty());
-			
+
 			// when & then
 			assertThatThrownBy(() -> reservationPricingService.cancelReservation(reservationId))
 					.isInstanceOf(ReservationPricingNotFoundException.class)
 					.hasMessageContaining("Reservation pricing not found");
-			
+
 			verify(reservationPricingRepository).findById(ReservationId.of(reservationId));
 		}
 	}

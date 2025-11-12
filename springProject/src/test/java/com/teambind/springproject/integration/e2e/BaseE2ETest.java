@@ -1,5 +1,6 @@
-package com.teambind.springproject.e2e;
+package com.teambind.springproject.integration.e2e;
 
+import com.teambind.springproject.integration.IntegrationTestContainers;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -9,20 +10,22 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
  * Base class for End-to-End tests using Testcontainers.
  * Provides PostgreSQL and Kafka containers for realistic testing.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("e2e")
+@ActiveProfiles("integration")
 public abstract class BaseE2ETest {
-	
+
 	// Force early initialization of containers
-	protected static final org.testcontainers.containers.PostgreSQLContainer<?> POSTGRES_CONTAINER =
-			E2ETestContainers.getPostgresContainer();
-	protected static final org.testcontainers.containers.KafkaContainer KAFKA_CONTAINER =
-			E2ETestContainers.getKafkaContainer();
+	protected static final PostgreSQLContainer<?> POSTGRES_CONTAINER =
+			IntegrationTestContainers.getPostgresContainer();
+	protected static final KafkaContainer KAFKA_CONTAINER =
+			IntegrationTestContainers.getKafkaContainer();
 	
 	@LocalServerPort
 	protected int port;
