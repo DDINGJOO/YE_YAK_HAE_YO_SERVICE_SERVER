@@ -161,8 +161,8 @@ public class ReservationPricing {
 	 */
 	public void confirm() {
 		if (status != ReservationStatus.PENDING) {
-			throw new IllegalStateException(
-					"Cannot confirm reservation: current status is " + status);
+			throw new com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException(
+					status, "confirm");
 		}
 		this.status = ReservationStatus.CONFIRMED;
 	}
@@ -173,8 +173,12 @@ public class ReservationPricing {
 	 */
 	public void cancel() {
 		if (status == ReservationStatus.CANCELLED) {
-			throw new IllegalStateException(
-					"Cannot cancel reservation: already cancelled");
+			throw new com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException(
+					status, "cancel");
+		}
+		if (status == ReservationStatus.CONFIRMED) {
+			throw new com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException(
+					status, "cancel");
 		}
 		this.status = ReservationStatus.CANCELLED;
 	}

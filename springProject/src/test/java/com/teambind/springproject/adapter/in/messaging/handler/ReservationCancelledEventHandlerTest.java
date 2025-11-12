@@ -4,6 +4,7 @@ import com.teambind.springproject.adapter.in.messaging.event.ReservationCancelle
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown;
+import com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException;
 import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;
 import com.teambind.springproject.domain.shared.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -82,51 +83,49 @@ class ReservationCancelledEventHandlerTest {
 		}
 		
 		@Test
-		@DisplayName("CONFIRMED 상태의 예약을 CANCELLED로 변경한다")
-		void cancelConfirmedReservation() {
+		@DisplayName("CONFIRMED 상태의 예약을 취소하려고 하면 InvalidReservationStatusException을 발생시킨다")
+		void throwsExceptionWhenCancellingConfirmed() {
 			// given
-			reservationPricing.confirm(); // CONFIRMED 상태로 먼저 변경
+			reservationPricing.confirm(); // CONFIRMED 상태로 변경
 			when(reservationPricingRepository.findById(any(ReservationId.class)))
 					.thenReturn(Optional.of(reservationPricing));
-			
-			// when
-			handler.handle(event);
-			
-			// then
+
+			// when & then
+			assertThatThrownBy(() -> handler.handle(event))
+					.isInstanceOf(InvalidReservationStatusException.class);
+
 			verify(reservationPricingRepository).findById(ReservationId.of(1L));
-			verify(reservationPricingRepository).save(any(ReservationPricing.class));
-			assert reservationPricing.getStatus() == ReservationStatus.CANCELLED;
+			verify(reservationPricingRepository, never()).save(any(ReservationPricing.class));
 		}
-		
+
 		@Test
 		@DisplayName("존재하지 않는 예약 ID인 경우 ReservationPricingNotFoundException을 발생시킨다")
 		void throwsExceptionWhenReservationNotFound() {
 			// given
 			when(reservationPricingRepository.findById(any(ReservationId.class)))
 					.thenReturn(Optional.empty());
-			
+
 			// when & then
 			assertThatThrownBy(() -> handler.handle(event))
 					.isInstanceOf(ReservationPricingNotFoundException.class)
 					.hasMessageContaining("reservationId=1");
-			
+
 			verify(reservationPricingRepository).findById(ReservationId.of(1L));
 			verify(reservationPricingRepository, never()).save(any(ReservationPricing.class));
 		}
-		
+
 		@Test
-		@DisplayName("이미 CANCELLED 상태의 예약을 다시 취소하려고 하면 IllegalStateException을 발생시킨다")
+		@DisplayName("이미 CANCELLED 상태의 예약을 다시 취소하려고 하면 InvalidReservationStatusException을 발생시킨다")
 		void throwsExceptionWhenAlreadyCancelled() {
 			// given
 			reservationPricing.cancel(); // 이미 CANCELLED 상태로 변경
 			when(reservationPricingRepository.findById(any(ReservationId.class)))
 					.thenReturn(Optional.of(reservationPricing));
-			
+
 			// when & then
 			assertThatThrownBy(() -> handler.handle(event))
-					.isInstanceOf(IllegalStateException.class)
-					.hasMessageContaining("Cannot cancel reservation");
-			
+					.isInstanceOf(InvalidReservationStatusException.class);
+
 			verify(reservationPricingRepository).findById(ReservationId.of(1L));
 			verify(reservationPricingRepository, never()).save(any(ReservationPricing.class));
 		}

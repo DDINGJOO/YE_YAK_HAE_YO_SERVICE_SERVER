@@ -3,6 +3,7 @@ package com.teambind.springproject.adapter.in.messaging.handler;
 import com.teambind.springproject.adapter.in.messaging.event.ReservationCancelledEvent;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
+import com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException;
 import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;
 import com.teambind.springproject.domain.shared.ReservationId;
 import org.slf4j.Logger;
@@ -52,7 +53,7 @@ public class ReservationCancelledEventHandler implements
 		} catch (final ReservationPricingNotFoundException e) {
 			logger.error("Reservation not found: reservationId={}", event.getReservationId(), e);
 			throw e;
-		} catch (final IllegalStateException e) {
+		} catch (final InvalidReservationStatusException e) {
 			logger.error("Invalid state transition: reservationId={}, message={}",
 					event.getReservationId(), e.getMessage(), e);
 			throw e;

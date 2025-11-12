@@ -2,6 +2,7 @@ package com.teambind.springproject.domain.reservationpricing;
 
 import com.teambind.springproject.domain.product.vo.PricingType;
 import com.teambind.springproject.domain.product.vo.ProductPriceBreakdown;
+import com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException;
 import com.teambind.springproject.domain.shared.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -249,24 +250,22 @@ class ReservationPricingTest {
 			// given
 			final ReservationPricing pricing = createTestPricing();
 			pricing.confirm();
-			
+
 			// when & then
 			assertThatThrownBy(pricing::confirm)
-					.isInstanceOf(IllegalStateException.class)
-					.hasMessageContaining("Cannot confirm reservation");
+					.isInstanceOf(InvalidReservationStatusException.class);
 		}
-		
+
 		@Test
 		@DisplayName("CANCELLED 상태에서 confirm()하면 예외가 발생한다")
 		void confirmFromCancelledFails() {
 			// given
 			final ReservationPricing pricing = createTestPricing();
 			pricing.cancel();
-			
+
 			// when & then
 			assertThatThrownBy(pricing::confirm)
-					.isInstanceOf(IllegalStateException.class)
-					.hasMessageContaining("Cannot confirm reservation");
+					.isInstanceOf(InvalidReservationStatusException.class);
 		}
 	}
 	
@@ -289,30 +288,27 @@ class ReservationPricingTest {
 		}
 		
 		@Test
-		@DisplayName("CONFIRMED 상태에서 CANCELLED로 전환에 성공한다")
-		void cancelFromConfirmedSuccess() {
+		@DisplayName("CONFIRMED 상태에서 cancel()하면 예외가 발생한다")
+		void cancelFromConfirmedFails() {
 			// given
 			final ReservationPricing pricing = createTestPricing();
 			pricing.confirm();
-			
-			// when
-			pricing.cancel();
-			
-			// then
-			assertThat(pricing.getStatus()).isEqualTo(ReservationStatus.CANCELLED);
+
+			// when & then
+			assertThatThrownBy(pricing::cancel)
+					.isInstanceOf(InvalidReservationStatusException.class);
 		}
-		
+
 		@Test
 		@DisplayName("CANCELLED 상태에서 cancel()하면 예외가 발생한다")
 		void cancelFromCancelledFails() {
 			// given
 			final ReservationPricing pricing = createTestPricing();
 			pricing.cancel();
-			
+
 			// when & then
 			assertThatThrownBy(pricing::cancel)
-					.isInstanceOf(IllegalStateException.class)
-					.hasMessageContaining("Cannot cancel reservation: already cancelled");
+					.isInstanceOf(InvalidReservationStatusException.class);
 		}
 	}
 	

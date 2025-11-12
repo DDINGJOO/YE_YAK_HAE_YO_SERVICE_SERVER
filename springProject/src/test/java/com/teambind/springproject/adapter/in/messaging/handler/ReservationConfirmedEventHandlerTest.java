@@ -4,6 +4,7 @@ import com.teambind.springproject.adapter.in.messaging.event.ReservationConfirme
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown;
+import com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException;
 import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;
 import com.teambind.springproject.domain.shared.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -98,35 +99,33 @@ class ReservationConfirmedEventHandlerTest {
 		}
 		
 		@Test
-		@DisplayName("CONFIRMED 상태의 예약을 다시 확정하려고 하면 IllegalStateException을 발생시킨다")
+		@DisplayName("CONFIRMED 상태의 예약을 다시 확정하려고 하면 InvalidReservationStatusException을 발생시킨다")
 		void throwsExceptionWhenAlreadyConfirmed() {
 			// given
 			reservationPricing.confirm(); // 이미 CONFIRMED 상태로 변경
 			when(reservationPricingRepository.findById(any(ReservationId.class)))
 					.thenReturn(Optional.of(reservationPricing));
-			
+
 			// when & then
 			assertThatThrownBy(() -> handler.handle(event))
-					.isInstanceOf(IllegalStateException.class)
-					.hasMessageContaining("Cannot confirm reservation");
-			
+					.isInstanceOf(InvalidReservationStatusException.class);
+
 			verify(reservationPricingRepository).findById(ReservationId.of(1L));
 			verify(reservationPricingRepository, never()).save(any(ReservationPricing.class));
 		}
-		
+
 		@Test
-		@DisplayName("CANCELLED 상태의 예약을 확정하려고 하면 IllegalStateException을 발생시킨다")
+		@DisplayName("CANCELLED 상태의 예약을 확정하려고 하면 InvalidReservationStatusException을 발생시킨다")
 		void throwsExceptionWhenCancelled() {
 			// given
 			reservationPricing.cancel(); // CANCELLED 상태로 변경
 			when(reservationPricingRepository.findById(any(ReservationId.class)))
 					.thenReturn(Optional.of(reservationPricing));
-			
+
 			// when & then
 			assertThatThrownBy(() -> handler.handle(event))
-					.isInstanceOf(IllegalStateException.class)
-					.hasMessageContaining("Cannot confirm reservation");
-			
+					.isInstanceOf(InvalidReservationStatusException.class);
+
 			verify(reservationPricingRepository).findById(ReservationId.of(1L));
 			verify(reservationPricingRepository, never()).save(any(ReservationPricing.class));
 		}
