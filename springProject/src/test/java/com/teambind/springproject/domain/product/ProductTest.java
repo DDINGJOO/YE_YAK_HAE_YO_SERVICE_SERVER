@@ -397,6 +397,150 @@ class ProductTest {
 	}
 	
 	@Nested
+	@DisplayName("재고 관리 테스트")
+	class InventoryManagementTests {
+
+		@Test
+		@DisplayName("상품 생성 시 reservedQuantity는 0으로 초기화")
+		void reservedQuantityInitializedToZero() {
+			// given & when
+			final Product product = Product.createReservationScoped(
+					ProductId.of(1L),
+					"음료수",
+					PricingStrategy.simpleStock(Money.of(2000)),
+					100
+			);
+
+			// then
+			assertThat(product.getReservedQuantity()).isZero();
+		}
+
+		@Test
+		@DisplayName("getAvailableQuantity는 총 재고에서 예약 수량을 뺀 값을 반환")
+		void getAvailableQuantityReturnsCorrectValue() {
+			// given
+			final Product product = Product.createReservationScoped(
+					ProductId.of(1L),
+					"음료수",
+					PricingStrategy.simpleStock(Money.of(2000)),
+					100
+			);
+
+			// when
+			final int availableQuantity = product.getAvailableQuantity();
+
+			// then
+			assertThat(availableQuantity).isEqualTo(100); // totalQuantity(100) - reservedQuantity(0)
+		}
+
+		@Test
+		@DisplayName("canReserve는 가용 수량보다 적은 요청에 대해 true 반환")
+		void canReserveReturnsTrueWhenSufficientQuantity() {
+			// given
+			final Product product = Product.createReservationScoped(
+					ProductId.of(1L),
+					"음료수",
+					PricingStrategy.simpleStock(Money.of(2000)),
+					10
+			);
+
+			// when & then
+			assertThat(product.canReserve(5)).isTrue();
+			assertThat(product.canReserve(1)).isTrue();
+			assertThat(product.canReserve(9)).isTrue();
+		}
+
+		@Test
+		@DisplayName("canReserve는 정확히 가용 수량만큼 요청 시 true 반환")
+		void canReserveReturnsTrueWhenExactQuantity() {
+			// given
+			final Product product = Product.createReservationScoped(
+					ProductId.of(1L),
+					"음료수",
+					PricingStrategy.simpleStock(Money.of(2000)),
+					10
+			);
+
+			// when & then
+			assertThat(product.canReserve(10)).isTrue();
+		}
+
+		@Test
+		@DisplayName("canReserve는 가용 수량보다 많은 요청에 대해 false 반환")
+		void canReserveReturnsFalseWhenInsufficientQuantity() {
+			// given
+			final Product product = Product.createReservationScoped(
+					ProductId.of(1L),
+					"음료수",
+					PricingStrategy.simpleStock(Money.of(2000)),
+					10
+			);
+
+			// when & then
+			assertThat(product.canReserve(11)).isFalse();
+			assertThat(product.canReserve(100)).isFalse();
+		}
+
+		@Test
+		@DisplayName("canReserve는 0 이하 수량 요청 시 예외 발생")
+		void canReserveThrowsExceptionWhenQuantityIsZeroOrNegative() {
+			// given
+			final Product product = Product.createReservationScoped(
+					ProductId.of(1L),
+					"음료수",
+					PricingStrategy.simpleStock(Money.of(2000)),
+					10
+			);
+
+			// when & then
+			assertThatThrownBy(() -> product.canReserve(0))
+					.isInstanceOf(IllegalArgumentException.class)
+					.hasMessage("Quantity must be positive: 0");
+
+			assertThatThrownBy(() -> product.canReserve(-1))
+					.isInstanceOf(IllegalArgumentException.class)
+					.hasMessage("Quantity must be positive: -1");
+
+			assertThatThrownBy(() -> product.canReserve(-100))
+					.isInstanceOf(IllegalArgumentException.class)
+					.hasMessage("Quantity must be positive: -100");
+		}
+
+		@Test
+		@DisplayName("총 수량이 0인 상품은 예약 불가")
+		void cannotReserveWhenTotalQuantityIsZero() {
+			// given
+			final Product product = Product.createReservationScoped(
+					ProductId.of(1L),
+					"품절 상품",
+					PricingStrategy.simpleStock(Money.of(2000)),
+					0
+			);
+
+			// when & then
+			assertThat(product.getAvailableQuantity()).isZero();
+			assertThat(product.canReserve(1)).isFalse();
+		}
+
+		@Test
+		@DisplayName("매우 큰 수량 (Integer.MAX_VALUE)의 재고도 정확히 계산")
+		void handlesMaxIntegerQuantityCorrectly() {
+			// given
+			final Product product = Product.createReservationScoped(
+					ProductId.of(1L),
+					"대량 재고 상품",
+					PricingStrategy.simpleStock(Money.of(1000)),
+					Integer.MAX_VALUE
+			);
+
+			// when & then
+			assertThat(product.getAvailableQuantity()).isEqualTo(Integer.MAX_VALUE);
+			assertThat(product.canReserve(1)).isTrue();
+			assertThat(product.canReserve(1000000)).isTrue();
+		}
+	}
+
+	@Nested
 	@DisplayName("엣지 케이스 및 경계값 테스트")
 	class EdgeCaseTests {
 		

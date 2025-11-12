@@ -23,6 +23,7 @@ public class Product {
 	private String name;
 	private PricingStrategy pricingStrategy;
 	private int totalQuantity;
+	private int reservedQuantity;
 	
 	private Product(
 			final ProductId productId,
@@ -38,7 +39,7 @@ public class Product {
 		validateName(name);
 		validatePricingStrategy(pricingStrategy);
 		validateTotalQuantity(totalQuantity);
-		
+
 		this.productId = productId;
 		this.scope = scope;
 		this.placeId = placeId;
@@ -46,6 +47,7 @@ public class Product {
 		this.name = name;
 		this.pricingStrategy = pricingStrategy;
 		this.totalQuantity = totalQuantity;
+		this.reservedQuantity = 0;
 	}
 	
 	/**
@@ -107,7 +109,41 @@ public class Product {
 		return new Product(productId, ProductScope.RESERVATION, null, null, name, pricingStrategy,
 				totalQuantity);
 	}
-	
+
+	/**
+	 * 영속화된 데이터로부터 Product를 복원합니다.
+	 *
+	 * 주의: 이 메서드는 persistence layer에서만 사용되며, 일반 비즈니스 로직에서는 사용하지 마십시오.
+	 * 새로운 상품을 생성할 때는 createPlaceScoped(), createRoomScoped(), createReservationScoped()를 사용하십시오.
+	 *
+	 * @param productId       상품 ID
+	 * @param scope           상품 범위
+	 * @param placeId         플레이스 ID (nullable)
+	 * @param roomId          룸 ID (nullable)
+	 * @param name            상품명
+	 * @param pricingStrategy 가격 전략
+	 * @param totalQuantity   총 수량
+	 * @param reservedQuantity 예약된 수량
+	 * @return Product
+	 */
+	public static Product reconstructFromPersistence(
+			final ProductId productId,
+			final ProductScope scope,
+			final PlaceId placeId,
+			final RoomId roomId,
+			final String name,
+			final PricingStrategy pricingStrategy,
+			final int totalQuantity,
+			final int reservedQuantity) {
+		final Product product = switch (scope) {
+			case PLACE -> createPlaceScoped(productId, placeId, name, pricingStrategy, totalQuantity);
+			case ROOM -> createRoomScoped(productId, placeId, roomId, name, pricingStrategy, totalQuantity);
+			case RESERVATION -> createReservationScoped(productId, name, pricingStrategy, totalQuantity);
+		};
+		product.reservedQuantity = reservedQuantity;
+		return product;
+	}
+
 	private void validateProductId(final ProductId productId) {
 		if (productId == null) {
 			throw new IllegalArgumentException("Product ID cannot be null");
@@ -169,7 +205,42 @@ public class Product {
 			throw new IllegalArgumentException("Total quantity cannot be negative: " + totalQuantity);
 		}
 	}
-	
+
+	private void validateReservedQuantity(final int reservedQuantity) {
+		if (reservedQuantity < 0) {
+			throw new IllegalArgumentException("Reserved quantity cannot be negative: " + reservedQuantity);
+		}
+		if (reservedQuantity > totalQuantity) {
+			throw new IllegalArgumentException(
+					"Reserved quantity cannot exceed total quantity: reserved=" + reservedQuantity
+							+ ", total=" + totalQuantity);
+		}
+	}
+
+	/**
+	 * 예약 가능한 수량을 반환합니다.
+	 *
+	 * @return 가용 수량 (총 재고 - 예약 수량)
+	 */
+	public int getAvailableQuantity() {
+		return totalQuantity - reservedQuantity;
+	}
+
+	/**
+	 * 요청한 수량만큼 예약 가능한지 확인합니다.
+	 * 이 메서드는 낙관적 확인용이며, 실제 예약은 Repository의 원자적 연산을 통해 수행됩니다.
+	 *
+	 * @param quantity 요청 수량
+	 * @return 예약 가능 여부
+	 * @throws IllegalArgumentException 수량이 0 이하인 경우
+	 */
+	public boolean canReserve(final int quantity) {
+		if (quantity <= 0) {
+			throw new IllegalArgumentException("Quantity must be positive: " + quantity);
+		}
+		return getAvailableQuantity() >= quantity;
+	}
+
 	/**
 	 * 상품명을 변경합니다.
 	 *
@@ -251,7 +322,11 @@ public class Product {
 	public int getTotalQuantity() {
 		return totalQuantity;
 	}
-	
+
+	public int getReservedQuantity() {
+		return reservedQuantity;
+	}
+
 	@Override
 	public boolean equals(final Object o) {
 		if (this == o) {
@@ -279,6 +354,7 @@ public class Product {
 				+ ", name='" + name + '\''
 				+ ", pricingStrategy=" + pricingStrategy
 				+ ", totalQuantity=" + totalQuantity
+				+ ", reservedQuantity=" + reservedQuantity
 				+ '}';
 	}
 }

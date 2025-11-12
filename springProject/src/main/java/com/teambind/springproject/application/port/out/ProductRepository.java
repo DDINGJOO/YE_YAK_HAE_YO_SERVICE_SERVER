@@ -93,4 +93,43 @@ public interface ProductRepository {
 	 * @return 존재하면 true, 아니면 false
 	 */
 	boolean existsById(ProductId productId);
+
+	/**
+	 * 원자적으로 상품 재고를 예약합니다.
+	 * UPDATE 쿼리의 WHERE 조건에서 재고 검증과 차감을 동시에 수행합니다.
+	 *
+	 * 이 메서드는 다음과 같은 원자적 연산을 수행합니다:
+	 * - UPDATE products SET reserved_quantity = reserved_quantity + quantity
+	 * - WHERE product_id = ? AND (total_quantity - reserved_quantity) >= quantity
+	 *
+	 * 동시성 제어 메커니즘:
+	 * - 데이터베이스의 Row Lock을 활용하여 원자적 연산 보장
+	 * - WHERE 조건에서 재고 부족 시 UPDATE 실패 (0 rows affected)
+	 * - Race Condition 방지 (Check-Then-Act 안티패턴 해결)
+	 *
+	 * @param productId 상품 ID
+	 * @param quantity  예약할 수량 (양수)
+	 * @return 예약 성공 여부 (재고 부족 시 false)
+	 * @throws IllegalArgumentException quantity가 0 이하인 경우
+	 */
+	boolean reserveQuantity(ProductId productId, int quantity);
+
+	/**
+	 * 예약 취소 시 상품 재고를 복구합니다.
+	 * reserved_quantity를 감소시켜 가용 수량을 증가시킵니다.
+	 *
+	 * 이 메서드는 다음과 같은 원자적 연산을 수행합니다:
+	 * - UPDATE products SET reserved_quantity = reserved_quantity - quantity
+	 * - WHERE product_id = ? AND reserved_quantity >= quantity
+	 *
+	 * 주의사항:
+	 * - 예약된 수량보다 많은 수량을 해제할 수 없습니다
+	 * - 트랜잭션 내에서 호출하여 일관성을 보장해야 합니다
+	 *
+	 * @param productId 상품 ID
+	 * @param quantity  해제할 수량 (양수)
+	 * @return 해제 성공 여부 (예약 수량 부족 시 false)
+	 * @throws IllegalArgumentException quantity가 0 이하인 경우
+	 */
+	boolean releaseQuantity(ProductId productId, int quantity);
 }

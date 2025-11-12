@@ -7,6 +7,7 @@ import com.teambind.springproject.domain.product.vo.ProductScope;
 import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.ProductId;
 import com.teambind.springproject.domain.shared.RoomId;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -19,15 +20,18 @@ import java.util.stream.Collectors;
  */
 @Repository
 public class ProductRepositoryAdapter implements ProductRepository {
-	
+
 	private final ProductJpaRepository jpaRepository;
 	private final RoomAllowedProductRepository roomAllowedProductRepository;
-	
+	private final JdbcTemplate jdbcTemplate;
+
 	public ProductRepositoryAdapter(
 			final ProductJpaRepository jpaRepository,
-			final RoomAllowedProductRepository roomAllowedProductRepository) {
+			final RoomAllowedProductRepository roomAllowedProductRepository,
+			final JdbcTemplate jdbcTemplate) {
 		this.jpaRepository = jpaRepository;
 		this.roomAllowedProductRepository = roomAllowedProductRepository;
+		this.jdbcTemplate = jdbcTemplate;
 	}
 	
 	@Override
@@ -116,5 +120,51 @@ public class ProductRepositoryAdapter implements ProductRepository {
 	@Override
 	public boolean existsById(final ProductId productId) {
 		return jpaRepository.existsById(productId.getValue());
+	}
+
+	@Override
+	public boolean reserveQuantity(final ProductId productId, final int quantity) {
+		if (quantity <= 0) {
+			throw new IllegalArgumentException("Quantity must be positive: " + quantity);
+		}
+
+		final String sql = """
+				UPDATE products
+				SET reserved_quantity = reserved_quantity + ?
+				WHERE product_id = ?
+				  AND (total_quantity - reserved_quantity) >= ?
+				""";
+
+		final int updatedRows = jdbcTemplate.update(
+				sql,
+				quantity,
+				productId.getValue(),
+				quantity
+		);
+
+		return updatedRows > 0;
+	}
+
+	@Override
+	public boolean releaseQuantity(final ProductId productId, final int quantity) {
+		if (quantity <= 0) {
+			throw new IllegalArgumentException("Quantity must be positive: " + quantity);
+		}
+
+		final String sql = """
+				UPDATE products
+				SET reserved_quantity = reserved_quantity - ?
+				WHERE product_id = ?
+				  AND reserved_quantity >= ?
+				""";
+
+		final int updatedRows = jdbcTemplate.update(
+				sql,
+				quantity,
+				productId.getValue(),
+				quantity
+		);
+
+		return updatedRows > 0;
 	}
 }
