@@ -10,6 +10,7 @@ import com.teambind.springproject.domain.shared.RoomId;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -162,6 +163,123 @@ public class ProductRepositoryAdapter implements ProductRepository {
 				sql,
 				quantity,
 				productId.getValue(),
+				quantity
+		);
+
+		return updatedRows > 0;
+	}
+
+	@Override
+	public boolean reserveRoomTimeSlotQuantity(
+			final ProductId productId,
+			final RoomId roomId,
+			final LocalDateTime timeSlot,
+			final int quantity) {
+		if (quantity <= 0) {
+			throw new IllegalArgumentException("Quantity must be positive: " + quantity);
+		}
+
+		final String sql = """
+				INSERT INTO product_time_slot_inventory
+				    (product_id, room_id, time_slot, reserved_quantity)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (product_id, room_id, time_slot)
+				DO UPDATE SET
+				    reserved_quantity = product_time_slot_inventory.reserved_quantity + EXCLUDED.reserved_quantity,
+				    updated_at = NOW()
+				WHERE EXISTS (
+				    SELECT 1 FROM products p
+				    WHERE p.product_id = EXCLUDED.product_id
+				      AND (p.total_quantity - COALESCE(
+				          (SELECT SUM(reserved_quantity)
+				           FROM product_time_slot_inventory
+				           WHERE product_id = EXCLUDED.product_id
+				             AND room_id = EXCLUDED.room_id
+				             AND time_slot = EXCLUDED.time_slot),
+				          0
+				      )) >= EXCLUDED.reserved_quantity
+				)
+				""";
+
+		final int updatedRows = jdbcTemplate.update(
+				sql,
+				productId.getValue(),
+				roomId.getValue(),
+				timeSlot,
+				quantity
+		);
+
+		return updatedRows > 0;
+	}
+
+	@Override
+	public boolean reservePlaceTimeSlotQuantity(
+			final ProductId productId,
+			final RoomId roomId,
+			final LocalDateTime timeSlot,
+			final int quantity) {
+		if (quantity <= 0) {
+			throw new IllegalArgumentException("Quantity must be positive: " + quantity);
+		}
+
+		final String sql = """
+				INSERT INTO product_time_slot_inventory
+				    (product_id, room_id, time_slot, reserved_quantity)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT (product_id, room_id, time_slot)
+				DO UPDATE SET
+				    reserved_quantity = product_time_slot_inventory.reserved_quantity + EXCLUDED.reserved_quantity,
+				    updated_at = NOW()
+				WHERE EXISTS (
+				    SELECT 1 FROM products p
+				    WHERE p.product_id = EXCLUDED.product_id
+				      AND (p.total_quantity - COALESCE(
+				          (SELECT SUM(reserved_quantity)
+				           FROM product_time_slot_inventory
+				           WHERE product_id = EXCLUDED.product_id
+				             AND time_slot = EXCLUDED.time_slot),
+				          0
+				      )) >= EXCLUDED.reserved_quantity
+				)
+				""";
+
+		final int updatedRows = jdbcTemplate.update(
+				sql,
+				productId.getValue(),
+				roomId.getValue(),
+				timeSlot,
+				quantity
+		);
+
+		return updatedRows > 0;
+	}
+
+	@Override
+	public boolean releaseTimeSlotQuantity(
+			final ProductId productId,
+			final RoomId roomId,
+			final LocalDateTime timeSlot,
+			final int quantity) {
+		if (quantity <= 0) {
+			throw new IllegalArgumentException("Quantity must be positive: " + quantity);
+		}
+
+		final String sql = """
+				UPDATE product_time_slot_inventory
+				SET reserved_quantity = reserved_quantity - ?,
+				    updated_at = NOW()
+				WHERE product_id = ?
+				  AND room_id = ?
+				  AND time_slot = ?
+				  AND reserved_quantity >= ?
+				""";
+
+		final int updatedRows = jdbcTemplate.update(
+				sql,
+				quantity,
+				productId.getValue(),
+				roomId.getValue(),
+				timeSlot,
 				quantity
 		);
 

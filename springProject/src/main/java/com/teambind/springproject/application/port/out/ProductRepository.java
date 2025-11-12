@@ -6,6 +6,7 @@ import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.ProductId;
 import com.teambind.springproject.domain.shared.RoomId;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -132,4 +133,68 @@ public interface ProductRepository {
 	 * @throws IllegalArgumentException quantity가 0 이하인 경우
 	 */
 	boolean releaseQuantity(ProductId productId, int quantity);
+
+	/**
+	 * ROOM Scope 상품의 특정 시간대 재고를 원자적으로 예약합니다.
+	 * product_time_slot_inventory 테이블에 대한 UPSERT + 원자적 UPDATE를 수행합니다.
+	 *
+	 * 동시성 제어 메커니즘:
+	 * 1. INSERT ON CONFLICT (product_id, room_id, time_slot) DO UPDATE
+	 * 2. WHERE 조건에서 재고 검증: (total_quantity - reserved_quantity) >= quantity
+	 * 3. Row Lock을 활용한 Race Condition 방지
+	 *
+	 * @param productId 상품 ID
+	 * @param roomId    룸 ID
+	 * @param timeSlot  시간대 (1시간 단위)
+	 * @param quantity  예약할 수량 (양수)
+	 * @return 예약 성공 여부 (재고 부족 시 false)
+	 * @throws IllegalArgumentException quantity가 0 이하인 경우
+	 */
+	boolean reserveRoomTimeSlotQuantity(
+			ProductId productId,
+			RoomId roomId,
+			LocalDateTime timeSlot,
+			int quantity
+	);
+
+	/**
+	 * PLACE Scope 상품의 특정 시간대 재고를 원자적으로 예약합니다.
+	 * 전체 Place 범위의 모든 룸에 걸쳐 재고를 검증합니다.
+	 *
+	 * 동시성 제어 메커니즘:
+	 * 1. INSERT ON CONFLICT (product_id, room_id, time_slot) DO UPDATE
+	 * 2. EXISTS 서브쿼리로 전체 Place 재고 검증
+	 * 3. WHERE 조건: SUM(reserved_quantity) + quantity <= total_quantity
+	 *
+	 * @param productId 상품 ID
+	 * @param roomId    현재 예약하려는 룸 ID
+	 * @param timeSlot  시간대 (1시간 단위)
+	 * @param quantity  예약할 수량 (양수)
+	 * @return 예약 성공 여부 (재고 부족 시 false)
+	 * @throws IllegalArgumentException quantity가 0 이하인 경우
+	 */
+	boolean reservePlaceTimeSlotQuantity(
+			ProductId productId,
+			RoomId roomId,
+			LocalDateTime timeSlot,
+			int quantity
+	);
+
+	/**
+	 * 예약 취소 시 시간대별 재고를 복구합니다.
+	 * product_time_slot_inventory 테이블의 reserved_quantity를 감소시킵니다.
+	 *
+	 * @param productId 상품 ID
+	 * @param roomId    룸 ID
+	 * @param timeSlot  시간대
+	 * @param quantity  해제할 수량 (양수)
+	 * @return 해제 성공 여부
+	 * @throws IllegalArgumentException quantity가 0 이하인 경우
+	 */
+	boolean releaseTimeSlotQuantity(
+			ProductId productId,
+			RoomId roomId,
+			LocalDateTime timeSlot,
+			int quantity
+	);
 }
