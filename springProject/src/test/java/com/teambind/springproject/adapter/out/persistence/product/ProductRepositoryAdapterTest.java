@@ -49,7 +49,10 @@ class ProductRepositoryAdapterTest {
 	
 	@Autowired
 	private ProductRepositoryAdapter repository;
-	
+
+	@Autowired
+	private ProductJpaRepository jpaRepository;
+
 	@MockBean
 	private RoomAllowedProductRepository roomAllowedProductRepository;
 	
@@ -205,7 +208,13 @@ class ProductRepositoryAdapterTest {
 	@Nested
 	@DisplayName("Scope별 조회 테스트")
 	class ScopeQueryTests {
-		
+
+		@BeforeEach
+		void setUpScope() {
+			// 각 테스트 전 데이터 정리
+			jpaRepository.deleteAll();
+		}
+
 		@Test
 		@DisplayName("PlaceId로 해당 플레이스의 모든 상품 조회")
 		void findByPlaceId() {

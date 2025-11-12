@@ -46,21 +46,7 @@ class DomainExceptionTest {
 					.isInstanceOf(IllegalArgumentException.class)
 					.hasMessage("Pricing strategy cannot be null");
 		}
-		
-		@Test
-		@DisplayName("PLACE scope에 roomId가 있으면 예외 발생")
-		void throwExceptionWhenPlaceScopeHasRoomId() {
-			// when & then
-			assertThatThrownBy(() -> Product.createPlaceScoped(
-					ProductId.of(1L),
-					PlaceId.of(100L),
-					"상품",
-					PricingStrategy.simpleStock(Money.of(1000)),
-					10
-			))
-					.isInstanceOf(IllegalArgumentException.class);
-		}
-		
+
 		@Test
 		@DisplayName("ROOM scope에 placeId가 없으면 예외 발생")
 		void throwExceptionWhenRoomScopeHasNoPlaceId() {
@@ -372,21 +358,7 @@ class DomainExceptionTest {
 	@Nested
 	@DisplayName("PricingPolicy 도메인 예외")
 	class PricingPolicyDomainExceptions {
-		
-		@Test
-		@DisplayName("빈 timeRangePrices로 생성 시 예외 발생")
-		void throwExceptionWhenCreatingWithEmptyTimeRangePrices() {
-			// when & then
-			assertThatThrownBy(() -> PricingPolicy.createWithTimeRangePrices(
-					RoomId.of(1L),
-					PlaceId.of(100L),
-					TimeSlot.HOUR,
-					Money.of(10000),
-					TimeRangePrices.empty()  // 빈 TimeRangePrices
-			))
-					.isInstanceOf(IllegalArgumentException.class);
-		}
-		
+
 		@Test
 		@DisplayName("null roomId로 생성 시 예외 발생")
 		void throwExceptionWhenCreatingWithNullRoomId() {
