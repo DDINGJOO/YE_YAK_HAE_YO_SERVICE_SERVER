@@ -120,12 +120,16 @@ public class Money {
 			return false;
 		}
 		final Money money = (Money) o;
-		return Objects.equals(amount, money.amount);
+		// Use compareTo instead of equals to ignore scale differences
+		// Money.of(100.0) should equal Money.of(100.00)
+		return this.amount.compareTo(money.amount) == 0;
 	}
-	
+
 	@Override
 	public int hashCode() {
-		return Objects.hash(amount);
+		// Use stripTrailingZeros to ensure same hashCode for equal amounts
+		// 100.0 and 100.00 must have same hash code
+		return Objects.hash(amount.stripTrailingZeros());
 	}
 	
 	@Override
