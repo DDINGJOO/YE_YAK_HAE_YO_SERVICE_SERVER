@@ -59,6 +59,9 @@ class RoomPlaceInventoryConcurrencyTest extends BaseConcurrencyTest {
 
 	@BeforeEach
 	void setUp() {
+		// Clean database first
+		cleanDatabase();
+
 		testPlaceId = 1000L;
 		testRoomId = 2000L;
 
