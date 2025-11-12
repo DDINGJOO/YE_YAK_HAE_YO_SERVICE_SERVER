@@ -219,9 +219,13 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	 * 상품 재고를 원자적으로 예약합니다.
 	 * WHERE 조건에서 재고 검증과 차감을 동시에 수행하여 Race Condition을 방지합니다.
 	 *
+	 * 현재는 RESERVATION Scope 상품만 지원합니다.
+	 * ROOM/PLACE Scope는 시간대별 재고 관리가 필요하여 향후 구현 예정입니다.
+	 *
 	 * @param products        예약할 상품 목록
 	 * @param productRequests 상품 요청 목록 (수량 포함)
 	 * @throws ProductNotAvailableException 재고가 부족하여 예약 실패 시
+	 * @throws UnsupportedOperationException ROOM/PLACE Scope 상품인 경우
 	 */
 	private void reserveProducts(
 			final List<Product> products,
@@ -230,6 +234,16 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		for (int i = 0; i < products.size(); i++) {
 			final Product product = products.get(i);
 			final ProductRequest productRequest = productRequests.get(i);
+
+			// RESERVATION Scope만 원자적 재고 예약 지원
+			if (product.getScope() != com.teambind.springproject.domain.product.vo.ProductScope.RESERVATION) {
+				logger.error("Unsupported product scope for atomic reservation: scope={}, productId={}",
+						product.getScope(), product.getProductId().getValue());
+				throw new UnsupportedOperationException(
+						"ROOM/PLACE Scope products require time-based inventory management. " +
+						"Only RESERVATION Scope is currently supported for atomic reservation."
+				);
+			}
 
 			final boolean reserved = productRepository.reserveQuantity(
 					product.getProductId(),
