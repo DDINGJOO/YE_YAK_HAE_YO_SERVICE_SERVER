@@ -634,7 +634,7 @@ reservation:
 - PENDING → CONFIRMED 상태 전환
 - 멱등성 보장 (중복 이벤트 무시)
 
-### ReservationCancelled 이벤트 (Payment 서비스)
+### ReservationCancelled 이벤트 (Reservation 서비스)
 ```json
 {
   "eventType": "ReservationCancelled",
@@ -647,6 +647,23 @@ reservation:
 **처리**:
 - PENDING/CONFIRMED → CANCELLED 상태 전환
 - 멱등성 보장
+
+### ReservationRefund 이벤트 (Payment 서비스, Issue #164)
+```json
+{
+  "eventType": "ReservationRefund",
+  "reservationId": 1,
+  "refundedAt": "2025-01-07T14:30:00",
+  "reason": "USER_REQUEST"
+}
+```
+
+**처리**:
+- CONFIRMED → CANCELLED 상태 전환
+- 예약에 포함된 모든 상품 재고 해제
+- RESERVATION Scope: products.reserved_quantity 감소
+- ROOM/PLACE Scope: product_time_slot_inventory.reserved_quantity 감소
+- 멱등성 보장 (이미 CANCELLED 상태면 무시)
 
 ---
 
@@ -772,3 +789,6 @@ curl -X PUT $BASE_URL/api/reservations/$RESERVATION_ID/cancel
 - 동일한 reservationId에 대해 confirm/cancel 중복 호출 시 안전
 - 이미 목표 상태인 경우 예외 발생
 - 이벤트 핸들러는 멱등성 보장 (중복 이벤트 무시)
+---
+
+**Last Updated**: 2025-11-12

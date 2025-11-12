@@ -808,3 +808,7 @@ ReservationId (예약 식별자)
 - Factory Method로 생성 로직 캡슐화
 
 다음 단계: **기술 스택 분석 및 선정**
+
+---
+
+**Last Updated**: 2025-11-12

@@ -238,3 +238,7 @@ Client       Controller      CopyUseCase     PricingPolicy     Repository
 2. **중복 방지**: existsById로 중복 생성 방지
 3. **재시도 전략**: TODO - DLQ 구현 필요
 4. **트랜잭션**: 가격 정책 생성은 @Transactional 보장
+
+---
+
+**Last Updated**: 2025-11-12

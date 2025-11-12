@@ -54,3 +54,7 @@
 - Issue #8: PricingPolicy Repository 구현 ✅
 - Issue #9: RoomCreatedEvent 리스너 및 가격 정책 자동 생성 ✅
 - Issue #10: 가격 정책 관리 API 구현 ✅
+
+---
+
+**Last Updated**: 2025-11-12

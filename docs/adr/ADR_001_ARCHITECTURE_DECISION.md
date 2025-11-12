@@ -709,3 +709,7 @@ class ReservationPricingReadModel {
 - ADR 002: 재고 관리 동시성 제어 전략
 - ADR 003: 가격 정책 변경 이력 관리
 - ADR 004: 이벤트 중복 처리 멱등성 보장
+
+---
+
+**Last Updated**: 2025-11-12

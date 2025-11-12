@@ -196,3 +196,7 @@ targetPolicy.resetPrices(sourcePolicy.getTimeRangePrices());
 - 서비스: 12개 단위 테스트 (생성, 조회, 업데이트, 복사)
 - 컨트롤러: 11개 통합 테스트 (API 엔드포인트)
 - 생성, 가격 변경, 가격 계산, 복사, 검증 로직 모두 커버
+
+---
+
+**Last Updated**: 2025-11-12

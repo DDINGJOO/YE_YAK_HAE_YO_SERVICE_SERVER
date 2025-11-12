@@ -164,9 +164,13 @@ Product는 3가지 가격 책정 방식을 지원합니다:
 - ONE_TIME: initialPrice만 필수, additionalPrice null
 - SIMPLE_STOCK: initialPrice만 필수, additionalPrice null
 
-### 3. 수량 관리
-- totalQuantity는 0 이상이어야 함
-- 재고 차감 로직은 별도 UseCase에서 관리 (추후 구현)
+### 3. 수량 및 동시성 관리 (Issue #138, #145, #146, #157, #164)
+- `totalQuantity`: 총 재고 (0 이상)
+- `reservedQuantity`: 예약 중인 재고 (V9에서 추가)
+- `availableQuantity = totalQuantity - reservedQuantity`
+- **Atomic UPDATE 방식으로 동시성 제어** (ADR_002)
+- 오버부킹 완전 방지 (DB 원자성 보장)
+- 처리량: 50 TPS (E2E 테스트 검증)
 
 ### 4. 가격 계산
 - ProductPriceBreakdown을 통해 불변 스냅샷 생성
@@ -265,8 +269,19 @@ DELETE /api/admin/rooms/{roomId}/allowed-products
   - Task #83: Admin API 구현
   - CR #84: ProductRepositoryAdapter 필터링 추가
 
+## 최근 완료 사항 (동시성 제어)
+- Issue #138: 재고 동시성 문제 분석 및 해결 방안 도출 (완료)
+- Issue #145: V9 Migration - reserved_quantity 필드 추가 (완료)
+- Issue #146: E2E 재고 동시성 제어 테스트 (완료, 50 TPS 달성)
+- Issue #157: 재고 예약/해제 로직 구현 (완료)
+- Issue #164: 예약 환불 이벤트 처리 (완료)
+- V10 Migration: product_time_slot_inventory 테이블 추가 (완료)
+
 ## 향후 계획
-- Issue #12: ProductAvailabilityService 완성 (Place/Room Scope)
-  - Issue #15 (ReservationPricing 도메인) 완료 후 구현
-- Issue #17: 예약 가격 계산 Application Service 구현
-- Issue #18: 예약 가격 관리 API 구현
+- 재고 정합성 검증 배치 작업 추가
+- 재고 부족 알림 시스템 구현
+- 시간대별 재고 관리 최적화
+
+---
+
+**Last Updated**: 2025-11-12

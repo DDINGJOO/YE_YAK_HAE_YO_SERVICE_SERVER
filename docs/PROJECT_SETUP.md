@@ -214,6 +214,16 @@ Closes #이슈번호
 
 ---
 
+### 3. CI (Continuous Integration)
+- **파일**: `.github/workflows/ci.yml`
+- **트리거**: PR 생성/업데이트, main 브랜치 푸시
+- **기능**:
+  - 코드 빌드
+  - 테스트 실행
+  - 코드 품질 검증
+
+---
+
 ## GitHub CLI 활용
 
 ### 이슈 관리
@@ -437,4 +447,4 @@ public record TimeSlot(LocalTime startTime, LocalTime endTime) {
 
 ---
 
-**Last Updated**: 2025-11-08
+**Last Updated**: 2025-11-12

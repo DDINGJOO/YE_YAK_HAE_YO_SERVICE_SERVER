@@ -682,3 +682,7 @@ jobs:
 6. **Observability**: Micrometer, Prometheus
 
 다음 단계: **최종 아키텍처 결정 문서(ADR) 작성**
+
+---
+
+**Last Updated**: 2025-11-12

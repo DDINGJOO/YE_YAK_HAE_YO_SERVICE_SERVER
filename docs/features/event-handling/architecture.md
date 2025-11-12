@@ -8,8 +8,11 @@
 ├─────────────────────────────────────────────────────────────┤
 │  Event (abstract)                                            │
 │    ├── RoomCreatedEvent                                      │
-│    ├── SlotReservedEvent (future)                           │
-│    └── SlotCancelledEvent (future)                          │
+│    ├── RoomUpdatedEvent                                      │
+│    ├── SlotReservedEvent                                     │
+│    ├── ReservationConfirmedEvent (Task #88)                 │
+│    ├── ReservationCancelledEvent (Task #88)                 │
+│    └── ReservationRefundEvent (Issue #164)                  │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
@@ -18,8 +21,11 @@
 ├─────────────────────────────────────────────────────────────┤
 │  EventHandler<T extends Event> (interface)                   │
 │    ├── RoomCreatedEventHandler                              │
-│    ├── SlotReservedEventHandler (future)                    │
-│    └── SlotCancelledEventHandler (future)                   │
+│    ├── RoomUpdatedEventHandler                              │
+│    ├── SlotReservedEventHandler                             │
+│    ├── ReservationConfirmedEventHandler (Task #88)          │
+│    ├── ReservationCancelledEventHandler (Task #88)          │
+│    └── ReservationRefundEventHandler (Issue #164)           │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
@@ -290,3 +296,7 @@ catch (Exception e) {
 ### 3. 역직렬화
 - JsonUtil 인터페이스 사용
 - 구현체를 Jackson에서 다른 라이브러리로 교체 가능
+
+---
+
+**Last Updated**: 2025-11-12

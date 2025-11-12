@@ -96,6 +96,7 @@ Indexes:
 │     initial_price        │ DECIMAL(19,2)
 │     additional_price     │ DECIMAL(19,2) (nullable)
 │     total_quantity       │ INTEGER DEFAULT 0
+│     reserved_quantity    │ INTEGER DEFAULT 0 (V9)
 └──────────────────────────┘
 
 Constraints:
@@ -106,12 +107,42 @@ Constraints:
          (scope = 'RESERVATION' AND place_id IS NULL AND room_id IS NULL)
 - CHECK: (pricing_type = 'INITIAL_PLUS_ADDITIONAL' AND additional_price IS NOT NULL) OR
          (pricing_type IN ('ONE_TIME', 'SIMPLE_STOCK') AND additional_price IS NULL)
+- CHECK: (reserved_quantity <= total_quantity) (V9)
 
 Indexes:
 - idx_products_scope (scope)
 - idx_products_place_id (place_id) WHERE place_id IS NOT NULL
 - idx_products_room_id (room_id) WHERE room_id IS NOT NULL
 - idx_products_scope_place_id (scope, place_id) WHERE place_id IS NOT NULL
+
+┌─────────────────────────────────┐
+│ product_time_slot_inventory     │ (V10)
+├─────────────────────────────────┤
+│ PK  product_id                  │ BIGINT
+│ PK  inventory_date              │ DATE
+│ PK  slot_time                   │ TIME
+│     total_quantity              │ INTEGER DEFAULT 0
+│     reserved_quantity           │ INTEGER DEFAULT 0
+│     created_at                  │ TIMESTAMP
+│     updated_at                  │ TIMESTAMP
+└─────────────────────────────────┘
+
+Constraints:
+- CHECK: (reserved_quantity <= total_quantity)
+- FK: product_id → products.product_id ON DELETE CASCADE
+
+Indexes:
+- idx_product_time_slot_inventory_product_date (product_id, inventory_date)
+- idx_product_time_slot_inventory_date_slot (inventory_date, slot_time)
+
+Partitioning:
+- Monthly partitioning by inventory_date
+- Partition template: product_time_slot_inventory_YYYYMM
+
+Note:
+- ROOM/PLACE scope 상품의 시간대별 재고 관리 (V10 추가)
+- RESERVATION scope 상품은 이 테이블 미사용 (products 테이블의 재고만 사용)
+- 월별 파티셔닝으로 대용량 데이터 효율적 관리
 
 ┌──────────────────────────┐
 │ room_allowed_products    │
@@ -258,9 +289,58 @@ Note: 분산 스케줄링 잠금 관리 테이블 (V8 추가)
 - `initial_price`: 초기 가격 또는 단가
 - `additional_price`: 추가 가격 (INITIAL_PLUS_ADDITIONAL만 사용)
 - `total_quantity`: 총 재고 수량
+- `reserved_quantity`: 현재 예약된 수량 (V9에서 추가)
 
-**재고 관리**:
-재고는 ReservationPricing을 통해 관리되며, PENDING/CONFIRMED 상태의 예약만 재고에 영향을 줍니다.
+**재고 관리 및 동시성 제어**:
+
+재고는 **Atomic UPDATE 방식**으로 동시성을 제어합니다 (Issue #138, ADR_002):
+
+1. **재고 계산**:
+   - 가용 수량 = `total_quantity - reserved_quantity`
+   - PENDING/CONFIRMED 상태의 예약만 `reserved_quantity`에 반영
+
+2. **원자적 재고 예약** (Concurrency Control):
+```sql
+UPDATE products
+SET reserved_quantity = reserved_quantity + ?
+WHERE product_id = ?
+  AND (total_quantity - reserved_quantity) >= ?
+```
+- WHERE 절에서 재고 검증과 차감을 원자적으로 수행
+- DB Row Lock으로 동시 요청 순차 처리
+- UPDATE 성공 시 재고 예약 성공, 실패 시 재고 부족
+
+3. **재고 롤백** (여러 상품 예약 실패 시):
+```sql
+UPDATE products
+SET reserved_quantity = reserved_quantity - ?
+WHERE product_id = ?
+```
+- 부분 예약 실패 시 이전 예약 롤백
+- @Transactional로 전체 롤백 보장
+
+4. **재고 해제** (예약 취소/환불 시, Issue #157, #164):
+```sql
+-- RESERVATION Scope 상품
+UPDATE products
+SET reserved_quantity = reserved_quantity - ?
+WHERE product_id = ?
+
+-- ROOM/PLACE Scope 상품 (시간대별)
+UPDATE product_time_slot_inventory
+SET reserved_quantity = reserved_quantity - ?
+WHERE product_id = ? AND inventory_date = ? AND slot_time IN (?)
+```
+- ReservationRefundEventHandler가 명시적으로 재고 해제 (Issue #164)
+- ProductRepository.releaseQuantity() 호출로 원자적 재고 복원
+- RESERVATION Scope: products 테이블 업데이트
+- ROOM/PLACE Scope: product_time_slot_inventory 테이블 업데이트
+- @Transactional로 일관성 보장
+
+**장점**:
+- 오버부킹 완전 방지 (DB 원자성 보장)
+- 락 경합 없음 (높은 처리량: 50 TPS)
+- 데드락 위험 없음
 
 ---
 
@@ -388,6 +468,65 @@ Note: 분산 스케줄링 잠금 관리 테이블 (V8 추가)
 public void cancelExpiredReservations() {
     // PENDING이면서 만료된 예약 자동 취소
 }
+```
+
+---
+
+### 8. product_time_slot_inventory (시간대별 상품 재고)
+
+**목적**: ROOM/PLACE scope 상품의 시간대별 재고를 관리합니다 (V10에서 추가).
+
+**도메인 규칙**:
+- ROOM/PLACE scope 상품만 이 테이블 사용
+- RESERVATION scope 상품은 products 테이블의 재고만 사용
+- 재고 소진 방지를 위해 reserved_quantity <= total_quantity 제약
+- 상품이 삭제되면 재고 데이터도 함께 삭제 (CASCADE)
+
+**주요 컬럼**:
+- `product_id`: 상품 ID (FK: products.product_id)
+- `inventory_date`: 재고 날짜 (예: 2025-01-15)
+- `slot_time`: 시간 슬롯 (예: 10:00:00)
+- `total_quantity`: 해당 시간대의 총 재고 수량
+- `reserved_quantity`: 해당 시간대의 예약된 수량
+- `created_at`: 생성 일시
+- `updated_at`: 수정 일시
+
+**파티셔닝 전략**:
+- **월별 파티셔닝**: `inventory_date` 기준
+- 파티션 이름 형식: `product_time_slot_inventory_YYYYMM`
+- 예: `product_time_slot_inventory_202501` (2025년 1월)
+- 대용량 데이터 효율적 관리 및 조회 성능 최적화
+
+**사용 시나리오**:
+- ROOM scope 상품: 특정 룸, 특정 날짜, 특정 시간의 재고 관리
+  - 예: "2025-01-15 10:00~12:00에 룸 A의 빔 프로젝터 2대 예약 가능"
+- PLACE scope 상품: 플레이스 전체, 특정 날짜, 특정 시간의 재고 관리
+  - 예: "2025-01-15 14:00~16:00에 플레이스의 화이트보드 5개 예약 가능"
+
+**동시성 제어**:
+- products 테이블과 동일하게 Atomic UPDATE 방식 사용
+```sql
+UPDATE product_time_slot_inventory
+SET reserved_quantity = reserved_quantity + ?
+WHERE product_id = ? AND inventory_date = ? AND slot_time = ?
+  AND (total_quantity - reserved_quantity) >= ?
+```
+
+**예시**:
+```sql
+-- 2025년 1월 15일 10:00 시간대의 상품 ID 1번 재고 관리
+INSERT INTO product_time_slot_inventory
+  (product_id, inventory_date, slot_time, total_quantity, reserved_quantity)
+VALUES
+  (1, '2025-01-15', '10:00:00', 5, 0);
+
+-- 2개 예약
+UPDATE product_time_slot_inventory
+SET reserved_quantity = reserved_quantity + 2
+WHERE product_id = 1
+  AND inventory_date = '2025-01-15'
+  AND slot_time = '10:00:00'
+  AND (total_quantity - reserved_quantity) >= 2;
 ```
 
 ---
@@ -577,6 +716,8 @@ INSERT INTO reservation_pricing_products (reservation_id, product_id, product_na
 | V6 | room_allowed_products 테이블 추가 (룸별 허용 상품 화이트리스트) | 2025-11-09 |
 | V7 | reservation_pricings에 expires_at 컬럼 추가 (PENDING 예약 자동 만료) | 2025-11-09 |
 | V8 | shedlock 테이블 추가 (분산 스케줄링 잠금) | 2025-11-09 |
+| V9 | products에 reserved_quantity 컬럼 추가 (재고 동시성 제어) | 2025-11-12 |
+| V10 | product_time_slot_inventory 테이블 추가 (시간대별 재고 관리, 월별 파티셔닝) | 2025-11-12 |
 
 ---
 
@@ -593,9 +734,8 @@ INSERT INTO reservation_pricing_products (reservation_id, product_id, product_na
 - **동적 가격 정책**: Dynamic Pricing 알고리즘 적용
 
 ### 데이터 무결성
-- **재고 동시성 제어**: Optimistic Lock 또는 Pessimistic Lock 적용
 - **분산 트랜잭션**: Saga 패턴 고려 (마이크로서비스 환경)
 
 ---
 
-**Last Updated**: 2025-11-09
+**Last Updated**: 2025-11-12

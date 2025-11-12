@@ -388,6 +388,90 @@ public ReservationPricingResponse cancelReservation(Long reservationId) {
 
 ---
 
+### 8단계: 예약 환불 (선택적, Issue #164)
+
+#### 환불 시나리오
+결제 완료 후 환불 요청 시 (CONFIRMED → CANCELLED)
+
+#### 결제 서비스 동작
+```
+POST /api/payments/5000/refund
+
+Response:
+{
+  "paymentId": 5000,
+  "reservationId": 1000,
+  "refundAmount": 95000,
+  "refundedAt": "2025-11-09T10:20:00",
+  "status": "REFUNDED"
+}
+```
+
+#### 이벤트 발행
+```json
+{
+  "topic": "reservation-events",
+  "eventType": "ReservationRefund",
+  "reservationId": 1000,
+  "refundedAt": "2025-11-09T10:20:00",
+  "reason": "USER_REQUEST"
+}
+```
+
+#### ReservationRefundEvent 수신
+가격 서비스의 EventConsumer가 이벤트 수신
+
+#### 가격 서비스 동작
+```java
+@KafkaListener(topics = "reservation-events")
+public void consumeReservationEvents(String message) {
+    ReservationRefundEvent event = deserialize(message);
+    reservationRefundEventHandler.handle(event);
+}
+```
+
+#### 핸들러 처리 (Issue #164)
+```java
+public void handle(ReservationRefundEvent event) {
+    // 1. ReservationPricing 조회
+    ReservationPricing pricing = reservationPricingRepository
+        .findById(event.getReservationId())
+        .orElseThrow(...);
+
+    // 2. 멱등성 체크: 이미 CANCELLED 상태면 무시
+    if (pricing.getStatus() == ReservationStatus.CANCELLED) {
+        return;
+    }
+
+    // 3. 상태 변경: CONFIRMED → CANCELLED
+    pricing.cancel();
+
+    // 4. 상품 재고 해제 (Issue #157)
+    for (ProductPriceBreakdown product : pricing.getProductBreakdowns()) {
+        productRepository.releaseQuantity(
+            product.productId(),
+            product.quantity(),
+            pricing.getTimeSlots()  // ROOM/PLACE Scope용
+        );
+    }
+
+    // 5. 저장
+    reservationPricingRepository.save(pricing);
+}
+```
+
+**재고 해제 로직** (Issue #157):
+- **RESERVATION Scope**: `UPDATE products SET reserved_quantity = reserved_quantity - ? WHERE product_id = ?`
+- **ROOM/PLACE Scope**: `UPDATE product_time_slot_inventory SET reserved_quantity = reserved_quantity - ? WHERE product_id = ? AND slot_time IN (?)`
+
+**포인트**:
+- CONFIRMED 상태에서만 환불 처리
+- 상품 재고가 명시적으로 해제됨 (ProductRepository.releaseQuantity)
+- 멱등성 보장 (중복 이벤트 처리 시 안전)
+- Atomic UPDATE로 동시성 제어 (ADR_002)
+
+---
+
 ## 상태 전이 다이어그램
 
 ```
@@ -501,3 +585,7 @@ CANCELLED = Released (해제됨)
 - [Product Domain](../product/domain.md)
 - [Product - 룸별 상품 허용 관리](../product/README.md#룸별-상품-허용-관리-epic-77)
 - [Event Handling Architecture](../event-handling/architecture.md)
+
+---
+
+**Last Updated**: 2025-11-12

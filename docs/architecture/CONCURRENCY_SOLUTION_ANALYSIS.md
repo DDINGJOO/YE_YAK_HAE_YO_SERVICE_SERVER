@@ -1,8 +1,27 @@
 # 동시성 제어 해결방안 분석
 
-**문서 버전:** 1.0
+**문서 버전:** 1.1
 **작성일:** 2025-11-12
-**상태:** FINAL
+**최종 업데이트:** 2025-11-12
+**상태:** IMPLEMENTED
+
+---
+
+## 구현 상태
+
+**선택된 방안:** Database Constraint (Atomic UPDATE)
+
+**구현 완료 이슈:**
+- Issue #138: 재고 동시성 문제 분석 및 해결 방안 도출 (완료)
+- Issue #145 (V9 Migration): `reserved_quantity` 컬럼 추가 (완료)
+- Issue #146: E2E 재고 동시성 제어 테스트 (완료, **50 TPS 달성**)
+- Issue #157: 재고 예약/해제 로직 구현 (완료)
+- Issue #164: 예약 환불 이벤트 처리 및 재고 자동 해제 (완료)
+
+**성능 검증 결과:**
+- E2E 테스트 (Issue #146): **50 TPS 달성**
+- 오버부킹 발생률: **0%**
+- 동시성 제어 정확도: **100%**
 
 ---
 
@@ -792,28 +811,28 @@ Infrastructure (Adapter)
 
 ## 구현 체크리스트
 
-### Phase 1: 도메인 모델 변경
-- [ ] Product 엔티티에 `reservedQuantity` 필드 추가
-- [ ] `getAvailableQuantity()` 메서드 추가
-- [ ] `canReserve()` 메서드 추가
-- [ ] 단위 테스트 작성
+### Phase 1: 도메인 모델 변경 (Issue #145)
+- [x] Product 엔티티에 `reservedQuantity` 필드 추가
+- [x] `getAvailableQuantity()` 메서드 추가
+- [x] `canReserve()` 메서드 추가
+- [x] 단위 테스트 작성
 
-### Phase 2: Repository 구현
-- [ ] ProductRepository Port에 `reserveQuantity()` 메서드 추가
-- [ ] `releaseQuantity()` 메서드 추가
-- [ ] Adapter에서 원자적 UPDATE 쿼리 구현
-- [ ] 통합 테스트 작성
+### Phase 2: Repository 구현 (Issue #157)
+- [x] ProductRepository Port에 `reserveQuantity()` 메서드 추가
+- [x] `releaseQuantity()` 메서드 추가 (Issue #157, #164)
+- [x] Adapter에서 원자적 UPDATE 쿼리 구현
+- [x] 통합 테스트 작성
 
-### Phase 3: Application Service 수정
-- [ ] `createReservation()` 메서드 수정
-- [ ] 롤백 로직 구현
-- [ ] 예외 처리 개선
-- [ ] E2E 테스트 작성
+### Phase 3: Application Service 수정 (Issue #157)
+- [x] `createReservation()` 메서드 수정
+- [x] 롤백 로직 구현
+- [x] 예외 처리 개선
+- [x] E2E 테스트 작성 (Issue #146, 50 TPS 달성)
 
-### Phase 4: Database Migration
-- [ ] Flyway 마이그레이션 스크립트 작성
-- [ ] 기존 데이터 마이그레이션 (reserved_quantity = 0)
-- [ ] Constraint 추가 (reserved_quantity <= total_quantity)
+### Phase 4: Database Migration (Issue #145, V9/V10)
+- [x] Flyway 마이그레이션 스크립트 작성 (V9: reserved_quantity, V10: product_time_slot_inventory)
+- [x] 기존 데이터 마이그레이션 (reserved_quantity = 0)
+- [x] Constraint 추가 (reserved_quantity <= total_quantity)
 
 ### Phase 5: 모니터링
 - [ ] 재고 예약 실패 메트릭 추가

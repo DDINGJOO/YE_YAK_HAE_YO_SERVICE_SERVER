@@ -14,7 +14,8 @@ Product (Aggregate Root)
 │   ├── PricingType
 │   ├── Money initialPrice
 │   └── Money additionalPrice (nullable, Type에 따라)
-└── int totalQuantity
+├── int totalQuantity
+└── int reservedQuantity  ← V9에서 추가 (Issue #138, ADR_002)
 ```
 
 ### 주요 책임
@@ -29,11 +30,23 @@ Product (Aggregate Root)
    - 수량별 총액 계산
    - ProductPriceBreakdown 생성 (가격 스냅샷)
 
-3. **불변식 유지**
+3. **재고 동시성 제어 (Issue #138, ADR_002)**
+   - `totalQuantity`: 총 재고 수량
+   - `reservedQuantity`: 예약 중인 수량 (PENDING/CONFIRMED 상태)
+   - `availableQuantity = totalQuantity - reservedQuantity`
+   - Atomic UPDATE 방식으로 오버부킹 방지
+   - **Port 메서드**:
+     - `reserveQuantity(productId, quantity)`: 원자적 재고 예약
+     - `releaseQuantity(productId, quantity)`: 재고 해제 (취소/환불 시)
+     - `confirmReservation(reservationId)`: 소프트 락 → 하드 락
+     - `cancelReservation(reservationId)`: 하드 락 해제
+
+4. **불변식 유지**
    - Scope별 PlaceId/RoomId 필수 여부 검증
    - PricingType별 additionalPrice 필수 여부 검증
    - 음수 가격 및 수량 방지
    - 상품명 공백 방지
+   - **재고 일관성**: `reservedQuantity <= totalQuantity` (DB CHECK 제약)
 
 ## Value Objects
 
@@ -260,10 +273,71 @@ private void validateScopeIds(PlaceId placeId, RoomId roomId, ProductScope scope
 모든 수량: unitPrice = initialPrice, totalPrice = initialPrice * quantity
 ```
 
-### 5. 재고 관리
-- `totalQuantity`는 0 이상이어야 함
-- 재고 차감 로직은 별도 UseCase에서 처리 (추후 구현)
-- Product는 재고 수량 변경 기능만 제공
+### 5. 재고 동시성 제어 (Issue #138, ADR_002)
+
+**재고 구조 (V9 Migration)**:
+```java
+public class Product {
+    private int totalQuantity;      // 총 재고
+    private int reservedQuantity;   // 예약 중인 재고
+
+    public int getAvailableQuantity() {
+        return totalQuantity - reservedQuantity;
+    }
+}
+```
+
+**동시성 제어 방식**: Database Constraint (Atomic UPDATE)
+
+**재고 예약 흐름**:
+```sql
+-- 1. 원자적 재고 예약 (오버부킹 방지)
+UPDATE products
+SET reserved_quantity = reserved_quantity + ?
+WHERE product_id = ?
+  AND (total_quantity - reserved_quantity) >= ?
+
+-- 2. UPDATE 성공 시: 재고 예약 성공
+-- 3. UPDATE 실패 시 (0 rows affected): 재고 부족
+```
+
+**장점**:
+- 오버부킹 완전 방지 (DB 원자성 보장)
+- 락 경합 없음 (높은 처리량: 50 TPS)
+- 데드락 위험 없음
+- Hexagonal Architecture 유지 (Port를 통한 추상화)
+
+**재고 상태 전환**:
+```
+1. PENDING 예약 생성: reservedQuantity 증가 (소프트 락)
+2. CONFIRMED 확정: reservedQuantity 유지 (하드 락)
+3. CANCELLED 취소: reservedQuantity 감소 (재고 해제)
+```
+
+**불변식**:
+- `totalQuantity >= 0`
+- `reservedQuantity >= 0`
+- `reservedQuantity <= totalQuantity` (DB CHECK 제약)
+
+**시간대별 재고 관리 (V10 Migration)**:
+
+ROOM/PLACE scope 상품은 `product_time_slot_inventory` 테이블로 시간대별 재고 관리:
+```sql
+CREATE TABLE product_time_slot_inventory (
+    product_id BIGINT,
+    inventory_date DATE,
+    slot_time TIME,
+    total_quantity INTEGER,
+    reserved_quantity INTEGER,
+    PRIMARY KEY (product_id, inventory_date, slot_time)
+) PARTITION BY RANGE (inventory_date);  -- 월별 파티셔닝
+```
+
+**적용 범위**:
+- **ROOM/PLACE scope**: 시간대별 재고 (product_time_slot_inventory)
+- **RESERVATION scope**: 전체 재고만 사용 (products 테이블)
+
+자세한 내용은 [ADR_002: 동시성 제어 방식 결정](../../adr/ADR_002_CONCURRENCY_CONTROL.md) 참조
 
 ## Factory Methods
 
@@ -521,3 +595,7 @@ product.updatePricingStrategy(
 **Repository**:
 - Aggregate 단위로 저장/조회
 - Domain 계층에는 Port만 존재
+
+---
+
+**Last Updated**: 2025-11-12

@@ -102,11 +102,17 @@ com.teambind.springproject/
 - 추가상품 등록 및 관리
 - 적용 범위 관리 (PLACE/ROOM/RESERVATION scope)
 - 가격 책정 전략 관리
-- 재고 가용성 계산
+- 재고 가용성 계산 및 동시성 제어
+
+**동시성 제어 (Issue #138, #145, #146, ADR_002):**
+- `reserved_quantity`: 예약 중인 재고 (V9 Migration, Issue #145)
+- `product_time_slot_inventory`: 시간대별 재고 관리 (V10 Migration)
+- Atomic UPDATE 연산으로 동시 예약 처리 (50 TPS 달성, Issue #146)
 
 **도메인 규칙:**
 - ✅ scope에 따라 place_id/room_id 조합 제약
 - ✅ pricing_type에 따라 가격 계산 전략 적용
+- ✅ available_quantity ≥ reserved_quantity (CHECK 제약)
 - ❌ 가격 < 0원
 
 **가격 책정 전략:**
@@ -251,6 +257,14 @@ public class PricingPolicyController {
 - Kafka 메시지 발행/수신
 - 이벤트 직렬화/역직렬화
 
+**구현된 Event Handlers (총 6개):**
+- `RoomCreatedEventHandler`: 룸 생성 이벤트 수신 및 가격 정책 자동 생성 (Issue #9)
+- `RoomUpdatedEventHandler`: 룸 정보 업데이트 이벤트 처리
+- `SlotReservedEventHandler`: 예약 생성 이벤트 수신, 가격 계산 및 재고 예약 (Issue #157)
+- `ReservationConfirmedEventHandler`: 예약 확정 이벤트 처리 (Task #88)
+- `ReservationCancelledEventHandler`: 예약 취소 이벤트 처리 (Task #88)
+- `ReservationRefundEventHandler`: 예약 환불 이벤트 수신 및 재고 자동 해제 (Issue #164)
+
 ---
 
 ## 의존성 규칙 (Dependency Rule)
@@ -393,4 +407,4 @@ public class ProductEntity {
 
 ---
 
-**Last Updated**: 2025-11-09
+**Last Updated**: 2025-11-12

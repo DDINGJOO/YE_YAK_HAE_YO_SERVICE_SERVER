@@ -60,12 +60,16 @@
   - 시간대별 재고 계산
   - PENDING/CONFIRMED 상태의 예약만 재고 차감
 
-### Event Handling Layer (Task #88, #89)
+### Event Handling Layer (Task #88, #89, Issue #164)
 - **ReservationConfirmedEventHandler**: 결제 완료 이벤트 처리
   - ReservationConfirmed 이벤트 수신 시 PENDING → CONFIRMED 전환
   - 멱등성 보장 (중복 처리 방지)
 - **ReservationCancelledEventHandler**: 결제 취소 이벤트 처리
   - ReservationCancelled 이벤트 수신 시 → CANCELLED 전환
+  - 멱등성 보장
+- **ReservationRefundEventHandler**: 예약 환불 이벤트 처리 (Issue #164)
+  - ReservationRefund 이벤트 수신 시 CONFIRMED → CANCELLED 전환
+  - 상품 재고 해제 (releaseQuantity)
   - 멱등성 보장
 - **PendingReservationTimeoutScheduler**: PENDING 타임아웃 처리
   - 스케줄러 (매 1분마다 실행)
@@ -90,6 +94,8 @@
 - Task #88: Payment Event Handlers 구현 (완료)
 - Task #89: PENDING timeout 처리 구현 (완료)
 - Story #4: 예약 가격 계산 및 저장 (완료)
+- Issue #157: 재고 예약/해제 로직 구현 (완료)
+- Issue #164: 예약 환불 이벤트 처리 유즈케이스 구현 (완료)
 
 ## 예약 상태 전이
 
@@ -249,31 +255,56 @@ reservation:
       cron: "0 */1 * * * *"  # 매 1분마다
 ```
 
-## 이벤트 처리 (Task #88)
+## 이벤트 처리 (Task #88, Issue #164)
 
 ### ReservationConfirmed 이벤트
 - **발행자**: Payment 서비스
-- **Topic**: payment-events
+- **Topic**: reservation-events
 - **처리**: PENDING → CONFIRMED 상태 전환
+- **비즈니스 로직**: 상품 재고 하드 락 (결제 확정)
 
 ### ReservationCancelled 이벤트
-- **발행자**: Payment 서비스 또는 사용자 취소
-- **Topic**: payment-events
+- **발행자**: Reservation 서비스 또는 사용자 취소
+- **Topic**: reservation-events
 - **처리**: PENDING/CONFIRMED → CANCELLED 상태 전환
+- **비즈니스 로직**: 상품 재고 해제
+
+### ReservationRefund 이벤트 (Issue #164)
+- **발행자**: Payment 서비스
+- **Topic**: reservation-events
+- **처리**: CONFIRMED → CANCELLED 상태 전환
+- **비즈니스 로직**:
+  - 예약 상태를 CANCELLED로 변경
+  - 예약에 포함된 모든 상품 재고 해제 (ProductRepository.releaseQuantity)
+  - RESERVATION Scope 상품: totalQuantity 복원
+  - ROOM/PLACE Scope 상품: product_time_slot_inventory 테이블에서 재고 복원
 
 ### 멱등성 보장
 - 동일한 reservationId에 대해 중복 이벤트 처리 시 예외 발생하지 않음
 - 상태가 이미 변경된 경우 무시
+- 이벤트 재처리 시 안전성 보장
 
 ---
 
 ## 구현 완료 사항
-- Task #74: ReservationPricing Aggregate 및 가격 계산 로직 구현
-- Task #88: Payment Event Handlers 구현
-- Task #89: PENDING timeout 처리 구현
-- Story #4: 예약 가격 계산 및 저장 완료
+- Task #74: ReservationPricing Aggregate 및 가격 계산 로직 구현 (완료)
+- Task #88: Payment Event Handlers 구현 (완료)
+- Task #89: PENDING timeout 처리 구현 (완료)
+- Story #4: 예약 가격 계산 및 저장 (완료)
+- Issue #157: 재고 예약/해제 로직 구현 (완료)
+  - ProductRepository.reserveQuantity() 구현
+  - ProductRepository.releaseQuantity() 구현
+  - Atomic UPDATE 방식으로 동시성 제어
+- Issue #164: 예약 환불 이벤트 처리 유즈케이스 구현 (완료)
+  - ReservationRefundEventHandler 구현
+  - CONFIRMED → CANCELLED 상태 전환
+  - 상품 재고 자동 해제
 
 ## 향후 계획
 - 예약 히스토리 조회 API
 - 통계 및 리포트 기능
 - 캐싱 전략 (Redis)
+
+---
+
+**Last Updated**: 2025-11-12

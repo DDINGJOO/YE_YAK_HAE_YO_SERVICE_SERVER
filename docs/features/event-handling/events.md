@@ -102,13 +102,37 @@ public final class RoomCreatedEvent extends Event {
 
 ---
 
-## 향후 추가 예정 이벤트
+---
 
-### 2. SlotReservedEvent (Future)
+### 2. RoomUpdatedEvent
+
+**목적**: Place 서비스에서 룸 정보가 업데이트되었을 때 발행
+
+**Producer**: Place Service
+
+**Consumer**: Pricing Service
+
+**Topic**: `room-events`
+
+**처리 핸들러**: `RoomUpdatedEventHandler`
+
+**비즈니스 로직**: PricingPolicy 정보 업데이트
+
+---
+
+### 3. SlotReservedEvent
 
 **목적**: 예약이 생성되었을 때 발행
 
-**Topic**: `reservation-events`
+**Producer**: Reservation Service
+
+**Consumer**: Pricing Service
+
+**Topic**: `slot-events`
+
+**처리 핸들러**: `SlotReservedEventHandler`
+
+**비즈니스 로직**: 예약 가격 계산 및 재고 소프트 락 (PENDING 상태)
 
 **예상 스키마**:
 ```json
@@ -123,16 +147,47 @@ public final class RoomCreatedEvent extends Event {
 }
 ```
 
-**예상 비즈니스 로직**:
-- 재고 차감 (Inventory Service)
-- 알림 발송 (Notification Service)
-- 통계 업데이트 (Analytics Service)
+---
 
-### 3. SlotCancelledEvent (Future)
+### 4. ReservationConfirmedEvent
+
+**목적**: 예약이 결제 완료되어 확정되었을 때 발행
+
+**Producer**: Payment Service
+
+**Consumer**: Pricing Service
+
+**Topic**: `reservation-events`
+
+**처리 핸들러**: `ReservationConfirmedEventHandler`
+
+**비즈니스 로직**: PENDING → CONFIRMED 상태 전환, 재고 하드 락
+
+**예상 스키마**:
+```json
+{
+  "topic": "reservation-events",
+  "eventType": "ReservationConfirmed",
+  "reservationId": 1001,
+  "confirmedAt": "2025-01-06T18:05:00"
+}
+```
+
+---
+
+### 5. ReservationCancelledEvent
 
 **목적**: 예약이 취소되었을 때 발행
 
+**Producer**: Reservation Service
+
+**Consumer**: Pricing Service
+
 **Topic**: `reservation-events`
+
+**처리 핸들러**: `ReservationCancelledEventHandler`
+
+**비즈니스 로직**: 예약 상태 CANCELLED로 변경, 재고 해제
 
 **예상 스키마**:
 ```json
@@ -146,10 +201,32 @@ public final class RoomCreatedEvent extends Event {
 }
 ```
 
-**예상 비즈니스 로직**:
-- 재고 복구
-- 환불 처리
-- 통계 업데이트
+---
+
+### 6. ReservationRefundEvent
+
+**목적**: 예약 환불이 처리되었을 때 발행
+
+**Producer**: Payment Service
+
+**Consumer**: Pricing Service
+
+**Topic**: `reservation-events`
+
+**처리 핸들러**: `ReservationRefundEventHandler`
+
+**비즈니스 로직**: CONFIRMED → CANCELLED 상태 전환, 재고 해제
+
+**예상 스키마**:
+```json
+{
+  "topic": "reservation-events",
+  "eventType": "ReservationRefund",
+  "reservationId": 1001,
+  "refundedAt": "2025-01-07T14:30:00",
+  "reason": "USER_REQUEST"
+}
+```
 
 ---
 
@@ -190,6 +267,11 @@ private static final Map<String, Class<? extends Event>> EVENT_TYPE_MAP = new Ha
 
 static {
     EVENT_TYPE_MAP.put("RoomCreated", RoomCreatedEvent.class);
+    EVENT_TYPE_MAP.put("RoomUpdated", RoomUpdatedEvent.class);
+    EVENT_TYPE_MAP.put("SlotReserved", SlotReservedEvent.class);
+    EVENT_TYPE_MAP.put("ReservationConfirmed", ReservationConfirmedEvent.class);
+    EVENT_TYPE_MAP.put("ReservationCancelled", ReservationCancelledEvent.class);
+    EVENT_TYPE_MAP.put("ReservationRefund", ReservationRefundEvent.class);
 }
 ```
 
@@ -221,3 +303,7 @@ static {
 - kebab-case 사용: `room-events`, `reservation-events`
 - 서비스별 또는 도메인별로 토픽 분리
 - 이벤트 타입은 메시지 내 `eventType` 필드로 구분
+
+---
+
+**Last Updated**: 2025-11-12

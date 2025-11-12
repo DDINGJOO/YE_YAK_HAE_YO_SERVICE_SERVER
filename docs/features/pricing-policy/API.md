@@ -278,3 +278,7 @@ curl -X POST http://localhost:8080/api/pricing-policies/2/copy \
 
 - [도메인 모델](../../../docs/architecture/DOMAIN_MODEL_DESIGN.md)
 - [아키텍처 개요](../../../docs/architecture/ARCHITECTURE_ANALYSIS.md)
+
+---
+
+**Last Updated**: 2025-11-12

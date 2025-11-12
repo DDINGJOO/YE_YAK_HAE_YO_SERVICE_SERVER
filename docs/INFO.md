@@ -6,8 +6,9 @@
 
 ### 핵심 기능
 1. **시간대별 예약 가격 세팅 및 계산**
-2. **추가상품 관리** (플레이스/룸/예약 범위별)
+2. **추가상품 관리 및 재고 제어** (플레이스/룸/예약 범위별, 동시성 제어)
 3. **예약 총 가격 정보 저장 및 계산** (형상관리)
+4. **예약 환불 처리 및 재고 해제**
 
 ### 아키텍처
 - **Hexagonal Architecture + Domain-Driven Design (DDD)**
@@ -84,7 +85,7 @@ PR이 생성되거나 업데이트되면 변경된 파일 경로를 분석하여
 | `layer:util` | #6B7280 | `**/util/**`<br>`**/helper/**`<br>`**/common/**` | 유틸리티/헬퍼 함수 |
 | `layer:config` | #EC4899 | `**/config/**`<br>`**/configuration/**` | 설정/Configuration |
 | `layer:test` | #14B8A6 | `src/test/**`<br>`**/*Test.java`<br>`**/*Tests.java` | 테스트 코드 |
-| `layer:resource` | #A855F7 | `src/main/resources/**/*.yml`<br>`src/main/resources/**/*.properties`<br>`src/main/resources/**/*.xml`<br>`src/main/resources/**/*.json` | 리소스 파일 |
+| `layer:resource` | #A855F7 | `src/main/resources/**/*.yml`<br>`src/main/resources/**/*.yaml`<br>`src/main/resources/**/*.properties`<br>`src/main/resources/**/*.xml`<br>`src/main/resources/**/*.json` | 리소스 파일 |
 
 ### 라벨링 예시
 
@@ -208,6 +209,7 @@ Resolves #67
 ### 워크플로우
 - `.github/workflows/auto-label.yml` - 자동 라벨링
 - `.github/workflows/auto-close-issues.yml` - 이슈 자동 닫기
+- `.github/workflows/ci.yml` - 지속적 통합 (CI)
 
 ### 설정 파일
 - `.github/labeler.yml` - 라벨 매칭 규칙

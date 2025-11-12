@@ -29,11 +29,21 @@ Kafka를 통한 이벤트 기반 아키텍처를 구현한 기능입니다. 객�
 
 ### Event Layer
 - **Event**: 추상 클래스, 모든 이벤트의 기반
-- **RoomCreatedEvent**: 룸 생성 이벤트 구현체
+- **RoomCreatedEvent**: 룸 생성 이벤트
+- **RoomUpdatedEvent**: 룸 정보 업데이트 이벤트
+- **SlotReservedEvent**: 예약 생성 이벤트
+- **ReservationConfirmedEvent**: 예약 확정 이벤트 (결제 완료)
+- **ReservationCancelledEvent**: 예약 취소 이벤트
+- **ReservationRefundEvent**: 예약 환불 이벤트 (Issue #164)
 
 ### Handler Layer
 - **EventHandler<T>**: Generic 인터페이스
-- **RoomCreatedEventHandler**: RoomCreatedEvent 처리 구현체
+- **RoomCreatedEventHandler**: 가격 정책 자동 생성
+- **RoomUpdatedEventHandler**: 가격 정책 정보 업데이트
+- **SlotReservedEventHandler**: 예약 가격 계산 및 재고 소프트 락
+- **ReservationConfirmedEventHandler**: 예약 상태 CONFIRMED 전환 (Task #88)
+- **ReservationCancelledEventHandler**: 예약 상태 CANCELLED 전환 (Task #88)
+- **ReservationRefundEventHandler**: 예약 환불 처리 및 재고 해제 (Issue #164)
 
 ### Consumer Layer
 - **EventConsumer**: Kafka Consumer 및 라우터
@@ -70,7 +80,14 @@ Repository (PricingPolicyRepository)
 - [통신 규약](./protocol.md)
 
 ## 관련 Issues
-- Issue #9: RoomCreatedEvent 리스너 및 가격 정책 자동 생성
+- Issue #9: RoomCreatedEvent 리스너 및 가격 정책 자동 생성 (완료)
+- Task #88: Payment Event Handlers 구현 (완료)
+  - ReservationConfirmedEventHandler
+  - ReservationCancelledEventHandler
+- Issue #157: 재고 예약/해제 로직 구현 (완료)
+- Issue #164: 예약 환불 이벤트 처리 유즈케이스 구현 (완료)
+  - ReservationRefundEventHandler 추가
+  - 상품 재고 자동 해제 로직
 
 ## 확장 가능성
 새로운 이벤트 추가 시 필요한 작업:
@@ -80,3 +97,7 @@ Repository (PricingPolicyRepository)
 4. 테스트 작성
 
 기존 코드 수정 불필요!
+
+---
+
+**Last Updated**: 2025-11-12

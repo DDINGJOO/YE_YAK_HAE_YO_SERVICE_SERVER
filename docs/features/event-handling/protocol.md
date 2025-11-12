@@ -68,8 +68,8 @@ spring:
 
 | Topic | Event Types | Producer | Consumers |
 |-------|-------------|----------|-----------|
-| room-events | RoomCreated | Place Service | Pricing Service |
-| reservation-events | SlotReserved, SlotCancelled | Reservation Service | Inventory, Notification |
+| room-events | RoomCreated, RoomUpdated | Place Service | Pricing Service |
+| reservation-events | SlotReserved, ReservationConfirmed, ReservationCancelled, ReservationRefund | Reservation/Payment Service | Pricing Service |
 
 ## Event Type 명명 규칙
 
@@ -89,8 +89,11 @@ spring:
 | Event Type | 설명 | 문서 |
 |------------|------|------|
 | RoomCreated | 룸 생성 완료 | [events.md](./events.md#1-roomcreatedevent) |
-| SlotReserved | 예약 생성 완료 (예정) | [events.md](./events.md#2-slotreservedevent-future) |
-| SlotCancelled | 예약 취소 완료 (예정) | [events.md](./events.md#3-slotcancelledevent-future) |
+| RoomUpdated | 룸 정보 업데이트 완료 | [events.md](./events.md#2-roomupdatedevent) |
+| SlotReserved | 예약 생성 완료 | [events.md](./events.md#3-slotreservedevent) |
+| ReservationConfirmed | 예약 확정 완료 (결제 완료) | [events.md](./events.md#4-reservationconfirmedevent) |
+| ReservationCancelled | 예약 취소 완료 | [events.md](./events.md#5-reservationcancelledevent) |
+| ReservationRefund | 예약 환불 완료 | [events.md](./events.md#6-reservationrefundevent) |
 
 ## 직렬화/역직렬화
 
@@ -344,3 +347,7 @@ class EventConsumerIntegrationTest {
 | 버전 | 날짜 | 변경 내용 |
 |------|------|-----------|
 | 1.0 | 2025-01-09 | 초기 문서 작성 |
+
+---
+
+**Last Updated**: 2025-11-12

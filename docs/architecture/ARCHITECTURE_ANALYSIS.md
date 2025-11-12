@@ -488,3 +488,7 @@ com.example.reservationpricing
 4. Clean Architecture보다 단순하면서도 충분한 격리 제공
 
 다음 단계: **도메인 모델 설계 대안 비교**에서 구체적인 Aggregate 설계를 다룹니다.
+
+---
+
+**Last Updated**: 2025-11-12

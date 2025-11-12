@@ -262,7 +262,7 @@ Money totalPrice = projector.getPricingStrategy().calculatePrice(3);
 
 예약 시점의 가격 정보를 불변 객체로 저장하여 이후 가격 정책 변경에 영향받지 않습니다.
 
-#### 예약 프로세스 (3단계)
+#### 예약 프로세스 (4단계)
 
 ```
 1. 슬롯 예약 (외부 서비스)
@@ -270,14 +270,23 @@ Money totalPrice = projector.getPricingStrategy().calculatePrice(3);
 
 2. 가격 계산 및 PENDING 상태 예약 생성 (이 서비스)
    - 시간대별 가격 계산
-   - 추가상품 재고 확인
+   - 추가상품 재고 확인 및 소프트 락
    - 총 가격 계산 및 스냅샷 저장
    ↓
 
 3. 결제 완료 후 CONFIRMED 상태 전환 (외부 서비스)
-   ↓ PaymentCompletedEvent 수신
+   ↓ ReservationConfirmedEvent 수신
 
 4. 예약 확정 (이 서비스)
+   - 소프트 락 → 하드 락 전환
+   ↓
+
+5. 환불 처리 (외부 서비스)
+   ↓ ReservationRefundEvent 수신
+
+6. 예약 취소 및 재고 해제 (이 서비스)
+   - CONFIRMED → CANCELLED 상태 전환
+   - 하드 락 해제
 ```
 
 #### 불변 스냅샷 구현
@@ -735,7 +744,20 @@ public class ReservationPricingService {
 │     pricing_type VARCHAR   │  │
 │     initial_price DECIMAL  │  │
 │     total_quantity INTEGER │  │
-└────────────────────────────┘  │
+│     reserved_quantity INT  │  │ V9: 동시성 제어용
+└────────────┬───────────────┘  │
+             │                  │
+             │ 1                │
+             │                  │
+             │ *                │
+┌────────────▼───────────────┐  │
+│product_time_slot_inventory │  │ V10: 시간대별 재고 관리
+├────────────────────────────┤  │
+│ PK  product_id  BIGINT     │──┘
+│ PK  room_id     BIGINT     │
+│ PK  time_slot   TIMESTAMP  │
+│     reserved_qty INTEGER   │
+└────────────────────────────┘
                                 │
 ┌────────────────────────────┐  │
 │  reservation_pricings      │  │
@@ -745,6 +767,7 @@ public class ReservationPricingService {
 │     place_id       BIGINT  │
 │     status         VARCHAR │  PENDING|CONFIRMED|CANCELLED
 │     total_price    DECIMAL │
+│     expires_at  TIMESTAMP  │  V7: PENDING 타임아웃
 │     calculated_at  TIMESTAMP│
 └───────────┬────────────────┘
             │ 1
@@ -769,6 +792,13 @@ public class ReservationPricingService {
 │     unit_price     DECIMAL │ 스냅샷
 │     total_price    DECIMAL │
 │     pricing_type   VARCHAR │ 스냅샷
+└────────────────────────────┘
+
+┌────────────────────────────┐
+│  room_allowed_products     │ V6: 룸별 허용 상품
+├────────────────────────────┤
+│ PK  room_id     BIGINT     │
+│ PK  product_id  BIGINT     │
 └────────────────────────────┘
 ```
 
@@ -1364,18 +1394,32 @@ ls -la build/libs/
 
 ### 단기 (1-2개월)
 
-#### 1. 재고 동시성 제어 강화
+#### 1. 재고 동시성 제어 강화 ✅ 완료
 
 **현재 상태:**
-- 애플리케이션 레벨에서 재고 확인
+- V9: products 테이블에 reserved_quantity 컬럼 추가 (원자적 UPDATE 기반)
+- V10: product_time_slot_inventory 테이블 추가 (ROOM/PLACE Scope 시간대별 재고)
+- 월별 파티셔닝 적용으로 성능 최적화
+- E2E 동시성 테스트 구현 완료
 
-**개선 방향:**
-- Optimistic Lock 또는 Pessimistic Lock 적용
-- Redis 분산 락 고려
+**구현 완료:**
+- 원자적 UPDATE로 동시성 제어 (Phantom Read 방지)
+- CHECK 제약조건으로 재고 오버플로우 방지
+- 롤백 로직 구현 (예약 실패 시 재고 복구)
 
-**ADR 작성 예정:** ADR-002
+**관련 Issue:** #145, #146, #157
 
-#### 2. 이벤트 중복 처리 멱등성 보장
+#### 2. 예약 환불 처리 ✅ 완료
+
+**구현 완료:**
+- ReservationRefundEventHandler 추가
+- CONFIRMED → CANCELLED 상태 전환
+- 하드 락 재고 해제
+- 멱등성 보장 (중복 처리 방지)
+
+**관련 Issue:** #164
+
+#### 3. 이벤트 중복 처리 멱등성 강화
 
 **현재 상태:**
 - 기본적인 멱등성 처리
@@ -1541,4 +1585,4 @@ docker-compose up -d
 
 ---
 
-Last Updated: 2025-11-10
+Last Updated: 2025-11-12

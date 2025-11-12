@@ -43,6 +43,12 @@ ReservationPricing (Aggregate Root)
    - PENDING 상태의 타임아웃 관리
    - expiresAt 시각 초과 시 자동 취소 대상
 
+5. **상품 재고 관리 통합** (Issue #157, #164)
+   - 예약 생성 시 상품 재고 예약 (ProductRepository.reserveQuantity)
+   - 예약 취소/환불 시 상품 재고 해제 (ProductRepository.releaseQuantity)
+   - RESERVATION Scope: totalQuantity에서 차감/복원
+   - ROOM/PLACE Scope: product_time_slot_inventory 테이블에서 시간대별 재고 관리
+
 ## Value Objects
 
 ### TimeSlotPriceBreakdown
@@ -363,7 +369,7 @@ public void handleReservationConfirmed(ReservationConfirmedEvent event) {
 
 ### 예약 취소 (이벤트 처리)
 ```java
-@KafkaListener(topics = "payment-events")
+@KafkaListener(topics = "reservation-events")
 public void handleReservationCancelled(ReservationCancelledEvent event) {
     ReservationId reservationId = ReservationId.of(event.getReservationId());
     ReservationPricing pricing = repository.findById(reservationId)
@@ -376,6 +382,40 @@ public void handleReservationCancelled(ReservationCancelledEvent event) {
     repository.save(pricing);
 }
 ```
+
+### 예약 환불 (이벤트 처리, Issue #164)
+```java
+@KafkaListener(topics = "reservation-events")
+public void handleReservationRefund(ReservationRefundEvent event) {
+    ReservationId reservationId = ReservationId.of(event.getReservationId());
+    ReservationPricing pricing = repository.findById(reservationId)
+        .orElseThrow();
+
+    // 멱등성 체크: 이미 CANCELLED 상태면 무시
+    if (pricing.getStatus() == ReservationStatus.CANCELLED) {
+        return;
+    }
+
+    // 상태 전이: CONFIRMED → CANCELLED
+    pricing.cancel();
+
+    // 상품 재고 해제 (Issue #157)
+    for (ProductPriceBreakdown product : pricing.getProductBreakdowns()) {
+        productRepository.releaseQuantity(
+            product.productId(),
+            product.quantity(),
+            pricing.getTimeSlots()  // ROOM/PLACE Scope용
+        );
+    }
+
+    // 저장
+    repository.save(pricing);
+}
+```
+
+**재고 해제 로직**:
+- **RESERVATION Scope**: `UPDATE products SET reserved_quantity = reserved_quantity - ? WHERE product_id = ?`
+- **ROOM/PLACE Scope**: `UPDATE product_time_slot_inventory SET reserved_quantity = reserved_quantity - ? WHERE product_id = ? AND slot_time IN (?)`
 
 ### 상품 업데이트
 ```java
@@ -466,6 +506,8 @@ public void cancelExpiredPendingReservations() {
 3. **이벤트 처리 테스트**
    - ReservationConfirmed 이벤트 처리
    - ReservationCancelled 이벤트 처리
+   - ReservationRefund 이벤트 처리 (Issue #164)
+   - 상품 재고 해제 검증
    - 멱등성 보장
 
 4. **스케줄러 테스트**
@@ -531,3 +573,6 @@ public void cancelExpiredPendingReservations() {
 - Redis 캐싱으로 재고 조회 성능 향상
 - 예약 히스토리 조회 API
 - 통계 및 리포트 기능 (예약 패턴 분석)
+---
+
+**Last Updated**: 2025-11-12

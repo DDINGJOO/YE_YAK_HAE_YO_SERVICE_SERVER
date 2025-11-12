@@ -472,6 +472,28 @@ docs/
 
 ## 최근 업데이트
 
+### 2025-11-12
+- **예약 환불 이벤트 처리 구현 완료** (Issue #164)
+  - ReservationRefundEventHandler 추가: 예약 환불 시 상품 재고 자동 해제
+  - CONFIRMED → CANCELLED 상태 전이 처리
+  - 멱등성 보장 (중복 이벤트 처리 안전)
+  - docs/features/reservation/RESERVATION_FLOW.md 업데이트: 8단계 예약 환불 시나리오 추가
+  - docs/features/event-handling/ 문서 업데이트: 총 6개 이벤트 핸들러 구현 완료
+
+- **재고 동시성 제어 구현 및 성능 검증 완료** (Issue #138, #145, #146, ADR_002)
+  - V9 Migration: products 테이블에 reserved_quantity 컬럼 추가
+  - V10 Migration: product_time_slot_inventory 테이블 추가 (시간대별 재고 관리, 월별 파티셔닝)
+  - Atomic UPDATE 방식으로 오버부킹 완전 방지
+  - E2E 테스트로 50 TPS 달성 검증
+  - docs/architecture/CONCURRENCY_SOLUTION_ANALYSIS.md: 동시성 제어 해결방안 분석 (IMPLEMENTED 상태)
+  - docs/implementation/DATABASE_SCHEMA.md: 재고 해제 로직 추가 (Issue #157, #164)
+
+- **모든 문서 최신화 완료**
+  - docs/features/product/: 동시성 제어 관련 내용 추가 (reserved_quantity, V9/V10 migrations)
+  - docs/features/reservation-pricing/: ReservationRefundEventHandler 및 재고 통합 내용 추가
+  - docs/implementation/PACKAGE_STRUCTURE.md: 이벤트 핸들러 6개 모두 문서화, 동시성 제어 Issue 참조 추가
+  - docs/architecture 폴더: 모든 문서 Last Updated 2025-11-12로 갱신
+
 ### 2025-11-10
 - **예약 가격 기능 문서 작성 완료** (Task #74, #88, #89)
   - docs/features/reservation-pricing/ 디렉토리 신규 생성
@@ -530,4 +552,4 @@ docs/
   - architecture.md: 계층별 설계, 디자인 패턴, 확장 전략
   - events.md: RoomCreatedEvent 스키마 및 처리 흐름
 
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-12
