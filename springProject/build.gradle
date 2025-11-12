@@ -69,16 +69,16 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform {
-        excludeTags 'large-scale'
+        excludeTags 'integration'
     }
 }
 
-task largeScaleTest(type: Test) {
+task integrationTest(type: Test) {
     group = 'verification'
-    description = 'Run large-scale performance tests (manual execution only)'
+    description = 'Run integration tests with Testcontainers (Kafka, PostgreSQL)'
 
     useJUnitPlatform {
-        includeTags 'large-scale'
+        includeTags 'integration'
     }
 
     testLogging {

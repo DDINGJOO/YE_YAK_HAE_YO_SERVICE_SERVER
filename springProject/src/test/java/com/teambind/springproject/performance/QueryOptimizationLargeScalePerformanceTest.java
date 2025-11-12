@@ -48,7 +48,7 @@ import java.util.stream.IntStream;
  * 측정 방식: 50번 랜덤 위치 조회 후 평균 계산
  */
 @Transactional
-@Tag("large-scale")
+@Tag("integration")
 @Tag("performance")
 @DisplayName("쿼리 최적화 성능 테스트 (Large Scale)")
 public class QueryOptimizationLargeScalePerformanceTest extends LargeScaleTestBase {

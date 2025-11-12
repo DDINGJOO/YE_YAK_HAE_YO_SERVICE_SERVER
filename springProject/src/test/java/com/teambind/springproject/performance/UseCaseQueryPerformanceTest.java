@@ -56,7 +56,7 @@ import java.util.stream.IntStream;
  * - ProductAvailabilityService: 각 상품별 재고 계산
  */
 @Transactional
-@Tag("large-scale")
+@Tag("integration")
 @Tag("performance")
 @DisplayName("Use Case 조회 성능 테스트")
 public class UseCaseQueryPerformanceTest extends LargeScaleTestBase {

@@ -1,5 +1,6 @@
 package com.teambind.springproject.performance.support;
 
+import org.junit.jupiter.api.Tag;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -7,7 +8,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
- * Large Scale 성능 테스트를 위한 Base 클래스.
+ * Integration 성능 테스트를 위한 Base 클래스.
  * <p>
  * Testcontainers PostgreSQL을 Singleton 패턴으로 사용하여 실제 PostgreSQL 환경에서 테스트합니다.
  * <p>
@@ -19,6 +20,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@Tag("integration")
 public abstract class LargeScaleTestBase {
 	
 	/**

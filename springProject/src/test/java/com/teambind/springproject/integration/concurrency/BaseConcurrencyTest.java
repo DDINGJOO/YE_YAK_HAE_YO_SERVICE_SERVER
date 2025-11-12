@@ -2,6 +2,7 @@ package com.teambind.springproject.integration.concurrency;
 
 import com.teambind.springproject.integration.IntegrationTestContainers;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -17,6 +18,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
  */
 @SpringBootTest
 @ActiveProfiles("integration")
+@Tag("integration")
 public abstract class BaseConcurrencyTest {
 
 	@Autowired

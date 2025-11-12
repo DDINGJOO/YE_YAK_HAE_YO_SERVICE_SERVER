@@ -2,6 +2,7 @@ package com.teambind.springproject.integration.e2e;
 
 import com.teambind.springproject.integration.IntegrationTestContainers;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -19,6 +20,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("integration")
+@Tag("integration")
 public abstract class BaseE2ETest {
 
 	// Force early initialization of containers
