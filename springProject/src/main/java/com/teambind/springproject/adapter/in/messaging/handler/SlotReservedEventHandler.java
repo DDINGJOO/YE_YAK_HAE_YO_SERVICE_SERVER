@@ -12,6 +12,7 @@ import com.teambind.springproject.domain.shared.RoomId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
  * 이 시점에는 시간대 가격만 계산하며, 추가상품 정보는 예약 확정 시 업데이트됩니다.
  */
 @Component
+@Transactional
 public class SlotReservedEventHandler implements EventHandler<SlotReservedEvent> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(SlotReservedEventHandler.class);

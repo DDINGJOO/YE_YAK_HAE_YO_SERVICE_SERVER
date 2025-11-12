@@ -9,6 +9,8 @@ import com.teambind.springproject.domain.shared.ProductId;
 import com.teambind.springproject.domain.shared.RoomId;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -206,6 +208,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
 	}
 
 	@Override
+	@Transactional(propagation = Propagation.MANDATORY)
 	public boolean reservePlaceTimeSlotQuantity(
 			final ProductId productId,
 			final RoomId roomId,
@@ -216,6 +219,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
 		}
 
 		// PLACE Scope: Lock product row first, then check total across all rooms
+		// CRITICAL: This method MUST run within an existing transaction for FOR UPDATE to work correctly
 		// Step 1: Lock the product row to prevent concurrent modifications
 		final String lockSql = """
 				SELECT total_quantity

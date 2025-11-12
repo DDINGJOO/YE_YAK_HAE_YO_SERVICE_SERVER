@@ -8,12 +8,14 @@ import com.teambind.springproject.domain.shared.TimeSlot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * RoomCreatedEvent 핸들러.
  * 룸 생성 이벤트를 수신하여 기본 가격 정책을 생성합니다.
  */
 @Component
+@Transactional
 public class RoomCreatedEventHandler implements EventHandler<RoomCreatedEvent> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(RoomCreatedEventHandler.class);
