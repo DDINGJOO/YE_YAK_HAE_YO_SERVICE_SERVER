@@ -36,15 +36,15 @@ import java.util.stream.IntStream;
 
 /**
  * 대규모 N+1 쿼리 최적화 성능 테스트.
- * <p>
+ *
  * EAGER fetch를 LAZY + Batch fetch로 변경하기 전후의 성능을 측정합니다.
- * <p>
+ *
  * 대규모 데이터 시뮬레이션 (기본 테스트 대비 20배):
  * - Place: 200개
  * - Room: 400개
  * - PricingPolicy: 2,000개
  * - ReservationPricing: 4,000개
- * <p>
+ *
  * 측정 방식: 50번 랜덤 위치 조회 후 평균 계산
  */
 @Transactional
