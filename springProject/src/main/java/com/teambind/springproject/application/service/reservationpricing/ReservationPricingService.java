@@ -215,12 +215,25 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	}
 	
 	/**
+	 * 예약 성공한 상품 정보를 저장하는 레코드.
+	 * 롤백 시 필요한 최소 정보만 포함합니다.
+	 */
+	private record ReservedProductInfo(
+			Product product,
+			int quantity,
+			RoomId roomId,
+			List<LocalDateTime> timeSlots
+	) {}
+
+	/**
 	 * 상품 재고를 예약합니다.
 	 * Scope에 따라 다른 방식으로 재고를 관리합니다.
 	 *
 	 * - RESERVATION Scope: 원자적 UPDATE 쿼리로 재고 차감 (시간 무관)
 	 * - ROOM Scope: 시간대별 원자적 재고 예약 (room_id 단위)
 	 * - PLACE Scope: 시간대별 원자적 재고 예약 (전체 place 범위)
+	 *
+	 * 중간에 예약 실패 시 이미 예약된 상품들의 재고를 롤백합니다.
 	 *
 	 * @param products        예약할 상품 목록
 	 * @param productRequests 상품 요청 목록 (수량 포함)
@@ -234,16 +247,75 @@ public class ReservationPricingService implements CreateReservationUseCase,
 			final RoomId roomId,
 			final List<LocalDateTime> timeSlots) {
 
-		for (int i = 0; i < products.size(); i++) {
-			final Product product = products.get(i);
-			final ProductRequest productRequest = productRequests.get(i);
+		final List<ReservedProductInfo> reservedProducts = new ArrayList<>();
 
-			switch (product.getScope()) {
-				case RESERVATION -> reserveReservationProduct(product, productRequest.quantity());
-				case ROOM -> reserveRoomProduct(product, productRequest.quantity(), timeSlots);
-				case PLACE -> reservePlaceProduct(product, productRequest.quantity(), roomId, timeSlots);
+		try {
+			for (int i = 0; i < products.size(); i++) {
+				final Product product = products.get(i);
+				final ProductRequest productRequest = productRequests.get(i);
+
+				switch (product.getScope()) {
+					case RESERVATION -> reserveReservationProduct(product, productRequest.quantity());
+					case ROOM -> reserveRoomProduct(product, productRequest.quantity(), timeSlots);
+					case PLACE -> reservePlaceProduct(product, productRequest.quantity(), roomId, timeSlots);
+				}
+
+				// 예약 성공 시 목록에 추가
+				reservedProducts.add(new ReservedProductInfo(
+						product, productRequest.quantity(), roomId, timeSlots));
+			}
+		} catch (final ProductNotAvailableException e) {
+			// 예약 실패 시 지금까지 성공한 예약들을 롤백
+			logger.warn("Product reservation failed, rolling back {} previously reserved products",
+					reservedProducts.size());
+			rollbackReservations(reservedProducts);
+			throw e;
+		}
+	}
+
+	/**
+	 * 예약 실패 시 지금까지 예약된 상품들의 재고를 복구합니다.
+	 * Best Effort 방식으로 동작하며, 롤백 중 일부 실패하더라도 계속 진행합니다.
+	 *
+	 * @param reservedProducts 롤백할 예약 목록
+	 */
+	private void rollbackReservations(final List<ReservedProductInfo> reservedProducts) {
+		if (reservedProducts.isEmpty()) {
+			return;
+		}
+
+		logger.info("Starting rollback for {} reserved products", reservedProducts.size());
+
+		// 역순으로 롤백 (LIFO - Last In First Out)
+		for (int i = reservedProducts.size() - 1; i >= 0; i--) {
+			final ReservedProductInfo info = reservedProducts.get(i);
+
+			try {
+				switch (info.product().getScope()) {
+					case RESERVATION -> releaseReservationProduct(info.product(), info.quantity());
+					case ROOM -> releaseTimeSlotProduct(
+							info.product(), info.quantity(), info.product().getRoomId(), info.timeSlots());
+					case PLACE -> releaseTimeSlotProduct(
+							info.product(), info.quantity(), info.roomId(), info.timeSlots());
+				}
+
+				logger.debug("Rollback successful: productId={}, scope={}, quantity={}",
+						info.product().getProductId().getValue(),
+						info.product().getScope(),
+						info.quantity());
+
+			} catch (final Exception rollbackException) {
+				// 롤백 실패 시 로그만 기록하고 계속 진행 (Best Effort)
+				logger.error("Rollback failed for productId={}, scope={}, quantity={}. " +
+								"Manual inventory correction may be required.",
+						info.product().getProductId().getValue(),
+						info.product().getScope(),
+						info.quantity(),
+						rollbackException);
 			}
 		}
+
+		logger.info("Rollback completed for {} products", reservedProducts.size());
 	}
 
 	/**
