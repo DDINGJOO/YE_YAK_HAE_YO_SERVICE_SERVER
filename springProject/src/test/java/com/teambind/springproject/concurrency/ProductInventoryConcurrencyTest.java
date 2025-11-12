@@ -280,4 +280,61 @@ class ProductInventoryConcurrencyTest {
 		assertThat(successCount.get()).isEqualTo(2);  // 취소한 2개만 예약 가능
 		assertThat(failCount.get()).isEqualTo(1);
 	}
+
+	@Test
+	@DisplayName("ROOM Scope 상품 예약 시 UnsupportedOperationException 발생")
+	void throwExceptionWhenReservingRoomScopedProduct() {
+		// given - ROOM Scope 상품 생성
+		final Product roomScopedProduct = Product.createRoomScoped(
+				ProductId.of(null),
+				PlaceId.of(testPlaceId),
+				RoomId.of(testRoomId),
+				"ROOM Scope 상품",
+				PricingStrategy.simpleStock(Money.of(1000)),
+				10
+		);
+		final Product savedRoomProduct = productRepository.save(roomScopedProduct);
+		final Long roomProductId = savedRoomProduct.getProductId().getValue();
+
+		// when & then - ROOM Scope 상품 예약 시도하면 예외 발생
+		final CreateReservationRequest request = new CreateReservationRequest(
+				testRoomId,
+				testTimeSlots,
+				List.of(new ProductRequest(roomProductId, 1))
+		);
+
+		org.assertj.core.api.Assertions.assertThatThrownBy(
+				() -> createReservationUseCase.createReservation(request)
+		)
+		.isInstanceOf(UnsupportedOperationException.class)
+		.hasMessageContaining("ROOM/PLACE Scope products require time-based inventory management");
+	}
+
+	@Test
+	@DisplayName("PLACE Scope 상품 예약 시 UnsupportedOperationException 발생")
+	void throwExceptionWhenReservingPlaceScopedProduct() {
+		// given - PLACE Scope 상품 생성
+		final Product placeScopedProduct = Product.createPlaceScoped(
+				ProductId.of(null),
+				PlaceId.of(testPlaceId),
+				"PLACE Scope 상품",
+				PricingStrategy.simpleStock(Money.of(1000)),
+				10
+		);
+		final Product savedPlaceProduct = productRepository.save(placeScopedProduct);
+		final Long placeProductId = savedPlaceProduct.getProductId().getValue();
+
+		// when & then - PLACE Scope 상품 예약 시도하면 예외 발생
+		final CreateReservationRequest request = new CreateReservationRequest(
+				testRoomId,
+				testTimeSlots,
+				List.of(new ProductRequest(placeProductId, 1))
+		);
+
+		org.assertj.core.api.Assertions.assertThatThrownBy(
+				() -> createReservationUseCase.createReservation(request)
+		)
+		.isInstanceOf(UnsupportedOperationException.class)
+		.hasMessageContaining("ROOM/PLACE Scope products require time-based inventory management");
+	}
 }
