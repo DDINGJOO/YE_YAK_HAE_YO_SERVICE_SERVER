@@ -272,21 +272,21 @@ class ReservationPricingTest {
 	@Nested
 	@DisplayName("cancel() 상태 전이 테스트")
 	class CancelTests {
-		
+
 		@Test
 		@DisplayName("PENDING 상태에서 CANCELLED로 전환에 성공한다")
 		void cancelFromPendingSuccess() {
 			// given
 			final ReservationPricing pricing = createTestPricing();
 			assertThat(pricing.getStatus()).isEqualTo(ReservationStatus.PENDING);
-			
+
 			// when
 			pricing.cancel();
-			
+
 			// then
 			assertThat(pricing.getStatus()).isEqualTo(ReservationStatus.CANCELLED);
 		}
-		
+
 		@Test
 		@DisplayName("CONFIRMED 상태에서 cancel()하면 예외가 발생한다")
 		void cancelFromConfirmedFails() {
@@ -309,6 +309,53 @@ class ReservationPricingTest {
 			// when & then
 			assertThatThrownBy(pricing::cancel)
 					.isInstanceOf(InvalidReservationStatusException.class);
+		}
+	}
+
+	@Nested
+	@DisplayName("refund() 상태 전이 테스트")
+	class RefundTests {
+
+		@Test
+		@DisplayName("CONFIRMED 상태에서 CANCELLED로 전환에 성공한다")
+		void refundFromConfirmedSuccess() {
+			// given
+			final ReservationPricing pricing = createTestPricing();
+			pricing.confirm();
+			assertThat(pricing.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+
+			// when
+			pricing.refund();
+
+			// then
+			assertThat(pricing.getStatus()).isEqualTo(ReservationStatus.CANCELLED);
+		}
+
+		@Test
+		@DisplayName("PENDING 상태에서 refund()하면 예외가 발생한다")
+		void refundFromPendingFails() {
+			// given
+			final ReservationPricing pricing = createTestPricing();
+			assertThat(pricing.getStatus()).isEqualTo(ReservationStatus.PENDING);
+
+			// when & then
+			assertThatThrownBy(pricing::refund)
+					.isInstanceOf(InvalidReservationStatusException.class)
+					.hasMessageContaining("refund");
+		}
+
+		@Test
+		@DisplayName("CANCELLED 상태에서 refund()하면 예외가 발생한다")
+		void refundFromCancelledFails() {
+			// given
+			final ReservationPricing pricing = createTestPricing();
+			pricing.cancel();
+			assertThat(pricing.getStatus()).isEqualTo(ReservationStatus.CANCELLED);
+
+			// when & then
+			assertThatThrownBy(pricing::refund)
+					.isInstanceOf(InvalidReservationStatusException.class)
+					.hasMessageContaining("refund");
 		}
 	}
 	

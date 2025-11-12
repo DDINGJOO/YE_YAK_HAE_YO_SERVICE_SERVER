@@ -182,6 +182,19 @@ public class ReservationPricing {
 		}
 		this.status = ReservationStatus.CANCELLED;
 	}
+
+	/**
+	 * 예약을 환불합니다.
+	 * CONFIRMED 상태에서만 CANCELLED로 전환 가능합니다.
+	 * 결제 서비스에서 환불이 완료되거나 관리자가 승인을 취소/거절했을 때 호출됩니다.
+	 */
+	public void refund() {
+		if (status != ReservationStatus.CONFIRMED) {
+			throw new com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException(
+					status, "refund");
+		}
+		this.status = ReservationStatus.CANCELLED;
+	}
 	
 	/**
 	 * 예약의 상품 목록을 업데이트하고 가격을 재계산합니다.

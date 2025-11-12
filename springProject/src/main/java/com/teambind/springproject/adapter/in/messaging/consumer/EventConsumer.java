@@ -31,6 +31,7 @@ public class EventConsumer {
 		EVENT_TYPE_MAP.put("SlotReserved", SlotReservedEvent.class);
 		EVENT_TYPE_MAP.put("ReservationConfirmed", ReservationConfirmedEvent.class);
 		EVENT_TYPE_MAP.put("ReservationCancelled", ReservationCancelledEvent.class);
+		EVENT_TYPE_MAP.put("ReservationRefund", ReservationRefundEvent.class);
 	}
 	
 	private final JsonUtil jsonUtil;
@@ -143,13 +144,13 @@ public class EventConsumer {
 	}
 	
 	/**
-	 * reservation-confirmed, reservation-cancelled 토픽에서 결제 이벤트를 수신합니다.
+	 * reservation-confirmed, reservation-cancelled, reservation-refund 토픽에서 결제 이벤트를 수신합니다.
 	 *
 	 * @param message        Kafka 메시지 (JSON)
 	 * @param acknowledgment Kafka acknowledgment
 	 */
 	@KafkaListener(
-			topics = {"reservation-confirmed", "reservation-cancelled"},
+			topics = {"reservation-confirmed", "reservation-cancelled", "reservation-refund"},
 			groupId = "${spring.kafka.consumer.group-id}")
 	public void consumePaymentEvents(final String message, final Acknowledgment acknowledgment) {
 		logger.info("Received message from payment topics: {}", message);
