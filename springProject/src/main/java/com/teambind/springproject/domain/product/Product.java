@@ -109,7 +109,41 @@ public class Product {
 		return new Product(productId, ProductScope.RESERVATION, null, null, name, pricingStrategy,
 				totalQuantity);
 	}
-	
+
+	/**
+	 * 영속화된 데이터로부터 Product를 복원합니다.
+	 *
+	 * 주의: 이 메서드는 persistence layer에서만 사용되며, 일반 비즈니스 로직에서는 사용하지 마십시오.
+	 * 새로운 상품을 생성할 때는 createPlaceScoped(), createRoomScoped(), createReservationScoped()를 사용하십시오.
+	 *
+	 * @param productId       상품 ID
+	 * @param scope           상품 범위
+	 * @param placeId         플레이스 ID (nullable)
+	 * @param roomId          룸 ID (nullable)
+	 * @param name            상품명
+	 * @param pricingStrategy 가격 전략
+	 * @param totalQuantity   총 수량
+	 * @param reservedQuantity 예약된 수량
+	 * @return Product
+	 */
+	public static Product reconstructFromPersistence(
+			final ProductId productId,
+			final ProductScope scope,
+			final PlaceId placeId,
+			final RoomId roomId,
+			final String name,
+			final PricingStrategy pricingStrategy,
+			final int totalQuantity,
+			final int reservedQuantity) {
+		final Product product = switch (scope) {
+			case PLACE -> createPlaceScoped(productId, placeId, name, pricingStrategy, totalQuantity);
+			case ROOM -> createRoomScoped(productId, placeId, roomId, name, pricingStrategy, totalQuantity);
+			case RESERVATION -> createReservationScoped(productId, name, pricingStrategy, totalQuantity);
+		};
+		product.reservedQuantity = reservedQuantity;
+		return product;
+	}
+
 	private void validateProductId(final ProductId productId) {
 		if (productId == null) {
 			throw new IllegalArgumentException("Product ID cannot be null");

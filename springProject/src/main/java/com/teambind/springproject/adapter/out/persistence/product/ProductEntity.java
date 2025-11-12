@@ -43,11 +43,14 @@ public class ProductEntity {
 	
 	@Column(name = "total_quantity", nullable = false)
 	private Integer totalQuantity;
-	
+
+	@Column(name = "reserved_quantity", nullable = false)
+	private Integer reservedQuantity = 0;
+
 	protected ProductEntity() {
 		// JPA용 기본 생성자
 	}
-	
+
 	public ProductEntity(
 			final Long id,
 			final ProductScope scope,
@@ -55,7 +58,8 @@ public class ProductEntity {
 			final Long roomId,
 			final String name,
 			final PricingStrategyEmbeddable pricingStrategy,
-			final Integer totalQuantity) {
+			final Integer totalQuantity,
+			final Integer reservedQuantity) {
 		this.id = id;
 		this.scope = scope;
 		this.placeId = placeId;
@@ -63,6 +67,7 @@ public class ProductEntity {
 		this.name = name;
 		this.pricingStrategy = pricingStrategy;
 		this.totalQuantity = totalQuantity;
+		this.reservedQuantity = reservedQuantity != null ? reservedQuantity : 0;
 	}
 	
 	/**
@@ -76,7 +81,8 @@ public class ProductEntity {
 				product.getRoomId() != null ? product.getRoomId().getValue() : null,
 				product.getName(),
 				PricingStrategyEmbeddable.fromDomain(product.getPricingStrategy()),
-				product.getTotalQuantity()
+				product.getTotalQuantity(),
+				product.getReservedQuantity()
 		);
 	}
 	
@@ -91,13 +97,13 @@ public class ProductEntity {
 			final ProductScope scope,
 			final java.math.BigDecimal price,
 			final int quantity) {
-		
+
 		final PricingStrategyEmbeddable pricingStrategy = new PricingStrategyEmbeddable(
 				com.teambind.springproject.domain.product.vo.PricingType.SIMPLE_STOCK,
 				price,
 				null
 		);
-		
+
 		return new ProductEntity(
 				productId,
 				scope,
@@ -105,7 +111,8 @@ public class ProductEntity {
 				roomId,
 				name,
 				pricingStrategy,
-				quantity
+				quantity,
+				0
 		);
 	}
 	
@@ -116,30 +123,17 @@ public class ProductEntity {
 		final ProductId productId = ProductId.of(id);
 		final PlaceId domainPlaceId = placeId != null ? PlaceId.of(placeId) : null;
 		final RoomId domainRoomId = roomId != null ? RoomId.of(roomId) : null;
-		
-		return switch (scope) {
-			case PLACE -> Product.createPlaceScoped(
-					productId,
-					domainPlaceId,
-					name,
-					pricingStrategy.toDomain(),
-					totalQuantity
-			);
-			case ROOM -> Product.createRoomScoped(
-					productId,
-					domainPlaceId,
-					domainRoomId,
-					name,
-					pricingStrategy.toDomain(),
-					totalQuantity
-			);
-			case RESERVATION -> Product.createReservationScoped(
-					productId,
-					name,
-					pricingStrategy.toDomain(),
-					totalQuantity
-			);
-		};
+
+		return Product.reconstructFromPersistence(
+				productId,
+				scope,
+				domainPlaceId,
+				domainRoomId,
+				name,
+				pricingStrategy.toDomain(),
+				totalQuantity,
+				reservedQuantity != null ? reservedQuantity : 0
+		);
 	}
 	
 	public Long getId() {
@@ -173,7 +167,11 @@ public class ProductEntity {
 	public Integer getTotalQuantity() {
 		return totalQuantity;
 	}
-	
+
+	public Integer getReservedQuantity() {
+		return reservedQuantity;
+	}
+
 	@Override
 	public boolean equals(final Object o) {
 		if (this == o) {
