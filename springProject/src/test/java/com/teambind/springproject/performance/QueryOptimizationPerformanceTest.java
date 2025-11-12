@@ -34,9 +34,9 @@ import java.util.stream.IntStream;
 
 /**
  * N+1 쿼리 최적화 성능 비교 테스트.
- * <p>
+ *
  * EAGER fetch를 LAZY + Batch fetch로 변경하기 전후의 성능을 측정합니다.
- * <p>
+ *
  * 실제 상황을 시뮬레이션:
  * - Place: 100개
  * - Room: 각 Place당 10개 = 총 1,000개

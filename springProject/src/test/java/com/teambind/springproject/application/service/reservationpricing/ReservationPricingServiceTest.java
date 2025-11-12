@@ -12,6 +12,7 @@ import com.teambind.springproject.domain.product.Product;
 import com.teambind.springproject.domain.product.availability.ProductAvailabilityService;
 import com.teambind.springproject.domain.product.pricing.PricingStrategy;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
+import com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown;
 import com.teambind.springproject.domain.reservationpricing.exception.ProductNotAvailableException;
 import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;
 import com.teambind.springproject.domain.shared.*;
@@ -131,8 +132,8 @@ class ReservationPricingServiceTest {
 							)
 					);
 			
-			final com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown timeSlotBreakdown =
-					new com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown(
+			final TimeSlotPriceBreakdown timeSlotBreakdown =
+					new TimeSlotPriceBreakdown(
 							slotPriceMap, pricingPolicy.getTimeSlot());
 			
 			final ReservationPricing savedReservation = ReservationPricing.calculate(
@@ -256,8 +257,8 @@ class ReservationPricingServiceTest {
 							)
 					);
 			
-			final com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown timeSlotBreakdown =
-					new com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown(
+			final TimeSlotPriceBreakdown timeSlotBreakdown =
+					new TimeSlotPriceBreakdown(
 							slotPriceMap, pricingPolicy.getTimeSlot());
 			
 			final ReservationPricing reservation = ReservationPricing.calculate(
@@ -321,11 +322,11 @@ class ReservationPricingServiceTest {
 									PricingPolicy.SlotPrice::price
 							)
 					);
-			
-			final com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown timeSlotBreakdown =
-					new com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown(
+
+			final TimeSlotPriceBreakdown timeSlotBreakdown =
+					new TimeSlotPriceBreakdown(
 							slotPriceMap, pricingPolicy.getTimeSlot());
-			
+
 			final ReservationPricing reservation = ReservationPricing.calculate(
 					ReservationId.of(reservationId),
 					roomId,
@@ -333,12 +334,14 @@ class ReservationPricingServiceTest {
 					List.of(product.calculatePrice(1)),
 					10L
 			);
-			
+
 			when(reservationPricingRepository.findById(ReservationId.of(reservationId)))
 					.thenReturn(Optional.of(reservation));
 			when(reservationPricingRepository.save(any(ReservationPricing.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			
+			when(productRepository.findById(product.getProductId()))
+					.thenReturn(Optional.of(product));
+
 			// when
 			final ReservationPricingResponse response = reservationPricingService.cancelReservation(
 					reservationId);

@@ -42,14 +42,14 @@ import java.util.stream.IntStream;
 
 /**
  * Use Case 레벨 조회 성능 테스트.
- * <p>
+ *
  * 실제 비즈니스 Use Case의 종단간 조회 성능을 측정합니다.
- * <p>
+ *
  * 측정 대상 Use Case:
  * 1. GetPricingPolicyUseCase - 가격 정책 조회
  * 2. CalculateReservationPriceUseCase - 가격 미리보기 (다수 상품 조회)
  * 3. QueryProductAvailabilityUseCase - 상품 가용성 조회
- * <p>
+ *
  * 성능 최적화 포인트:
  * - PricePreviewService.fetchProducts(): N+1 문제
  * - ProductRepositoryAdapter.findAccessibleProducts(): 복잡한 조회

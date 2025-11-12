@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * 성능 측정 결과 집계기.
- * <p>
+ *
  * 여러 번의 측정 결과를 수집하고 통계를 계산합니다.
  */
 public class PerformanceReportAggregator {

@@ -23,7 +23,7 @@ public abstract class LargeScaleTestBase {
 	
 	/**
 	 * Singleton PostgreSQL Container.
-	 * <p>
+	 *
 	 * 여러 테스트 클래스에서 공유되는 단일 컨테이너 인스턴스입니다.
 	 * 컨테이너는 첫 번째 테스트 시작 시 한 번만 생성되고,
 	 * 모든 테스트가 끝날 때까지 유지됩니다.

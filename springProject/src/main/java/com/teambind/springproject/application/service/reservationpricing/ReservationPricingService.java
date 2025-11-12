@@ -75,8 +75,8 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		// 2. 상품 목록 조회
 		final List<Product> products = fetchProducts(request.products());
 
-		// 3. 원자적 재고 예약 (검증 + 차감 동시 수행)
-		reserveProducts(products, request.products());
+		// 3. Scope별 재고 예약 (RESERVATION: 원자적 UPDATE, ROOM/PLACE: 시간대별 검증)
+		reserveProducts(products, request.products(), request.timeSlots());
 
 		// 4. 시간대별 가격 계산
 		final TimeSlotPriceBreakdown timeSlotBreakdown = calculateTimeSlotBreakdown(
@@ -161,17 +161,20 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		// 3. 새 상품 목록 조회
 		final List<Product> products = fetchProducts(request.products());
 
-		// 4. 새 상품 재고 예약
-		reserveProducts(products, request.products());
+		// 4. 예약의 시간대 추출
+		final List<LocalDateTime> timeSlots = extractTimeSlots(reservation);
 
-		// 5. 상품별 가격 계산
+		// 5. 새 상품 재고 예약 (Scope별 처리)
+		reserveProducts(products, request.products(), timeSlots);
+
+		// 6. 상품별 가격 계산
 		final List<ProductPriceBreakdown> productBreakdowns = calculateProductBreakdowns(
 				products, request.products());
 
-		// 6. 예약 상품 업데이트 (도메인 메서드 호출)
+		// 7. 예약 상품 업데이트 (도메인 메서드 호출)
 		reservation.updateProducts(productBreakdowns);
 
-		// 7. 저장
+		// 8. 저장
 		final ReservationPricing savedReservation = reservationPricingRepository.save(reservation);
 
 		logger.info("Successfully updated products for reservation: reservationId={}, totalPrice={}",
@@ -216,18 +219,48 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	}
 	
 	/**
-	 * 상품 재고를 원자적으로 예약합니다.
-	 * WHERE 조건에서 재고 검증과 차감을 동시에 수행하여 Race Condition을 방지합니다.
+	 * 상품 재고를 예약합니다.
+	 * Scope에 따라 다른 방식으로 재고를 관리합니다.
 	 *
-	 * 현재는 RESERVATION Scope 상품만 지원합니다.
-	 * ROOM/PLACE Scope는 시간대별 재고 관리가 필요하여 향후 구현 예정입니다.
+	 * - RESERVATION Scope: 원자적 UPDATE 쿼리로 재고 차감 (시간 무관)
+	 * - ROOM/PLACE Scope: overlappingReservations 기반 시간대별 재고 검증
+	 *
+	 * @param products        예약할 상품 목록
+	 * @param productRequests 상품 요청 목록 (수량 포함)
+	 * @param timeSlots       예약 시간 슬롯 목록 (ROOM/PLACE Scope에서 사용)
+	 * @throws ProductNotAvailableException 재고가 부족하여 예약 실패 시
+	 */
+	private void reserveProducts(
+			final List<Product> products,
+			final List<ProductRequest> productRequests,
+			final List<LocalDateTime> timeSlots) {
+
+		// Scope별로 다른 재고 관리 전략 적용
+		final boolean hasReservationScope = products.stream()
+				.anyMatch(p -> p.getScope() == com.teambind.springproject.domain.product.vo.ProductScope.RESERVATION);
+		final boolean hasTimeScopedProducts = products.stream()
+				.anyMatch(p -> p.getScope() != com.teambind.springproject.domain.product.vo.ProductScope.RESERVATION);
+
+		// RESERVATION Scope: 원자적 재고 예약
+		if (hasReservationScope) {
+			reserveReservationScopedProducts(products, productRequests);
+		}
+
+		// ROOM/PLACE Scope: 시간대별 재고 검증
+		if (hasTimeScopedProducts) {
+			validateProductAvailability(products, productRequests, timeSlots);
+		}
+	}
+
+	/**
+	 * RESERVATION Scope 상품의 재고를 원자적으로 예약합니다.
+	 * WHERE 조건에서 재고 검증과 차감을 동시에 수행하여 Race Condition을 방지합니다.
 	 *
 	 * @param products        예약할 상품 목록
 	 * @param productRequests 상품 요청 목록 (수량 포함)
 	 * @throws ProductNotAvailableException 재고가 부족하여 예약 실패 시
-	 * @throws UnsupportedOperationException ROOM/PLACE Scope 상품인 경우
 	 */
-	private void reserveProducts(
+	private void reserveReservationScopedProducts(
 			final List<Product> products,
 			final List<ProductRequest> productRequests) {
 
@@ -235,14 +268,9 @@ public class ReservationPricingService implements CreateReservationUseCase,
 			final Product product = products.get(i);
 			final ProductRequest productRequest = productRequests.get(i);
 
-			// RESERVATION Scope만 원자적 재고 예약 지원
+			// RESERVATION Scope만 처리
 			if (product.getScope() != com.teambind.springproject.domain.product.vo.ProductScope.RESERVATION) {
-				logger.error("Unsupported product scope for atomic reservation: scope={}, productId={}",
-						product.getScope(), product.getProductId().getValue());
-				throw new UnsupportedOperationException(
-						"ROOM/PLACE Scope products require time-based inventory management. " +
-						"Only RESERVATION Scope is currently supported for atomic reservation."
-				);
+				continue;
 			}
 
 			final boolean reserved = productRepository.reserveQuantity(
@@ -265,8 +293,57 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	}
 
 	/**
+	 * ROOM/PLACE Scope 상품의 시간대별 재고 가용성을 검증합니다.
+	 * overlappingReservations를 조회하여 해당 시간대에 재고가 충분한지 확인합니다.
+	 *
+	 * @param products        검증할 상품 목록
+	 * @param productRequests 상품 요청 목록 (수량 포함)
+	 * @param timeSlots       예약 시간 슬롯 목록
+	 * @throws ProductNotAvailableException 재고가 부족한 경우
+	 */
+	private void validateProductAvailability(
+			final List<Product> products,
+			final List<ProductRequest> productRequests,
+			final List<LocalDateTime> timeSlots) {
+
+		for (int i = 0; i < products.size(); i++) {
+			final Product product = products.get(i);
+			final ProductRequest productRequest = productRequests.get(i);
+
+			// RESERVATION Scope는 건너뛰기 (이미 처리됨)
+			if (product.getScope() == com.teambind.springproject.domain.product.vo.ProductScope.RESERVATION) {
+				continue;
+			}
+
+			// Scope별로 overlapping reservations 조회
+			final List<ReservationPricing> overlappingReservations =
+					getOverlappingReservations(product, timeSlots);
+
+			final boolean available = productAvailabilityService.isAvailable(
+					product,
+					timeSlots,
+					productRequest.quantity(),
+					overlappingReservations
+			);
+
+			if (!available) {
+				logger.warn("Product not available: productId={}, quantity={}, timeSlots={}",
+						product.getProductId().getValue(), productRequest.quantity(), timeSlots);
+				throw new ProductNotAvailableException(
+						product.getProductId().getValue(),
+						productRequest.quantity()
+				);
+			}
+
+			logger.debug("Product availability validated: productId={}, quantity={}",
+					product.getProductId().getValue(), productRequest.quantity());
+		}
+	}
+
+	/**
 	 * 예약된 상품 재고를 복구합니다.
-	 * 예약 취소 시 호출됩니다.
+	 * RESERVATION Scope 상품만 원자적 재고 해제를 수행합니다.
+	 * ROOM/PLACE Scope는 overlappingReservations 기반이므로 별도 재고 해제 불필요.
 	 *
 	 * @param reservation 재고를 복구할 예약
 	 */
@@ -274,21 +351,33 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		final List<ProductPriceBreakdown> productBreakdowns = reservation.getProductBreakdowns();
 
 		for (final ProductPriceBreakdown breakdown : productBreakdowns) {
-			final boolean released = productRepository.releaseQuantity(
-					breakdown.productId(),
-					breakdown.quantity()
-			);
+			// ProductId로 상품 조회하여 Scope 확인
+			final Product product = productRepository.findById(breakdown.productId())
+					.orElseThrow(() -> new IllegalStateException(
+							"Product not found: productId=" + breakdown.productId().getValue()));
 
-			if (!released) {
-				logger.error("Failed to release product inventory: productId={}, quantity={}",
-						breakdown.productId().getValue(), breakdown.quantity());
-				throw new IllegalStateException(
-						"Failed to release product inventory: productId=" + breakdown.productId().getValue()
+			// RESERVATION Scope만 원자적 재고 해제
+			if (product.getScope() == com.teambind.springproject.domain.product.vo.ProductScope.RESERVATION) {
+				final boolean released = productRepository.releaseQuantity(
+						breakdown.productId(),
+						breakdown.quantity()
 				);
-			}
 
-			logger.debug("Successfully released product: productId={}, quantity={}",
-					breakdown.productId().getValue(), breakdown.quantity());
+				if (!released) {
+					logger.error("Failed to release product inventory: productId={}, quantity={}",
+							breakdown.productId().getValue(), breakdown.quantity());
+					throw new IllegalStateException(
+							"Failed to release product inventory: productId=" + breakdown.productId().getValue()
+					);
+				}
+
+				logger.debug("Successfully released RESERVATION product: productId={}, quantity={}",
+						breakdown.productId().getValue(), breakdown.quantity());
+			} else {
+				// ROOM/PLACE Scope는 overlappingReservations 기반이므로 재고 해제 불필요
+				logger.debug("Skipping release for ROOM/PLACE product: productId={}, scope={}",
+						breakdown.productId().getValue(), product.getScope());
+			}
 		}
 	}
 	

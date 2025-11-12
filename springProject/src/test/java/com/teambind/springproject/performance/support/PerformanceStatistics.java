@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * 성능 측정 통계 계산 유틸리티.
- * <p>
+ *
  * 여러 번의 성능 측정 결과로부터 통계 수치를 계산합니다.
  */
 public final class PerformanceStatistics {

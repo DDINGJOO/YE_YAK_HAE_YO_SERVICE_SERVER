@@ -6,7 +6,7 @@ import java.util.Random;
 
 /**
  * 랜덤 데이터 선택 유틸리티.
- * <p>
+ *
  * 성능 테스트에서 랜덤한 위치의 데이터를 선택하기 위한 유틸리티입니다.
  */
 public final class RandomDataSelector {
