@@ -1,4 +1,4 @@
-package com.teambind.springproject.concurrency;
+package com.teambind.springproject.integration.concurrency;
 
 import com.teambind.springproject.application.dto.request.CreateReservationRequest;
 import com.teambind.springproject.application.dto.request.ProductRequest;

@@ -22,9 +22,15 @@ spring:
         use_sql_comments: true
     open-in-view: false
 
-  # Flyway Configuration (disabled for E2E tests, using JPA schema generation instead)
+  # Flyway Configuration (disabled for tests, using JPA schema generation + manual SQL)
   flyway:
     enabled: false
+
+  # SQL Init for product_time_slot_inventory table
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:integration-schema.sql
 
   # Kafka Configuration (properties dynamically set by Testcontainers)
   kafka:

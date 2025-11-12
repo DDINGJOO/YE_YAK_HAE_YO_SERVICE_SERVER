@@ -1,4 +1,4 @@
-package com.teambind.springproject.e2e;
+package com.teambind.springproject.integration.e2e;
 
 import com.teambind.springproject.application.dto.response.ProductAvailabilityResponse;
 import com.teambind.springproject.application.port.out.PricingPolicyRepository;

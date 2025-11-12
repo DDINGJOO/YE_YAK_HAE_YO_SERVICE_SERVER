@@ -1,5 +1,6 @@
-package com.teambind.springproject.e2e;
+package com.teambind.springproject.integration.e2e;
 
+import com.teambind.springproject.integration.IntegrationTestContainers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,22 +9,22 @@ import org.springframework.context.ApplicationContext;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Smoke test to verify E2E test infrastructure is working.
+ * Smoke test to verify integration test infrastructure is working.
  */
-@DisplayName("E2E 인프라 검증 테스트")
+@DisplayName("Integration 인프라 검증 테스트")
 class E2ESmokeTest extends BaseE2ETest {
-	
+
 	@Autowired
 	private ApplicationContext applicationContext;
-	
+
 	@Test
 	@DisplayName("Testcontainers가 정상적으로 실행되는지 확인")
 	void testContainersAreRunning() {
-		assertThat(E2ETestContainers.getPostgresContainer().isRunning())
+		assertThat(IntegrationTestContainers.getPostgresContainer().isRunning())
 				.as("PostgreSQL container should be running")
 				.isTrue();
-		
-		assertThat(E2ETestContainers.getKafkaContainer().isRunning())
+
+		assertThat(IntegrationTestContainers.getKafkaContainer().isRunning())
 				.as("Kafka container should be running")
 				.isTrue();
 	}
@@ -47,19 +48,19 @@ class E2ESmokeTest extends BaseE2ETest {
 	@Test
 	@DisplayName("데이터베이스 연결이 정상적으로 동작하는지 확인")
 	void testDatabaseConnection() {
-		assertThat(E2ETestContainers.getPostgresContainer().getJdbcUrl())
+		assertThat(IntegrationTestContainers.getPostgresContainer().getJdbcUrl())
 				.as("Database URL should be configured")
 				.isNotBlank();
-		
-		assertThat(E2ETestContainers.getPostgresContainer().getUsername())
+
+		assertThat(IntegrationTestContainers.getPostgresContainer().getUsername())
 				.as("Database username should be configured")
 				.isEqualTo("test");
 	}
-	
+
 	@Test
 	@DisplayName("Kafka 브로커가 정상적으로 실행되는지 확인")
 	void testKafkaConnection() {
-		assertThat(E2ETestContainers.getKafkaContainer().getBootstrapServers())
+		assertThat(IntegrationTestContainers.getKafkaContainer().getBootstrapServers())
 				.as("Kafka bootstrap servers should be configured")
 				.isNotBlank();
 	}

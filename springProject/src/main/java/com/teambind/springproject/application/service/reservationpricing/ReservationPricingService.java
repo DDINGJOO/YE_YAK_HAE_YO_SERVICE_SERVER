@@ -72,7 +72,7 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		final List<Product> products = fetchProducts(request.products());
 
 		// 3. Scope별 재고 예약 (RESERVATION: 원자적 UPDATE, ROOM/PLACE: 시간대별 검증)
-		reserveProducts(products, request.products(), request.timeSlots());
+		reserveProducts(products, request.products(), roomId, request.timeSlots());
 
 		// 4. 시간대별 가격 계산
 		final TimeSlotPriceBreakdown timeSlotBreakdown = calculateTimeSlotBreakdown(
@@ -161,7 +161,7 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		final List<LocalDateTime> timeSlots = extractTimeSlots(reservation);
 
 		// 5. 새 상품 재고 예약 (Scope별 처리)
-		reserveProducts(products, request.products(), timeSlots);
+		reserveProducts(products, request.products(), reservation.getRoomId(), timeSlots);
 
 		// 6. 상품별 가격 계산
 		final List<ProductPriceBreakdown> productBreakdowns = calculateProductBreakdowns(
@@ -224,12 +224,14 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	 *
 	 * @param products        예약할 상품 목록
 	 * @param productRequests 상품 요청 목록 (수량 포함)
+	 * @param roomId          예약할 룸 ID (PLACE Scope 상품에서 사용)
 	 * @param timeSlots       예약 시간 슬롯 목록 (ROOM/PLACE Scope에서 사용)
 	 * @throws ProductNotAvailableException 재고가 부족하여 예약 실패 시
 	 */
 	private void reserveProducts(
 			final List<Product> products,
 			final List<ProductRequest> productRequests,
+			final RoomId roomId,
 			final List<LocalDateTime> timeSlots) {
 
 		for (int i = 0; i < products.size(); i++) {
@@ -239,7 +241,7 @@ public class ReservationPricingService implements CreateReservationUseCase,
 			switch (product.getScope()) {
 				case RESERVATION -> reserveReservationProduct(product, productRequest.quantity());
 				case ROOM -> reserveRoomProduct(product, productRequest.quantity(), timeSlots);
-				case PLACE -> reservePlaceProduct(product, productRequest.quantity(), timeSlots);
+				case PLACE -> reservePlaceProduct(product, productRequest.quantity(), roomId, timeSlots);
 			}
 		}
 	}
@@ -316,26 +318,29 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	 *
 	 * @param product   예약할 상품
 	 * @param quantity  예약할 수량
+	 * @param roomId    예약할 룸 ID (product_time_slot_inventory 테이블에 기록)
 	 * @param timeSlots 예약 시간 슬롯 목록
 	 * @throws ProductNotAvailableException 재고가 부족하여 예약 실패 시
 	 */
 	private void reservePlaceProduct(
 			final Product product,
 			final int quantity,
+			final RoomId roomId,
 			final List<LocalDateTime> timeSlots) {
 
 		for (final LocalDateTime timeSlot : timeSlots) {
 			final boolean reserved = productRepository.reservePlaceTimeSlotQuantity(
 					product.getProductId(),
-					product.getRoomId(),
+					roomId,
 					timeSlot,
 					quantity
 			);
 
 			if (!reserved) {
-				logger.warn("Failed to reserve PLACE product: productId={}, placeId={}, timeSlot={}, quantity={}",
+				logger.warn("Failed to reserve PLACE product: productId={}, placeId={}, roomId={}, timeSlot={}, quantity={}",
 						product.getProductId().getValue(),
 						product.getPlaceId().getValue(),
+						roomId.getValue(),
 						timeSlot,
 						quantity);
 				throw new ProductNotAvailableException(
@@ -345,8 +350,8 @@ public class ReservationPricingService implements CreateReservationUseCase,
 			}
 		}
 
-		logger.debug("Successfully reserved PLACE product: productId={}, quantity={}, timeSlots={}",
-				product.getProductId().getValue(), quantity, timeSlots.size());
+		logger.debug("Successfully reserved PLACE product: productId={}, roomId={}, quantity={}, timeSlots={}",
+				product.getProductId().getValue(), roomId.getValue(), quantity, timeSlots.size());
 	}
 
 	/**
@@ -370,7 +375,8 @@ public class ReservationPricingService implements CreateReservationUseCase,
 
 			switch (product.getScope()) {
 				case RESERVATION -> releaseReservationProduct(product, breakdown.quantity());
-				case ROOM, PLACE -> releaseTimeSlotProduct(product, breakdown.quantity(), timeSlots);
+				case ROOM -> releaseTimeSlotProduct(product, breakdown.quantity(), product.getRoomId(), timeSlots);
+				case PLACE -> releaseTimeSlotProduct(product, breakdown.quantity(), reservation.getRoomId(), timeSlots);
 			}
 		}
 	}
@@ -404,17 +410,19 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	 *
 	 * @param product   상품
 	 * @param quantity  해제할 수량
+	 * @param roomId    룸 ID (예약 시 저장된 roomId)
 	 * @param timeSlots 시간 슬롯 목록
 	 */
 	private void releaseTimeSlotProduct(
 			final Product product,
 			final int quantity,
+			final RoomId roomId,
 			final List<LocalDateTime> timeSlots) {
 
 		for (final LocalDateTime timeSlot : timeSlots) {
 			final boolean released = productRepository.releaseTimeSlotQuantity(
 					product.getProductId(),
-					product.getRoomId(),
+					roomId,
 					timeSlot,
 					quantity
 			);
@@ -422,7 +430,7 @@ public class ReservationPricingService implements CreateReservationUseCase,
 			if (!released) {
 				logger.error("Failed to release time-slot product: productId={}, roomId={}, timeSlot={}, quantity={}",
 						product.getProductId().getValue(),
-						product.getRoomId().getValue(),
+						roomId.getValue(),
 						timeSlot,
 						quantity);
 				throw new IllegalStateException(
@@ -431,8 +439,8 @@ public class ReservationPricingService implements CreateReservationUseCase,
 			}
 		}
 
-		logger.debug("Successfully released {} product: productId={}, quantity={}, timeSlots={}",
-				product.getScope(), product.getProductId().getValue(), quantity, timeSlots.size());
+		logger.debug("Successfully released {} product: productId={}, roomId={}, quantity={}, timeSlots={}",
+				product.getScope(), product.getProductId().getValue(), roomId.getValue(), quantity, timeSlots.size());
 	}
 	
 	/**
