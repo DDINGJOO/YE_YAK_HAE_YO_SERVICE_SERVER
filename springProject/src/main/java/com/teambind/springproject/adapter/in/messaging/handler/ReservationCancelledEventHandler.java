@@ -9,6 +9,7 @@ import com.teambind.springproject.domain.shared.ReservationId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * ReservationCancelledEvent 핸들러.
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
  * 재고는 자동으로 복구됩니다 (CANCELLED 상태는 재고 계산에서 제외됨).
  */
 @Component
+@Transactional
 public class ReservationCancelledEventHandler implements
 		EventHandler<ReservationCancelledEvent> {
 	

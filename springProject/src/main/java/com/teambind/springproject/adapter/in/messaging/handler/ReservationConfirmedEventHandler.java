@@ -9,12 +9,14 @@ import com.teambind.springproject.domain.shared.ReservationId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * ReservationConfirmedEvent 핸들러.
  * 결제 서비스에서 결제 완료 이벤트를 수신하여 예약 상태를 CONFIRMED로 변경합니다.
  */
 @Component
+@Transactional
 public class ReservationConfirmedEventHandler implements EventHandler<ReservationConfirmedEvent> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(

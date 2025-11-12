@@ -3,6 +3,7 @@ package com.teambind.springproject.application.service.reservationpricing;
 import com.teambind.springproject.application.dto.request.CreateReservationRequest;
 import com.teambind.springproject.application.dto.request.ProductRequest;
 import com.teambind.springproject.application.dto.response.ReservationPricingResponse;
+import com.teambind.springproject.application.port.out.InventoryCompensationQueue;
 import com.teambind.springproject.application.port.out.PricingPolicyRepository;
 import com.teambind.springproject.application.port.out.ProductRepository;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
@@ -50,6 +51,9 @@ class ReservationPricingServiceTest {
 	@Mock
 	private ReservationConfiguration reservationConfiguration;
 
+	@Mock
+	private InventoryCompensationQueue compensationQueue;
+
 	private ReservationPricingService reservationPricingService;
 
 	private RoomId roomId;
@@ -69,6 +73,7 @@ class ReservationPricingServiceTest {
 				pricingPolicyRepository,
 				productRepository,
 				reservationPricingRepository,
+				compensationQueue,
 				reservationConfiguration
 		);
 
@@ -338,8 +343,8 @@ class ReservationPricingServiceTest {
 					.thenReturn(Optional.of(reservation));
 			when(reservationPricingRepository.save(any(ReservationPricing.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
-			when(productRepository.findById(product.getProductId()))
-					.thenReturn(Optional.of(product));
+			when(productRepository.findAllById(anyList()))
+					.thenReturn(List.of(product));
 			when(productRepository.releaseTimeSlotQuantity(
 					eq(product.getProductId()), eq(roomId), any(LocalDateTime.class), eq(1)))
 					.thenReturn(true);

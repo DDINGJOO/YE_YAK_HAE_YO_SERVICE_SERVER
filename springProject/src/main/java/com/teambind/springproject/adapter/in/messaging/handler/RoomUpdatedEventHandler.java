@@ -8,12 +8,14 @@ import com.teambind.springproject.domain.shared.TimeSlot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * RoomUpdatedEvent 핸들러.
  * 룸 업데이트 이벤트를 수신하여 가격 정책의 TimeSlot을 업데이트합니다.
  */
 @Component
+@Transactional
 public class RoomUpdatedEventHandler implements EventHandler<RoomUpdatedEvent> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(RoomUpdatedEventHandler.class);

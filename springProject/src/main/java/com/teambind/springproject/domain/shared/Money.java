@@ -120,12 +120,23 @@ public class Money {
 			return false;
 		}
 		final Money money = (Money) o;
-		return Objects.equals(amount, money.amount);
+		// Use compareTo instead of equals to ignore scale differences
+		// Money.of(100.0) should equal Money.of(100.00)
+		return this.amount.compareTo(money.amount) == 0;
 	}
-	
+
 	@Override
 	public int hashCode() {
-		return Objects.hash(amount);
+		// compareTo와 일관성을 유지하기 위해 정규화된 값 사용
+		// Money.of(100.0)과 Money.of(100.00)은 동일한 hashCode를 가져야 함
+
+		// 0은 항상 동일한 hashCode
+		if (amount.compareTo(BigDecimal.ZERO) == 0) {
+			return Objects.hash(BigDecimal.ZERO);
+		}
+
+		// scale을 제거한 정규화된 값으로 hashCode 계산
+		return Objects.hash(amount.stripTrailingZeros());
 	}
 	
 	@Override

@@ -6,12 +6,14 @@ import com.teambind.springproject.application.dto.request.UpdateProductsRequest;
 import com.teambind.springproject.application.dto.response.ReservationPricingResponse;
 import com.teambind.springproject.application.port.in.CreateReservationUseCase;
 import com.teambind.springproject.application.port.in.UpdateReservationProductsUseCase;
+import com.teambind.springproject.application.port.out.InventoryCompensationQueue;
 import com.teambind.springproject.application.port.out.PricingPolicyRepository;
 import com.teambind.springproject.application.port.out.ProductRepository;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
 import com.teambind.springproject.domain.product.Product;
 import com.teambind.springproject.domain.product.vo.ProductPriceBreakdown;
+import com.teambind.springproject.domain.reservationpricing.InventoryCompensationTask;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown;
 import com.teambind.springproject.domain.reservationpricing.exception.ProductNotAvailableException;
@@ -43,16 +45,19 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	private final PricingPolicyRepository pricingPolicyRepository;
 	private final ProductRepository productRepository;
 	private final ReservationPricingRepository reservationPricingRepository;
+	private final InventoryCompensationQueue compensationQueue;
 	private final long pendingTimeoutMinutes;
 
 	public ReservationPricingService(
 			final PricingPolicyRepository pricingPolicyRepository,
 			final ProductRepository productRepository,
 			final ReservationPricingRepository reservationPricingRepository,
+			final InventoryCompensationQueue compensationQueue,
 			final com.teambind.springproject.common.config.ReservationConfiguration reservationConfiguration) {
 		this.pricingPolicyRepository = pricingPolicyRepository;
 		this.productRepository = productRepository;
 		this.reservationPricingRepository = reservationPricingRepository;
+		this.compensationQueue = compensationQueue;
 		this.pendingTimeoutMinutes = reservationConfiguration.getPending().getTimeoutMinutes();
 	}
 	
@@ -137,7 +142,34 @@ public class ReservationPricingService implements CreateReservationUseCase,
 
 		return ReservationPricingResponse.from(savedReservation);
 	}
-	
+
+	/**
+	 * 예약 환불 처리.
+	 * 결제 완료 후 환불하는 경우 CONFIRMED → CANCELLED 상태 전환과 함께 재고를 해제합니다.
+	 *
+	 * @param reservationId 환불할 예약 ID
+	 * @return 환불된 예약 정보
+	 * @throws ReservationPricingNotFoundException 예약을 찾을 수 없는 경우
+	 */
+	public ReservationPricingResponse refundReservation(final Long reservationId) {
+		logger.info("Refunding reservation: reservationId={}", reservationId);
+
+		final ReservationPricing reservation = reservationPricingRepository
+				.findById(ReservationId.of(reservationId))
+				.orElseThrow(() -> new ReservationPricingNotFoundException(reservationId));
+
+		// 1. 예약된 상품 재고 복구
+		releaseProducts(reservation);
+
+		// 2. 예약 환불 처리 (CONFIRMED → CANCELLED)
+		reservation.refund();
+		final ReservationPricing savedReservation = reservationPricingRepository.save(reservation);
+
+		logger.info("Successfully refunded reservation: reservationId={}", reservationId);
+
+		return ReservationPricingResponse.from(savedReservation);
+	}
+
 	@Override
 	public ReservationPricingResponse updateProducts(
 			final Long reservationId,
@@ -275,7 +307,7 @@ public class ReservationPricingService implements CreateReservationUseCase,
 
 	/**
 	 * 예약 실패 시 지금까지 예약된 상품들의 재고를 복구합니다.
-	 * Best Effort 방식으로 동작하며, 롤백 중 일부 실패하더라도 계속 진행합니다.
+	 * Best Effort 방식으로 동작하며, 롤백 중 일부 실패하면 보상 트랜잭션 큐에 추가합니다.
 	 *
 	 * @param reservedProducts 롤백할 예약 목록
 	 */
@@ -285,6 +317,9 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		}
 
 		logger.info("Starting rollback for {} reserved products", reservedProducts.size());
+
+		int successCount = 0;
+		int failedCount = 0;
 
 		// 역순으로 롤백 (LIFO - Last In First Out)
 		for (int i = reservedProducts.size() - 1; i >= 0; i--) {
@@ -299,23 +334,41 @@ public class ReservationPricingService implements CreateReservationUseCase,
 							info.product(), info.quantity(), info.roomId(), info.timeSlots());
 				}
 
+				successCount++;
 				logger.debug("Rollback successful: productId={}, scope={}, quantity={}",
 						info.product().getProductId().getValue(),
 						info.product().getScope(),
 						info.quantity());
 
 			} catch (final Exception rollbackException) {
-				// 롤백 실패 시 로그만 기록하고 계속 진행 (Best Effort)
-				logger.error("Rollback failed for productId={}, scope={}, quantity={}. " +
-								"Manual inventory correction may be required.",
+				failedCount++;
+
+				// 롤백 실패 시 보상 트랜잭션 큐에 추가
+				logger.error("Rollback failed, adding to compensation queue: productId={}, scope={}, quantity={}, error={}",
 						info.product().getProductId().getValue(),
 						info.product().getScope(),
 						info.quantity(),
-						rollbackException);
+						rollbackException.getMessage());
+
+				final InventoryCompensationTask task = new InventoryCompensationTask(
+						info.product(),
+						info.quantity(),
+						info.roomId(),
+						info.timeSlots(),
+						rollbackException.getMessage()
+				);
+				compensationQueue.enqueue(task);
+
+				// TODO: 알람 발송 (Slack, PagerDuty, Email 등)
+				// alertService.sendWarning("Inventory rollback failed", task);
 			}
 		}
 
-		logger.info("Rollback completed for {} products", reservedProducts.size());
+		logger.info("Rollback completed: {} succeeded, {} failed and queued for compensation out of {} total",
+				successCount, failedCount, reservedProducts.size());
+
+		// 롤백 실패가 있더라도 예외를 던지지 않음
+		// 실패한 롤백은 보상 트랜잭션 큐에서 재시도됨
 	}
 
 	/**
@@ -439,11 +492,25 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		final List<ProductPriceBreakdown> productBreakdowns = reservation.getProductBreakdowns();
 		final List<LocalDateTime> timeSlots = extractTimeSlots(reservation);
 
+		// N+1 쿼리 방지: 모든 상품을 일괄 조회
+		final List<ProductId> productIds = productBreakdowns.stream()
+				.map(ProductPriceBreakdown::productId)
+				.toList();
+
+		final List<Product> products = productRepository.findAllById(productIds);
+
+		// ProductId -> Product 매핑 생성 (O(1) 조회)
+		final java.util.Map<ProductId, Product> productMap = products.stream()
+				.collect(java.util.stream.Collectors.toMap(Product::getProductId, p -> p));
+
+		// 상품별 재고 해제
 		for (final ProductPriceBreakdown breakdown : productBreakdowns) {
-			// ProductId로 상품 조회하여 Scope 확인
-			final Product product = productRepository.findById(breakdown.productId())
-					.orElseThrow(() -> new IllegalStateException(
-							"Product not found: productId=" + breakdown.productId().getValue()));
+			final Product product = productMap.get(breakdown.productId());
+
+			if (product == null) {
+				throw new IllegalStateException(
+						"Product not found: productId=" + breakdown.productId().getValue());
+			}
 
 			switch (product.getScope()) {
 				case RESERVATION -> releaseReservationProduct(product, breakdown.quantity());

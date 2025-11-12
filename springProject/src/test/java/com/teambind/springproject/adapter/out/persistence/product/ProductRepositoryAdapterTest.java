@@ -757,4 +757,61 @@ class ProductRepositoryAdapterTest {
 			System.out.println("AVG: " + String.format("%.2f", avg) + "ms");
 		}
 	}
+
+	/**
+	 * Transaction Propagation MANDATORY 검증 테스트.
+	 * reservePlaceTimeSlotQuantity는 MANDATORY로 설정되어 있어 반드시 트랜잭션 내에서 호출되어야 함.
+	 */
+	@Nested
+	@DisplayName("Transaction Propagation MANDATORY 검증")
+	class TransactionPropagationTest {
+
+		@Test
+		@Transactional(propagation = Propagation.NOT_SUPPORTED)
+		@DisplayName("트랜잭션 없이 reservePlaceTimeSlotQuantity 호출 시 예외 발생")
+		void reservePlaceTimeSlotQuantity_withoutTransaction_throwsException() {
+			// given
+			final Product product = Product.createPlaceScoped(
+					ProductId.of(null),
+					PlaceId.of(1L),
+					"PLACE Scope 상품",
+					PricingStrategy.simpleStock(Money.of(10000)),
+					10
+			);
+			final Product saved = repository.save(product);
+			final RoomId roomId = RoomId.of(1L);
+			final java.time.LocalDateTime timeSlot = java.time.LocalDateTime.of(2025, 11, 15, 10, 0);
+
+			// when & then
+			org.junit.jupiter.api.Assertions.assertThrows(
+					org.springframework.transaction.IllegalTransactionStateException.class,
+					() -> repository.reservePlaceTimeSlotQuantity(saved.getProductId(), roomId, timeSlot, 1),
+					"MANDATORY propagation requires active transaction"
+			);
+		}
+
+		@Test
+		@Transactional  // 트랜잭션 있음
+		@DisplayName("트랜잭션 내에서 reservePlaceTimeSlotQuantity 호출 시 정상 동작")
+		void reservePlaceTimeSlotQuantity_withTransaction_success() {
+			// given
+			final Product product = Product.createPlaceScoped(
+					ProductId.of(null),
+					PlaceId.of(1L),
+					"PLACE Scope 상품",
+					PricingStrategy.simpleStock(Money.of(10000)),
+					10
+			);
+			final Product saved = repository.save(product);
+			final RoomId roomId = RoomId.of(1L);
+			final java.time.LocalDateTime timeSlot = java.time.LocalDateTime.of(2025, 11, 15, 10, 0);
+
+			// when
+			final boolean result = repository.reservePlaceTimeSlotQuantity(
+					saved.getProductId(), roomId, timeSlot, 5);
+
+			// then
+			assertThat(result).isTrue();
+		}
+	}
 }
