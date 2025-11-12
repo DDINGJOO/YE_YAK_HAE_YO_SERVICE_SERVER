@@ -117,4 +117,16 @@ public class ProductRepositoryAdapter implements ProductRepository {
 	public boolean existsById(final ProductId productId) {
 		return jpaRepository.existsById(productId.getValue());
 	}
+
+	@Override
+	public boolean reserveQuantity(final ProductId productId, final int quantity) {
+		// TODO: Task #142에서 원자적 UPDATE 쿼리로 구현 예정
+		throw new UnsupportedOperationException("reserveQuantity will be implemented in Task #142");
+	}
+
+	@Override
+	public boolean releaseQuantity(final ProductId productId, final int quantity) {
+		// TODO: Task #142에서 원자적 UPDATE 쿼리로 구현 예정
+		throw new UnsupportedOperationException("releaseQuantity will be implemented in Task #142");
+	}
 }
