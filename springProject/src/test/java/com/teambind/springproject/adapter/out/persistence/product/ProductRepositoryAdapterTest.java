@@ -19,10 +19,18 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,7 +39,11 @@ import static org.mockito.Mockito.when;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
-@Import(ProductRepositoryAdapter.class)
+@Import({
+		ProductRepositoryAdapter.class,
+		com.teambind.springproject.common.config.CustomConfig.class,
+		com.teambind.springproject.common.util.generator.SnowflakeIdGenerator.class
+})
 @DisplayName("ProductRepository 통합 테스트")
 class ProductRepositoryAdapterTest {
 	
@@ -416,6 +428,324 @@ class ProductRepositoryAdapterTest {
 			final PricingStrategy strategy = found.get().getPricingStrategy();
 			assertThat(strategy.getPricingType()).isEqualTo(PricingType.ONE_TIME);
 			assertThat(strategy.getInitialPrice()).isEqualTo(Money.of(5000));
+		}
+	}
+
+	@Nested
+	@DisplayName("대규모 동시성 테스트")
+	class LargeScaleConcurrencyTests {
+
+		@Test
+		@Transactional(propagation = Propagation.NOT_SUPPORTED)
+		@DisplayName("100명이 재고 50개 상품을 동시 예약 시 정확히 50명만 성공")
+		void hundredUsersTryToReserve50Items() throws InterruptedException {
+			// given
+			final int totalQuantity = 50;
+			final int concurrentUsers = 100;
+			final Product product = Product.createReservationScoped(
+					ProductId.of(null),
+					"인기 상품",
+					PricingStrategy.simpleStock(Money.of(10000)),
+					totalQuantity
+			);
+			final Product saved = repository.save(product);
+
+			final ExecutorService executorService = Executors.newFixedThreadPool(concurrentUsers);
+			final CountDownLatch startLatch = new CountDownLatch(1);
+			final CountDownLatch endLatch = new CountDownLatch(concurrentUsers);
+			final AtomicInteger successCount = new AtomicInteger(0);
+			final AtomicInteger failureCount = new AtomicInteger(0);
+			final List<Long> responseTimes = new CopyOnWriteArrayList<>();
+
+			// when
+			for (int i = 0; i < concurrentUsers; i++) {
+				executorService.submit(() -> {
+					try {
+						startLatch.await();
+						final long startTime = System.currentTimeMillis();
+
+						final boolean reserved = repository.reserveQuantity(saved.getProductId(), 1);
+
+						final long endTime = System.currentTimeMillis();
+						responseTimes.add(endTime - startTime);
+
+						if (reserved) {
+							successCount.incrementAndGet();
+						} else {
+							failureCount.incrementAndGet();
+						}
+					} catch (final Exception e) {
+						failureCount.incrementAndGet();
+					} finally {
+						endLatch.countDown();
+					}
+				});
+			}
+
+			startLatch.countDown();
+			endLatch.await();
+			executorService.shutdown();
+
+			// then
+			assertThat(successCount.get()).isEqualTo(totalQuantity);
+			assertThat(failureCount.get()).isEqualTo(concurrentUsers - totalQuantity);
+
+			final Product result = repository.findById(saved.getProductId()).orElseThrow();
+			assertThat(result.getReservedQuantity()).isEqualTo(totalQuantity);
+			assertThat(result.getAvailableQuantity()).isZero();
+
+			System.out.println("=== 성능 측정 결과 ===");
+			System.out.println("총 사용자: " + concurrentUsers);
+			System.out.println("성공: " + successCount.get());
+			System.out.println("실패: " + failureCount.get());
+			printPerformanceMetrics(responseTimes);
+		}
+
+		@Test
+		@Transactional(propagation = Propagation.NOT_SUPPORTED)
+		@DisplayName("200명이 재고 10개 상품을 각 5개씩 동시 예약 시 정확히 2명만 성공")
+		void twoHundredUsersTryToReserve10ItemsWith5Quantity() throws InterruptedException {
+			// given
+			final int totalQuantity = 10;
+			final int concurrentUsers = 200;
+			final int quantityPerUser = 5;
+			final Product product = Product.createReservationScoped(
+					ProductId.of(null),
+					"희귀 상품",
+					PricingStrategy.simpleStock(Money.of(50000)),
+					totalQuantity
+			);
+			final Product saved = repository.save(product);
+
+			final ExecutorService executorService = Executors.newFixedThreadPool(concurrentUsers);
+			final CountDownLatch startLatch = new CountDownLatch(1);
+			final CountDownLatch endLatch = new CountDownLatch(concurrentUsers);
+			final AtomicInteger successCount = new AtomicInteger(0);
+			final AtomicInteger failureCount = new AtomicInteger(0);
+			final List<Long> responseTimes = new CopyOnWriteArrayList<>();
+
+			// when
+			for (int i = 0; i < concurrentUsers; i++) {
+				executorService.submit(() -> {
+					try {
+						startLatch.await();
+						final long startTime = System.currentTimeMillis();
+
+						final boolean reserved = repository.reserveQuantity(saved.getProductId(), quantityPerUser);
+
+						final long endTime = System.currentTimeMillis();
+						responseTimes.add(endTime - startTime);
+
+						if (reserved) {
+							successCount.incrementAndGet();
+						} else {
+							failureCount.incrementAndGet();
+						}
+					} catch (final Exception e) {
+						failureCount.incrementAndGet();
+					} finally {
+						endLatch.countDown();
+					}
+				});
+			}
+
+			startLatch.countDown();
+			endLatch.await();
+			executorService.shutdown();
+
+			// then
+			final int expectedSuccess = totalQuantity / quantityPerUser;
+			assertThat(successCount.get()).isEqualTo(expectedSuccess);
+			assertThat(failureCount.get()).isEqualTo(concurrentUsers - expectedSuccess);
+
+			final Product result = repository.findById(saved.getProductId()).orElseThrow();
+			assertThat(result.getReservedQuantity()).isEqualTo(totalQuantity);
+			assertThat(result.getAvailableQuantity()).isZero();
+
+			System.out.println("=== 성능 측정 결과 ===");
+			System.out.println("총 사용자: " + concurrentUsers);
+			System.out.println("성공: " + successCount.get());
+			System.out.println("실패: " + failureCount.get());
+			printPerformanceMetrics(responseTimes);
+		}
+
+		@Test
+		@Transactional(propagation = Propagation.NOT_SUPPORTED)
+		@DisplayName("500명이 충분한 재고 상품을 동시 예약 시 모두 성공")
+		void fiveHundredUsersTryToReserveSufficientStock() throws InterruptedException {
+			// given
+			final int totalQuantity = 1000;
+			final int concurrentUsers = 500;
+			final Product product = Product.createReservationScoped(
+					ProductId.of(null),
+					"대량 재고 상품",
+					PricingStrategy.simpleStock(Money.of(5000)),
+					totalQuantity
+			);
+			final Product saved = repository.save(product);
+
+			final ExecutorService executorService = Executors.newFixedThreadPool(concurrentUsers);
+			final CountDownLatch startLatch = new CountDownLatch(1);
+			final CountDownLatch endLatch = new CountDownLatch(concurrentUsers);
+			final AtomicInteger successCount = new AtomicInteger(0);
+			final AtomicInteger failureCount = new AtomicInteger(0);
+			final List<Long> responseTimes = new CopyOnWriteArrayList<>();
+
+			// when
+			for (int i = 0; i < concurrentUsers; i++) {
+				executorService.submit(() -> {
+					try {
+						startLatch.await();
+						final long startTime = System.currentTimeMillis();
+
+						final boolean reserved = repository.reserveQuantity(saved.getProductId(), 1);
+
+						final long endTime = System.currentTimeMillis();
+						responseTimes.add(endTime - startTime);
+
+						if (reserved) {
+							successCount.incrementAndGet();
+						} else {
+							failureCount.incrementAndGet();
+						}
+					} catch (final Exception e) {
+						failureCount.incrementAndGet();
+					} finally {
+						endLatch.countDown();
+					}
+				});
+			}
+
+			startLatch.countDown();
+			endLatch.await();
+			executorService.shutdown();
+
+			// then
+			assertThat(successCount.get()).isEqualTo(concurrentUsers);
+			assertThat(failureCount.get()).isZero();
+
+			final Product result = repository.findById(saved.getProductId()).orElseThrow();
+			assertThat(result.getReservedQuantity()).isEqualTo(concurrentUsers);
+			assertThat(result.getAvailableQuantity()).isEqualTo(totalQuantity - concurrentUsers);
+
+			System.out.println("=== 성능 측정 결과 ===");
+			System.out.println("총 사용자: " + concurrentUsers);
+			System.out.println("성공: " + successCount.get());
+			System.out.println("실패: " + failureCount.get());
+			printPerformanceMetrics(responseTimes);
+		}
+
+		@Test
+		@Transactional(propagation = Propagation.NOT_SUPPORTED)
+		@DisplayName("100명이 예약 후 50명이 동시 취소 시 재고 정확히 복구")
+		void hundredUsersReserveThenFiftyRelease() throws InterruptedException {
+			// given
+			final int totalQuantity = 100;
+			final int reserveUsers = 100;
+			final int releaseUsers = 50;
+			final Product product = Product.createReservationScoped(
+					ProductId.of(null),
+					"예약 취소 테스트 상품",
+					PricingStrategy.simpleStock(Money.of(10000)),
+					totalQuantity
+			);
+			final Product saved = repository.save(product);
+
+			// 먼저 100명이 예약
+			final ExecutorService reserveExecutor = Executors.newFixedThreadPool(reserveUsers);
+			final CountDownLatch reserveStartLatch = new CountDownLatch(1);
+			final CountDownLatch reserveEndLatch = new CountDownLatch(reserveUsers);
+			final AtomicInteger reserveSuccessCount = new AtomicInteger(0);
+
+			for (int i = 0; i < reserveUsers; i++) {
+				reserveExecutor.submit(() -> {
+					try {
+						reserveStartLatch.await();
+						final boolean reserved = repository.reserveQuantity(saved.getProductId(), 1);
+						if (reserved) {
+							reserveSuccessCount.incrementAndGet();
+						}
+					} catch (final Exception e) {
+						// ignore
+					} finally {
+						reserveEndLatch.countDown();
+					}
+				});
+			}
+
+			reserveStartLatch.countDown();
+			reserveEndLatch.await();
+			reserveExecutor.shutdown();
+
+			assertThat(reserveSuccessCount.get()).isEqualTo(totalQuantity);
+
+			// 50명이 동시 취소
+			final ExecutorService releaseExecutor = Executors.newFixedThreadPool(releaseUsers);
+			final CountDownLatch releaseStartLatch = new CountDownLatch(1);
+			final CountDownLatch releaseEndLatch = new CountDownLatch(releaseUsers);
+			final AtomicInteger releaseSuccessCount = new AtomicInteger(0);
+			final List<Long> responseTimes = new CopyOnWriteArrayList<>();
+
+			for (int i = 0; i < releaseUsers; i++) {
+				releaseExecutor.submit(() -> {
+					try {
+						releaseStartLatch.await();
+						final long startTime = System.currentTimeMillis();
+
+						final boolean released = repository.releaseQuantity(saved.getProductId(), 1);
+
+						final long endTime = System.currentTimeMillis();
+						responseTimes.add(endTime - startTime);
+
+						if (released) {
+							releaseSuccessCount.incrementAndGet();
+						}
+					} catch (final Exception e) {
+						// ignore
+					} finally {
+						releaseEndLatch.countDown();
+					}
+				});
+			}
+
+			releaseStartLatch.countDown();
+			releaseEndLatch.await();
+			releaseExecutor.shutdown();
+
+			// then
+			assertThat(releaseSuccessCount.get()).isEqualTo(releaseUsers);
+
+			final Product result = repository.findById(saved.getProductId()).orElseThrow();
+			assertThat(result.getReservedQuantity()).isEqualTo(totalQuantity - releaseUsers);
+			assertThat(result.getAvailableQuantity()).isEqualTo(releaseUsers);
+
+			System.out.println("=== 예약 취소 성능 측정 결과 ===");
+			System.out.println("예약 성공: " + reserveSuccessCount.get());
+			System.out.println("취소 성공: " + releaseSuccessCount.get());
+			printPerformanceMetrics(responseTimes);
+		}
+
+		private void printPerformanceMetrics(final List<Long> responseTimes) {
+			if (responseTimes.isEmpty()) {
+				System.out.println("응답 시간 데이터 없음");
+				return;
+			}
+
+			final List<Long> sorted = responseTimes.stream()
+					.sorted()
+					.collect(Collectors.toList());
+
+			final long p50 = sorted.get((int) (sorted.size() * 0.50));
+			final long p95 = sorted.get((int) (sorted.size() * 0.95));
+			final long p99 = sorted.get((int) (sorted.size() * 0.99));
+			final long max = sorted.get(sorted.size() - 1);
+			final double avg = sorted.stream().mapToLong(Long::longValue).average().orElse(0);
+
+			System.out.println("P50: " + p50 + "ms");
+			System.out.println("P95: " + p95 + "ms");
+			System.out.println("P99: " + p99 + "ms");
+			System.out.println("MAX: " + max + "ms");
+			System.out.println("AVG: " + String.format("%.2f", avg) + "ms");
 		}
 	}
 }
