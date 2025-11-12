@@ -64,28 +64,28 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	public ReservationPricingResponse createReservation(final CreateReservationRequest request) {
 		logger.info("Creating reservation: roomId={}, timeSlots={}, products={}",
 				request.roomId(), request.timeSlots().size(), request.products().size());
-		
+
 		final RoomId roomId = RoomId.of(request.roomId());
-		
+
 		// 1. 가격 정책 조회
 		final PricingPolicy pricingPolicy = pricingPolicyRepository.findById(roomId)
 				.orElseThrow(() -> new ReservationPricingNotFoundException(
 						"Pricing policy not found for roomId: " + request.roomId()));
-		
+
 		// 2. 상품 목록 조회
 		final List<Product> products = fetchProducts(request.products());
-		
-		// 3. 재고 검증
-		validateProductAvailability(products, request.products(), request.timeSlots());
-		
+
+		// 3. 원자적 재고 예약 (검증 + 차감 동시 수행)
+		reserveProducts(products, request.products());
+
 		// 4. 시간대별 가격 계산
 		final TimeSlotPriceBreakdown timeSlotBreakdown = calculateTimeSlotBreakdown(
 				pricingPolicy, request.timeSlots());
-		
+
 		// 5. 상품별 가격 계산
 		final List<ProductPriceBreakdown> productBreakdowns = calculateProductBreakdowns(
 				products, request.products());
-		
+
 		// 6. 예약 가격 계산 및 생성
 		final ReservationPricing reservationPricing = ReservationPricing.calculate(
 				ReservationId.of(null),  // Auto-generated
@@ -94,15 +94,15 @@ public class ReservationPricingService implements CreateReservationUseCase,
 				productBreakdowns,
 				pendingTimeoutMinutes
 		);
-		
+
 		// 7. 저장
 		final ReservationPricing savedReservation = reservationPricingRepository.save(
 				reservationPricing);
-		
+
 		logger.info("Successfully created reservation: reservationId={}, totalPrice={}",
 				savedReservation.getReservationId().getValue(),
 				savedReservation.getTotalPrice().getAmount());
-		
+
 		return ReservationPricingResponse.from(savedReservation);
 	}
 	
@@ -125,16 +125,20 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	@Override
 	public ReservationPricingResponse cancelReservation(final Long reservationId) {
 		logger.info("Cancelling reservation: reservationId={}", reservationId);
-		
+
 		final ReservationPricing reservation = reservationPricingRepository
 				.findById(ReservationId.of(reservationId))
 				.orElseThrow(() -> new ReservationPricingNotFoundException(reservationId));
-		
+
+		// 1. 예약된 상품 재고 복구
+		releaseProducts(reservation);
+
+		// 2. 예약 취소 처리
 		reservation.cancel();
 		final ReservationPricing savedReservation = reservationPricingRepository.save(reservation);
-		
+
 		logger.info("Successfully cancelled reservation: reservationId={}", reservationId);
-		
+
 		return ReservationPricingResponse.from(savedReservation);
 	}
 	
@@ -142,35 +146,37 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	public ReservationPricingResponse updateProducts(
 			final Long reservationId,
 			final UpdateProductsRequest request) {
-		
+
 		logger.info("Updating products for reservation: reservationId={}, products={}",
 				reservationId, request.products().size());
-		
+
 		// 1. 예약 조회
 		final ReservationPricing reservation = reservationPricingRepository
 				.findById(ReservationId.of(reservationId))
 				.orElseThrow(() -> new ReservationPricingNotFoundException(reservationId));
-		
-		// 2. 상품 목록 조회
+
+		// 2. 기존 상품 재고 복구
+		releaseProducts(reservation);
+
+		// 3. 새 상품 목록 조회
 		final List<Product> products = fetchProducts(request.products());
-		
-		// 3. 재고 검증 (예약의 시간대 정보 추출)
-		final List<LocalDateTime> timeSlots = extractTimeSlots(reservation);
-		validateProductAvailability(products, request.products(), timeSlots);
-		
-		// 4. 상품별 가격 계산
+
+		// 4. 새 상품 재고 예약
+		reserveProducts(products, request.products());
+
+		// 5. 상품별 가격 계산
 		final List<ProductPriceBreakdown> productBreakdowns = calculateProductBreakdowns(
 				products, request.products());
-		
-		// 5. 예약 상품 업데이트 (도메인 메서드 호출)
+
+		// 6. 예약 상품 업데이트 (도메인 메서드 호출)
 		reservation.updateProducts(productBreakdowns);
-		
-		// 6. 저장
+
+		// 7. 저장
 		final ReservationPricing savedReservation = reservationPricingRepository.save(reservation);
-		
+
 		logger.info("Successfully updated products for reservation: reservationId={}, totalPrice={}",
 				reservationId, savedReservation.getTotalPrice().getAmount());
-		
+
 		return ReservationPricingResponse.from(savedReservation);
 	}
 	
@@ -210,37 +216,65 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	}
 	
 	/**
-	 * 상품 재고 가용성을 검증합니다.
+	 * 상품 재고를 원자적으로 예약합니다.
+	 * WHERE 조건에서 재고 검증과 차감을 동시에 수행하여 Race Condition을 방지합니다.
 	 *
-	 * @param products        검증할 상품 목록
+	 * @param products        예약할 상품 목록
 	 * @param productRequests 상품 요청 목록 (수량 포함)
-	 * @param timeSlots       예약 시간 슬롯 목록
-	 * @throws ProductNotAvailableException 재고가 부족한 경우
+	 * @throws ProductNotAvailableException 재고가 부족하여 예약 실패 시
 	 */
-	private void validateProductAvailability(
+	private void reserveProducts(
 			final List<Product> products,
-			final List<ProductRequest> productRequests,
-			final List<LocalDateTime> timeSlots) {
-		
+			final List<ProductRequest> productRequests) {
+
 		for (int i = 0; i < products.size(); i++) {
 			final Product product = products.get(i);
 			final ProductRequest productRequest = productRequests.get(i);
-			
-			// Scope별로 overlapping reservations 조회
-			final List<ReservationPricing> overlappingReservations =
-					getOverlappingReservations(product, timeSlots);
-			
-			final boolean available = productAvailabilityService.isAvailable(
-					product,
-					timeSlots,
-					productRequest.quantity(),
-					overlappingReservations
+
+			final boolean reserved = productRepository.reserveQuantity(
+					product.getProductId(),
+					productRequest.quantity()
 			);
-			
-			if (!available) {
-				throw new ProductNotAvailableException(
+
+			if (!reserved) {
+				logger.warn("Failed to reserve product: productId={}, quantity={}",
 						product.getProductId().getValue(), productRequest.quantity());
+				throw new ProductNotAvailableException(
+						product.getProductId().getValue(),
+						productRequest.quantity()
+				);
 			}
+
+			logger.debug("Successfully reserved product: productId={}, quantity={}",
+					product.getProductId().getValue(), productRequest.quantity());
+		}
+	}
+
+	/**
+	 * 예약된 상품 재고를 복구합니다.
+	 * 예약 취소 시 호출됩니다.
+	 *
+	 * @param reservation 재고를 복구할 예약
+	 */
+	private void releaseProducts(final ReservationPricing reservation) {
+		final List<ProductPriceBreakdown> productBreakdowns = reservation.getProductBreakdowns();
+
+		for (final ProductPriceBreakdown breakdown : productBreakdowns) {
+			final boolean released = productRepository.releaseQuantity(
+					breakdown.productId(),
+					breakdown.quantity()
+			);
+
+			if (!released) {
+				logger.error("Failed to release product inventory: productId={}, quantity={}",
+						breakdown.productId().getValue(), breakdown.quantity());
+				throw new IllegalStateException(
+						"Failed to release product inventory: productId=" + breakdown.productId().getValue()
+				);
+			}
+
+			logger.debug("Successfully released product: productId={}, quantity={}",
+					breakdown.productId().getValue(), breakdown.quantity());
 		}
 	}
 	
