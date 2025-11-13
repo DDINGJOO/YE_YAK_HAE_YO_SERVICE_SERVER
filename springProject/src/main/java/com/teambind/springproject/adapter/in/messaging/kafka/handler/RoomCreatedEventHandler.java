@@ -1,6 +1,6 @@
-package com.teambind.springproject.adapter.in.messaging.handler;
+package com.teambind.springproject.adapter.in.messaging.kafka.handler;
 
-import com.teambind.springproject.adapter.in.messaging.event.RoomCreatedEvent;
+import com.teambind.springproject.adapter.in.messaging.kafka.event.RoomCreatedEvent;
 import com.teambind.springproject.application.port.in.CreatePricingPolicyUseCase;
 import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.RoomId;

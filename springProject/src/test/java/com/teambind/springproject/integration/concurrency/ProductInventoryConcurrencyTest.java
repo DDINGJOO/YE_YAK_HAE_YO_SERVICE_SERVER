@@ -44,11 +44,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 주의: RESERVATION Scope 상품만 원자적 재고 예약을 지원합니다.
  * ROOM/PLACE Scope는 시간대별 재고 관리가 필요하여 별도 처리가 필요합니다.
  */
-@SpringBootTest
-@ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @DisplayName("상품 재고 동시성 테스트 (RESERVATION Scope)")
-class ProductInventoryConcurrencyTest {
+public class ProductInventoryConcurrencyTest extends BaseConcurrencyTest {
 
 	@Autowired
 	private CreateReservationUseCase createReservationUseCase;
@@ -69,6 +67,9 @@ class ProductInventoryConcurrencyTest {
 
 	@BeforeEach
 	void setUp() {
+		// Clean database before each test
+		cleanDatabase();
+
 		testPlaceId = 1000L;
 		testRoomId = 2000L;
 

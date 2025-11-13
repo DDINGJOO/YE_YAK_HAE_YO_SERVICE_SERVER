@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Scenario 12: 룸별 허용 상품 필터링을 테스트합니다.
  */
 @DisplayName("룸별 상품 허용 관리 E2E 테스트")
-class RoomAllowedProductE2ETest extends BaseE2ETest {
+public class RoomAllowedProductE2ETest extends BaseE2ETest {
 	
 	@Autowired
 	private PricingPolicyRepository pricingPolicyRepository;

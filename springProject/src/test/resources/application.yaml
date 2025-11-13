@@ -6,19 +6,31 @@ spring:
     username: sa
     password:
 
+  # Disable task scheduling in tests
+  task:
+    scheduling:
+      enabled: false
+
   # JPA Configuration
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: create
       naming:
         physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+    defer-datasource-initialization: false
     show-sql: true
     properties:
       hibernate:
         format_sql: true
         default_batch_fetch_size: 100
     open-in-view: false
+
+  # SQL Init for shedlock table (runs before JPA)
+  sql:
+    init:
+      mode: embedded
+      schema-locations: classpath:schema.sql
 
   # Flyway Configuration (disabled for tests)
   flyway:
@@ -27,10 +39,39 @@ spring:
   # Kafka Configuration (embedded or disabled for tests)
   kafka:
     bootstrap-servers: localhost:9092
+    producer:
+      retries: 3
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
     consumer:
       group-id: test-consumer-group
       auto-offset-reset: earliest
       enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer:
+
+    listener:
+      ack-mode: manual
+
+# Kafka Topics Configuration
+kafka:
+  topics:
+    # Inbound topics (consume from other services)
+    room-created: room-created
+    room-updated: room-updated
+    reservation-reserved: reservation-reserved
+    reservation-confirmed: reservation-confirmed
+    reservation-cancelled: reservation-cancelled
+    reservation-refund: reservation-refund
+
+    # Outbound topics (publish to other services)
+    reservation-pending-payment: reservation-pending-payment
+
+# Reservation Configuration
+reservation:
+  pending:
+    timeout-minutes: 10
 
 # Logging Configuration
 logging:

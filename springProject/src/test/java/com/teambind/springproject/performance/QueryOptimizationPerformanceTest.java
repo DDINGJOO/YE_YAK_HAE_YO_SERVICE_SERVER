@@ -4,6 +4,7 @@ import com.teambind.springproject.adapter.out.persistence.pricingpolicy.*;
 import com.teambind.springproject.adapter.out.persistence.reservationpricing.ProductPriceBreakdownEmbeddable;
 import com.teambind.springproject.adapter.out.persistence.reservationpricing.ReservationPricingEntity;
 import com.teambind.springproject.adapter.out.persistence.reservationpricing.ReservationPricingJpaRepository;
+import com.teambind.springproject.application.port.out.publisher.EventPublisher;
 import com.teambind.springproject.domain.product.vo.PricingType;
 import com.teambind.springproject.domain.shared.DayOfWeek;
 import com.teambind.springproject.domain.shared.ReservationStatus;
@@ -20,6 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,15 +46,19 @@ import java.util.stream.IntStream;
  * - ReservationPricing: 피크 타임 5,000개
  */
 @SpringBootTest
+@EmbeddedKafka(partitions = 1, topics = {"room-created", "room-updated", "reservation-reserved", "reservation-confirmed", "reservation-cancelled", "reservation-refund"})
 @ActiveProfiles("test")
 @Transactional
 @Tag("performance")
 @DisplayName("쿼리 최적화 성능 테스트 (Small Scale)")
 public class QueryOptimizationPerformanceTest {
-	
+
+	@MockBean
+	private EventPublisher eventPublisher;
+
 	private static final Logger logger = LoggerFactory.getLogger(
 			QueryOptimizationPerformanceTest.class);
-	
+
 	@PersistenceContext
 	private EntityManager entityManager;
 	

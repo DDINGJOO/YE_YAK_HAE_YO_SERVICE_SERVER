@@ -1,12 +1,10 @@
 package com.teambind.springproject.adapter.in.messaging.handler;
 
-import com.teambind.springproject.adapter.in.messaging.event.ReservationRefundEvent;
-import com.teambind.springproject.application.port.out.ReservationPricingRepository;
-import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
-import com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown;
+import com.teambind.springproject.adapter.in.messaging.kafka.event.ReservationRefundEvent;
+import com.teambind.springproject.adapter.in.messaging.kafka.handler.ReservationRefundEventHandler;
+import com.teambind.springproject.application.service.reservationpricing.ReservationPricingService;
 import com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException;
 import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;
-import com.teambind.springproject.domain.shared.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,15 +14,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,13 +25,12 @@ import static org.mockito.Mockito.*;
 class ReservationRefundEventHandlerTest {
 
 	@Mock
-	private ReservationPricingRepository reservationPricingRepository;
+	private ReservationPricingService reservationPricingService;
 
 	@InjectMocks
 	private ReservationRefundEventHandler handler;
 
 	private ReservationRefundEvent event;
-	private ReservationPricing reservationPricing;
 
 	@BeforeEach
 	void setUp() {
@@ -48,19 +40,6 @@ class ReservationRefundEventHandlerTest {
 				1L,
 				LocalDateTime.now()
 		);
-
-		final TimeSlotPriceBreakdown timeSlotBreakdown = new TimeSlotPriceBreakdown(
-				Map.of(LocalDateTime.of(2025, 1, 15, 10, 0), Money.of(BigDecimal.valueOf(10000))),
-				TimeSlot.HOUR
-		);
-
-		reservationPricing = ReservationPricing.calculate(
-				ReservationId.of(1L),
-				RoomId.of(1L),
-				timeSlotBreakdown,
-				Collections.emptyList(),
-				10L
-		);
 	}
 
 	@Nested
@@ -68,69 +47,58 @@ class ReservationRefundEventHandlerTest {
 	class HandleTests {
 
 		@Test
-		@DisplayName("CONFIRMED 상태의 예약을 CANCELLED로 변경한다")
+		@DisplayName("환불 이벤트를 처리하여 refundReservation을 호출한다")
 		void refundConfirmedReservation() {
-			// given
-			reservationPricing.confirm(); // CONFIRMED 상태로 변경
-			when(reservationPricingRepository.findById(any(ReservationId.class)))
-					.thenReturn(Optional.of(reservationPricing));
-
 			// when
 			handler.handle(event);
 
 			// then
-			verify(reservationPricingRepository).findById(ReservationId.of(1L));
-			verify(reservationPricingRepository).save(any(ReservationPricing.class));
-			assertThat(reservationPricing.getStatus()).isEqualTo(ReservationStatus.CANCELLED);
+			verify(reservationPricingService).refundReservation(1L);
 		}
 
 		@Test
 		@DisplayName("PENDING 상태의 예약을 환불하려고 하면 InvalidReservationStatusException을 발생시킨다")
 		void throwsExceptionWhenRefundingPending() {
-			// given - reservationPricing은 기본적으로 PENDING 상태
-			when(reservationPricingRepository.findById(any(ReservationId.class)))
-					.thenReturn(Optional.of(reservationPricing));
+			// given
+			doThrow(new InvalidReservationStatusException("Cannot refund reservation in PENDING status"))
+					.when(reservationPricingService).refundReservation(1L);
 
 			// when & then
 			assertThatThrownBy(() -> handler.handle(event))
 					.isInstanceOf(InvalidReservationStatusException.class)
 					.hasMessageContaining("refund");
 
-			verify(reservationPricingRepository).findById(ReservationId.of(1L));
-			verify(reservationPricingRepository, never()).save(any(ReservationPricing.class));
+			verify(reservationPricingService).refundReservation(1L);
 		}
 
 		@Test
 		@DisplayName("이미 CANCELLED 상태의 예약을 환불하려고 하면 InvalidReservationStatusException을 발생시킨다")
 		void throwsExceptionWhenAlreadyCancelled() {
 			// given
-			reservationPricing.cancel(); // CANCELLED 상태로 변경
-			when(reservationPricingRepository.findById(any(ReservationId.class)))
-					.thenReturn(Optional.of(reservationPricing));
+			doThrow(new InvalidReservationStatusException("Cannot refund reservation in CANCELLED status"))
+					.when(reservationPricingService).refundReservation(1L);
 
 			// when & then
 			assertThatThrownBy(() -> handler.handle(event))
 					.isInstanceOf(InvalidReservationStatusException.class)
 					.hasMessageContaining("refund");
 
-			verify(reservationPricingRepository).findById(ReservationId.of(1L));
-			verify(reservationPricingRepository, never()).save(any(ReservationPricing.class));
+			verify(reservationPricingService).refundReservation(1L);
 		}
 
 		@Test
 		@DisplayName("존재하지 않는 예약 ID인 경우 ReservationPricingNotFoundException을 발생시킨다")
 		void throwsExceptionWhenReservationNotFound() {
 			// given
-			when(reservationPricingRepository.findById(any(ReservationId.class)))
-					.thenReturn(Optional.empty());
+			doThrow(new ReservationPricingNotFoundException("Reservation pricing not found: reservationId=1"))
+					.when(reservationPricingService).refundReservation(1L);
 
 			// when & then
 			assertThatThrownBy(() -> handler.handle(event))
 					.isInstanceOf(ReservationPricingNotFoundException.class)
 					.hasMessageContaining("reservationId=1");
 
-			verify(reservationPricingRepository).findById(ReservationId.of(1L));
-			verify(reservationPricingRepository, never()).save(any(ReservationPricing.class));
+			verify(reservationPricingService).refundReservation(1L);
 		}
 	}
 

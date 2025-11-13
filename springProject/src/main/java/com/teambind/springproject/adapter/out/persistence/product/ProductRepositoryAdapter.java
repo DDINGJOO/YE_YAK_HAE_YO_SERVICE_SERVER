@@ -172,6 +172,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
 	}
 
 	@Override
+	@Transactional(propagation = Propagation.REQUIRED)
 	public boolean reserveRoomTimeSlotQuantity(
 			final ProductId productId,
 			final RoomId roomId,
@@ -181,10 +182,19 @@ public class ProductRepositoryAdapter implements ProductRepository {
 			throw new IllegalArgumentException("Quantity must be positive: " + quantity);
 		}
 
+		// CRITICAL FIX: INSERT에도 재고 검증 추가
+		// ON CONFLICT DO UPDATE의 WHERE는 UPDATE에만 적용되므로,
+		// INSERT 시에도 재고 검증이 필요합니다.
 		final String sql = """
 				INSERT INTO product_time_slot_inventory
 				    (product_id, room_id, time_slot, reserved_quantity)
-				VALUES (?, ?, ?, ?)
+				SELECT ?, ?, ?, ?
+				WHERE EXISTS (
+				    SELECT 1
+				    FROM products p
+				    WHERE p.product_id = ?
+				      AND p.total_quantity >= ?
+				)
 				ON CONFLICT (product_id, room_id, time_slot)
 				DO UPDATE SET
 				    reserved_quantity = product_time_slot_inventory.reserved_quantity + EXCLUDED.reserved_quantity,
@@ -201,14 +211,16 @@ public class ProductRepositoryAdapter implements ProductRepository {
 				productId.getValue(),
 				roomId.getValue(),
 				timeSlot,
-				quantity
+				quantity,
+				productId.getValue(),  // WHERE EXISTS - product_id
+				quantity               // WHERE EXISTS - quantity check
 		);
 
 		return updatedRows > 0;
 	}
 
 	@Override
-	@Transactional(propagation = Propagation.MANDATORY)
+	@Transactional(propagation = Propagation.REQUIRED)
 	public boolean reservePlaceTimeSlotQuantity(
 			final ProductId productId,
 			final RoomId roomId,
@@ -218,51 +230,65 @@ public class ProductRepositoryAdapter implements ProductRepository {
 			throw new IllegalArgumentException("Quantity must be positive: " + quantity);
 		}
 
-		// PLACE Scope: Lock product row first, then check total across all rooms
-		// CRITICAL: This method MUST run within an existing transaction for FOR UPDATE to work correctly
-		// Step 1: Lock the product row to prevent concurrent modifications
+		// PLACE Scope: Use product_time_slot_inventory.total_quantity (per time slot)
+		// V13 migration added this to enforce time-slot-specific inventory limits
+		// NO FALLBACK - if no inventory record exists for this time slot, reservation should fail
+
+		// Step 1: Lock all rows for this product and time slot
+		// Note: Cannot use FOR UPDATE with aggregate functions, so we lock rows first then aggregate in code
 		final String lockSql = """
-				SELECT total_quantity
-				FROM products
-				WHERE product_id = ?
-				FOR UPDATE
-				""";
-
-		final Integer totalQuantity = jdbcTemplate.queryForObject(
-				lockSql,
-				Integer.class,
-				productId.getValue()
-		);
-
-		if (totalQuantity == null) {
-			return false;  // Product not found
-		}
-
-		// Step 2: Calculate current total reserved quantity across all rooms for this time slot
-		final String currentTotalSql = """
-				SELECT COALESCE(SUM(reserved_quantity), 0)
+				SELECT total_quantity, reserved_quantity
 				FROM product_time_slot_inventory
 				WHERE product_id = ?
 				  AND time_slot = ?
+				FOR UPDATE
 				""";
 
-		final Integer currentTotal = jdbcTemplate.queryForObject(
-				currentTotalSql,
-				Integer.class,
+		final java.util.List<java.util.Map<String, Object>> rows = jdbcTemplate.queryForList(
+				lockSql,
 				productId.getValue(),
 				timeSlot
 		);
 
+		// If no inventory record exists for this time slot, reservation fails
+		if (rows.isEmpty()) {
+			return false;  // No time slot inventory configured
+		}
+
+		// Step 2: Aggregate total_quantity and reserved_quantity across all rooms
+		Integer totalQuantity = null;
+		int currentReserved = 0;
+
+		for (java.util.Map<String, Object> row : rows) {
+			final Integer rowTotalQty = (Integer) row.get("total_quantity");
+			final Integer rowReservedQty = (Integer) row.get("reserved_quantity");
+
+			// total_quantity should be same across all rooms (shared inventory)
+			if (totalQuantity == null) {
+				totalQuantity = rowTotalQty;
+			}
+
+			// Sum reserved quantities across all rooms
+			if (rowReservedQty != null) {
+				currentReserved += rowReservedQty;
+			}
+		}
+
+		// Validate total_quantity
+		if (totalQuantity == null || totalQuantity == 0) {
+			return false;  // Invalid inventory configuration
+		}
+
 		// Step 3: Check if reservation is possible
-		if (totalQuantity < (currentTotal != null ? currentTotal : 0) + quantity) {
+		if (totalQuantity < currentReserved + quantity) {
 			return false;  // Not enough inventory
 		}
 
-		// Step 4: Insert or update the inventory record
+		// Step 3: Insert or update the inventory record
 		final String upsertSql = """
 				INSERT INTO product_time_slot_inventory
-				    (product_id, room_id, time_slot, reserved_quantity)
-				VALUES (?, ?, ?, ?)
+				    (product_id, room_id, time_slot, total_quantity, reserved_quantity)
+				VALUES (?, ?, ?, ?, ?)
 				ON CONFLICT (product_id, room_id, time_slot)
 				DO UPDATE SET
 				    reserved_quantity = product_time_slot_inventory.reserved_quantity + EXCLUDED.reserved_quantity,
@@ -274,6 +300,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
 				productId.getValue(),
 				roomId.getValue(),
 				timeSlot,
+				totalQuantity,
 				quantity
 		);
 

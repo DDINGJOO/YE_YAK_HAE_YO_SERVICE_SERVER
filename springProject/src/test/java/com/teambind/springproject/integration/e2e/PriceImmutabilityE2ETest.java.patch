@@ -1,0 +1,19 @@
+--- a/PriceImmutabilityE2ETest.java
++++ b/PriceImmutabilityE2ETest.java
+@@ -56,6 +56,18 @@
+ 		testProductId = createTestProduct();
++		
++		// Initialize inventory for PLACE Scope products
++		initializeInventoryForAllTimeSlots();
+ 	}
++	
++	private void initializeInventoryForAllTimeSlots() {
++		final List<LocalDateTime> allTimeSlots = List.of(
++				LocalDateTime.of(2025, 1, 15, 10, 0),
++				LocalDateTime.of(2025, 1, 15, 14, 0)
++		);
++		for (LocalDateTime timeSlot : allTimeSlots) {
++			jdbcTemplate.update("INSERT INTO product_time_slot_inventory (product_id, room_id, time_slot, total_quantity, reserved_quantity) VALUES (?, ?, ?, 100, 0)", testProductId, testRoomId, timeSlot);
++		}
++	}
+ }

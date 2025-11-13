@@ -1,9 +1,7 @@
-package com.teambind.springproject.adapter.in.messaging.consumer;
+package com.teambind.springproject.adapter.in.messaging.kafka.consumer;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.teambind.springproject.adapter.in.messaging.event.*;
-import com.teambind.springproject.adapter.in.messaging.handler.EventHandler;
+import com.teambind.springproject.adapter.in.messaging.kafka.event.*;
+import com.teambind.springproject.adapter.in.messaging.kafka.handler.EventHandler;
 import com.teambind.springproject.common.util.json.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,11 +18,11 @@ import java.util.Map;
  * 이벤트를 수신하고 적절한 핸들러로 라우팅합니다.
  */
 @Component
-public class EventConsumer {
-	
-	private static final Logger logger = LoggerFactory.getLogger(EventConsumer.class);
+public class KafkaEventConsumer {
+
+	private static final Logger logger = LoggerFactory.getLogger(KafkaEventConsumer.class);
 	private static final Map<String, Class<? extends Event>> EVENT_TYPE_MAP = new HashMap<>();
-	
+
 	static {
 		EVENT_TYPE_MAP.put("RoomCreated", RoomCreatedEvent.class);
 		EVENT_TYPE_MAP.put("RoomUpdated", RoomUpdatedEvent.class);
@@ -33,17 +31,14 @@ public class EventConsumer {
 		EVENT_TYPE_MAP.put("ReservationCancelled", ReservationCancelledEvent.class);
 		EVENT_TYPE_MAP.put("ReservationRefund", ReservationRefundEvent.class);
 	}
-	
+
 	private final JsonUtil jsonUtil;
-	private final ObjectMapper objectMapper;
 	private final List<EventHandler<?>> handlers;
-	
-	public EventConsumer(
+
+	public KafkaEventConsumer(
 			final JsonUtil jsonUtil,
-			final ObjectMapper objectMapper,
 			final List<EventHandler<?>> handlers) {
 		this.jsonUtil = jsonUtil;
-		this.objectMapper = objectMapper;
 		this.handlers = handlers;
 	}
 	
@@ -53,46 +48,12 @@ public class EventConsumer {
 	 * @param message        Kafka 메시지 (JSON)
 	 * @param acknowledgment Kafka acknowledgment
 	 */
-	@KafkaListener(topics = {"room-created", "room-updated"}, groupId = "${spring.kafka.consumer.group-id}")
+	@KafkaListener(
+			topics = {"${kafka.topics.room-created}", "${kafka.topics.room-updated}"},
+			groupId = "${spring.kafka.consumer.group-id}")
 	public void consume(final String message, final Acknowledgment acknowledgment) {
 		logger.info("Received message from room topics: {}", message);
-		
-		try {
-			// 1. eventType 추출
-			final JsonNode rootNode = objectMapper.readTree(message);
-			final String eventType = rootNode.get("eventType").asText();
-			
-			// 2. eventType에 해당하는 클래스 찾기
-			final Class<? extends Event> eventClass = EVENT_TYPE_MAP.get(eventType);
-			if (eventClass == null) {
-				logger.warn("Unknown eventType: {}", eventType);
-				acknowledgment.acknowledge();
-				return;
-			}
-			
-			// 3. JSON을 이벤트 객체로 역직렬화
-			final Event event = jsonUtil.fromJson(message, eventClass);
-			
-			// 4. 적절한 핸들러 찾기
-			final EventHandler<Event> handler = findHandler(eventType);
-			if (handler == null) {
-				logger.warn("No handler found for eventType: {}", eventType);
-				acknowledgment.acknowledge();
-				return;
-			}
-			
-			// 5. 핸들러로 처리
-			handler.handle(event);
-			
-			// 6. 수동 커밋
-			acknowledgment.acknowledge();
-			logger.info("Successfully processed event: {}", eventType);
-			
-		} catch (final Exception e) {
-			logger.error("Failed to process message: {}", message, e);
-			// TODO: DLQ(Dead Letter Queue)로 전송 또는 재처리 로직 구현
-			acknowledgment.acknowledge(); // 실패해도 일단 acknowledge (무한 재시도 방지)
-		}
+		processEvent(message, acknowledgment);
 	}
 	
 	/**
@@ -101,48 +62,14 @@ public class EventConsumer {
 	 * @param message        Kafka 메시지 (JSON)
 	 * @param acknowledgment Kafka acknowledgment
 	 */
-	@KafkaListener(topics = "reservation-reserved", groupId = "${spring.kafka.consumer.group-id}")
+	@KafkaListener(
+			topics = "${kafka.topics.reservation-reserved}",
+			groupId = "${spring.kafka.consumer.group-id}")
 	public void consumeReservationEvents(final String message, final Acknowledgment acknowledgment) {
 		logger.info("Received message from reservation-reserved topic: {}", message);
-		
-		try {
-			// 1. eventType 추출
-			final JsonNode rootNode = objectMapper.readTree(message);
-			final String eventType = rootNode.get("eventType").asText();
-			
-			// 2. eventType에 해당하는 클래스 찾기
-			final Class<? extends Event> eventClass = EVENT_TYPE_MAP.get(eventType);
-			if (eventClass == null) {
-				logger.warn("Unknown eventType: {}", eventType);
-				acknowledgment.acknowledge();
-				return;
-			}
-			
-			// 3. JSON을 이벤트 객체로 역직렬화
-			final Event event = jsonUtil.fromJson(message, eventClass);
-			
-			// 4. 적절한 핸들러 찾기
-			final EventHandler<Event> handler = findHandler(eventType);
-			if (handler == null) {
-				logger.warn("No handler found for eventType: {}", eventType);
-				acknowledgment.acknowledge();
-				return;
-			}
-			
-			// 5. 핸들러로 처리
-			handler.handle(event);
-			
-			// 6. 수동 커밋
-			acknowledgment.acknowledge();
-			logger.info("Successfully processed event: {}", eventType);
-			
-		} catch (final Exception e) {
-			logger.error("Failed to process message: {}", message, e);
-			// TODO: DLQ(Dead Letter Queue)로 전송 또는 재처리 로직 구현
-			acknowledgment.acknowledge(); // 실패해도 일단 acknowledge (무한 재시도 방지)
-		}
+		processEvent(message, acknowledgment);
 	}
-	
+
 	/**
 	 * reservation-confirmed, reservation-cancelled, reservation-refund 토픽에서 결제 이벤트를 수신합니다.
 	 *
@@ -150,16 +77,37 @@ public class EventConsumer {
 	 * @param acknowledgment Kafka acknowledgment
 	 */
 	@KafkaListener(
-			topics = {"reservation-confirmed", "reservation-cancelled", "reservation-refund"},
+			topics = {
+					"${kafka.topics.reservation-confirmed}",
+					"${kafka.topics.reservation-cancelled}",
+					"${kafka.topics.reservation-refund}"
+			},
 			groupId = "${spring.kafka.consumer.group-id}")
 	public void consumePaymentEvents(final String message, final Acknowledgment acknowledgment) {
 		logger.info("Received message from payment topics: {}", message);
-		
+		processEvent(message, acknowledgment);
+	}
+
+	/**
+	 * 공통 이벤트 처리 로직.
+	 * eventType을 추출하고 적절한 핸들러로 라우팅합니다.
+	 *
+	 * @param message        Kafka 메시지 (JSON)
+	 * @param acknowledgment Kafka acknowledgment
+	 */
+	private void processEvent(final String message, final Acknowledgment acknowledgment) {
 		try {
-			// 1. eventType 추출
-			final JsonNode rootNode = objectMapper.readTree(message);
-			final String eventType = rootNode.get("eventType").asText();
-			
+			// 1. eventType 추출 (Map으로 파싱)
+			@SuppressWarnings("unchecked")
+			final Map<String, Object> messageMap = jsonUtil.fromJson(message, Map.class);
+			final String eventType = (String) messageMap.get("eventType");
+
+			if (eventType == null) {
+				logger.warn("Missing eventType in message: {}", message);
+				acknowledgment.acknowledge();
+				return;
+			}
+
 			// 2. eventType에 해당하는 클래스 찾기
 			final Class<? extends Event> eventClass = EVENT_TYPE_MAP.get(eventType);
 			if (eventClass == null) {
@@ -167,10 +115,10 @@ public class EventConsumer {
 				acknowledgment.acknowledge();
 				return;
 			}
-			
+
 			// 3. JSON을 이벤트 객체로 역직렬화
 			final Event event = jsonUtil.fromJson(message, eventClass);
-			
+
 			// 4. 적절한 핸들러 찾기
 			final EventHandler<Event> handler = findHandler(eventType);
 			if (handler == null) {
@@ -178,14 +126,14 @@ public class EventConsumer {
 				acknowledgment.acknowledge();
 				return;
 			}
-			
+
 			// 5. 핸들러로 처리
 			handler.handle(event);
-			
+
 			// 6. 수동 커밋
 			acknowledgment.acknowledge();
 			logger.info("Successfully processed event: {}", eventType);
-			
+
 		} catch (final Exception e) {
 			logger.error("Failed to process message: {}", message, e);
 			// TODO: DLQ(Dead Letter Queue)로 전송 또는 재처리 로직 구현

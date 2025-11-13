@@ -1,6 +1,6 @@
-package com.teambind.springproject.adapter.in.messaging.handler;
+package com.teambind.springproject.adapter.in.messaging.kafka.handler;
 
-import com.teambind.springproject.adapter.in.messaging.event.Event;
+import com.teambind.springproject.adapter.in.messaging.kafka.event.Event;
 
 /**
  * 이벤트 핸들러 인터페이스.

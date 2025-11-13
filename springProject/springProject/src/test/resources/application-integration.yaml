@@ -1,0 +1,41 @@
+spring:
+  kafka:
+    bootstrap-servers: ${spring.kafka.bootstrap-servers:localhost:9092}
+    producer:
+      retries: 3
+      acks: all
+      batch-size: 16384
+      buffer-memory: 33554432
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:test-group}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    listener:
+      ack-mode: manual
+      concurrency: 3
+
+kafka:
+  topics:
+    # Inbound topics (consume from other services)
+    room-created: room-created
+    room-updated: room-updated
+    reservation-reserved: reservation-reserved
+    reservation-confirmed: reservation-confirmed
+    reservation-cancelled: reservation-cancelled
+    reservation-refund: reservation-refund
+
+    # Outbound topics (publish to other services)
+    reservation-pending-payment: reservation-pending-payment
+
+reservation:
+  pending:
+    timeout-minutes: 10

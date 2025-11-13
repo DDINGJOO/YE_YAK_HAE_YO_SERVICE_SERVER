@@ -51,7 +51,7 @@ spring:
       batch-size: 16384
       buffer-memory: 33554432
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
       properties:
         enable.idempotence: true
         max.in.flight.requests.per.connection: 5
@@ -61,7 +61,7 @@ spring:
       auto-offset-reset: earliest
       enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       properties:
         spring.json.trusted.packages: "*"
 
@@ -101,6 +101,20 @@ springdoc:
 reservation:
   pending:
     timeout-minutes: ${RESERVATION_PENDING_TIMEOUT_MINUTES:10}
+
+# Kafka Topics Configuration
+kafka:
+  topics:
+    # Inbound topics (consume from other services)
+    room-created: ${KAFKA_TOPIC_ROOM_CREATED:room-created}
+    room-updated: ${KAFKA_TOPIC_ROOM_UPDATED:room-updated}
+    reservation-reserved: ${KAFKA_TOPIC_RESERVATION_RESERVED:reservation-reserved}
+    reservation-confirmed: ${KAFKA_TOPIC_RESERVATION_CONFIRMED:reservation-confirmed}
+    reservation-cancelled: ${KAFKA_TOPIC_RESERVATION_CANCELLED:reservation-cancelled}
+    reservation-refund: ${KAFKA_TOPIC_RESERVATION_REFUND:reservation-refund}
+
+    # Outbound topics (publish to other services)
+    reservation-pending-payment: ${KAFKA_TOPIC_RESERVATION_PENDING_PAYMENT:reservation-pending-payment}
 
 
 

@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests the complete reservation lifecycle including creation, confirmation, and cancellation.
  */
 @DisplayName("예약 플로우 E2E 테스트")
-class ReservationFlowE2ETest extends BaseE2ETest {
+public class ReservationFlowE2ETest extends BaseE2ETest {
 	
 	@Autowired
 	private PricingPolicyRepository pricingPolicyRepository;
@@ -47,15 +47,22 @@ class ReservationFlowE2ETest extends BaseE2ETest {
 	
 	@BeforeEach
 	void setUpTestData() {
+		// Clean database before each test
+		cleanDatabase();
+
 		// Test data setup
 		testPlaceId = 1L;
 		testRoomId = 100L;
-		
+
 		// Create pricing policy for the room
 		createTestPricingPolicy();
-		
+
 		// Create test product
 		testProductId = createTestProduct();
+
+		// Initialize inventory for PLACE Scope products
+		// All test time slots need inventory records
+		initializeInventoryForAllTimeSlots();
 	}
 	
 	@Test
@@ -158,6 +165,7 @@ class ReservationFlowE2ETest extends BaseE2ETest {
 				List.of(new ProductRequest(testProductId, 1))
 		);
 		
+
 		final ResponseEntity<ReservationPricingResponse> createResponse = restTemplate.postForEntity(
 				getBaseUrl() + "/api/v1/reservations",
 				createRequest,
@@ -207,8 +215,31 @@ class ReservationFlowE2ETest extends BaseE2ETest {
 				PricingStrategy.oneTime(Money.of(new BigDecimal("10000"))),
 				100
 		);
-		
+
 		final Product savedProduct = productRepository.save(product);
 		return savedProduct.getProductId().getValue();
+	}
+
+	/**
+	 * Initialize inventory for all time slots used in tests.
+	 * PLACE Scope products require product_time_slot_inventory records.
+	 */
+	private void initializeInventoryForAllTimeSlots() {
+		// All time slots used across all test scenarios
+		final List<LocalDateTime> allTimeSlots = List.of(
+				LocalDateTime.of(2025, 1, 15, 10, 0),
+				LocalDateTime.of(2025, 1, 15, 11, 0),
+				LocalDateTime.of(2025, 1, 15, 14, 0),
+				LocalDateTime.of(2025, 1, 15, 15, 0),
+				LocalDateTime.of(2025, 1, 15, 16, 0)
+		);
+
+		for (LocalDateTime timeSlot : allTimeSlots) {
+			jdbcTemplate.update(
+					"INSERT INTO product_time_slot_inventory (product_id, room_id, time_slot, total_quantity, reserved_quantity) " +
+							"VALUES (?, ?, ?, 100, 0)",
+					testProductId, testRoomId, timeSlot
+			);
+		}
 	}
 }

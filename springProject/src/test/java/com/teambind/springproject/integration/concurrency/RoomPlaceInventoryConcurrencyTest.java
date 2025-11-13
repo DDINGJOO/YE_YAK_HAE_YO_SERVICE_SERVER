@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,7 +39,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * BaseConcurrencyTest를 상속하여 IntegrationTestContainers를 재사용합니다.
  */
 @DisplayName("ROOM/PLACE Scope 시간대별 재고 동시성 테스트")
-class RoomPlaceInventoryConcurrencyTest extends BaseConcurrencyTest {
+@ActiveProfiles("integration")
+public class RoomPlaceInventoryConcurrencyTest extends BaseConcurrencyTest {
 
 	@Autowired
 	private CreateReservationUseCase createReservationUseCase;
@@ -306,6 +308,26 @@ class RoomPlaceInventoryConcurrencyTest extends BaseConcurrencyTest {
 				"INSERT INTO room_allowed_products (room_id, product_id, created_at) VALUES (?, ?, NOW())",
 				room3Id, placeProductId
 		);
+
+		// PLACE Scope 상품은 product_time_slot_inventory에 레코드가 있어야 예약 가능
+		// 각 room과 timeSlot에 대해 초기화 (total_quantity는 모두 5로 공유)
+		for (LocalDateTime timeSlot : testTimeSlots) {
+			jdbcTemplate.update(
+					"INSERT INTO product_time_slot_inventory (product_id, room_id, time_slot, total_quantity, reserved_quantity) " +
+							"VALUES (?, ?, ?, 5, 0)",
+					placeProductId, testRoomId, timeSlot
+			);
+			jdbcTemplate.update(
+					"INSERT INTO product_time_slot_inventory (product_id, room_id, time_slot, total_quantity, reserved_quantity) " +
+							"VALUES (?, ?, ?, 5, 0)",
+					placeProductId, room2Id, timeSlot
+			);
+			jdbcTemplate.update(
+					"INSERT INTO product_time_slot_inventory (product_id, room_id, time_slot, total_quantity, reserved_quantity) " +
+							"VALUES (?, ?, ?, 5, 0)",
+					placeProductId, room3Id, timeSlot
+			);
+		}
 
 		// when - 3개 룸에서 각각 동시에 예약 시도 (총 15명, 재고 5개)
 		final int threadsPerRoom = 5;

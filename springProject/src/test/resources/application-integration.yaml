@@ -3,15 +3,22 @@ spring:
   datasource:
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 5
-      minimum-idle: 2
-      connection-timeout: 30000
+      maximum-pool-size: 50  # 동시성 테스트를 위해 대폭 증가
+      minimum-idle: 10
+      connection-timeout: 60000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # Disable task scheduling in tests
+  task:
+    scheduling:
+      enabled: false
 
   # JPA Configuration
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
       naming:
         physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
         implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
@@ -22,15 +29,9 @@ spring:
         use_sql_comments: true
     open-in-view: false
 
-  # Flyway Configuration (disabled for tests, using JPA schema generation + manual SQL)
+  # Flyway Configuration - migrations are run once in IntegrationTestContainers
   flyway:
     enabled: false
-
-  # SQL Init for product_time_slot_inventory table
-  sql:
-    init:
-      mode: always
-      schema-locations: classpath:integration-schema.sql
 
   # Kafka Configuration (properties dynamically set by Testcontainers)
   kafka:
@@ -38,7 +39,7 @@ spring:
       retries: 3
       acks: all
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
       properties:
         enable.idempotence: true
 
@@ -47,7 +48,7 @@ spring:
       auto-offset-reset: earliest
       enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       properties:
         spring.json.trusted.packages: "*"
 
