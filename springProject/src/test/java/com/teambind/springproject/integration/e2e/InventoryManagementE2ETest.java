@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Scope별 재고 검증 및 재고 부족 시나리오를 테스트합니다.
  */
 @DisplayName("재고 관리 E2E 테스트")
-class InventoryManagementE2ETest extends BaseE2ETest {
+public class InventoryManagementE2ETest extends BaseE2ETest {
 	
 	@Autowired
 	private PricingPolicyRepository pricingPolicyRepository;
@@ -43,16 +43,22 @@ class InventoryManagementE2ETest extends BaseE2ETest {
 	
 	@BeforeEach
 	void setUpTestData() {
+		// Clean database before each test
+		cleanDatabase();
+
 		testPlaceId = 1L;
 		testRoomId = 100L;
-		
+
 		// 가격 정책 생성
 		createTestPricingPolicy();
-		
+
 		// Scope별 상품 생성
 		placeProductId = createPlaceScopedProduct("Place Product", 10);
 		roomProductId = createRoomScopedProduct("Room Product", 5);
 		reservationProductId = createReservationScopedProduct("Reservation Product", 100);
+
+		// PLACE/ROOM Scope 상품은 product_time_slot_inventory 초기화 필요
+		initializeInventoryForAllTimeSlots();
 	}
 	
 	@Test
@@ -187,5 +193,34 @@ class InventoryManagementE2ETest extends BaseE2ETest {
 		);
 		final Product saved = productRepository.save(product);
 		return saved.getProductId().getValue();
+	}
+
+	/**
+	 * Initialize inventory for all time slots used in tests.
+	 * PLACE/ROOM Scope products require product_time_slot_inventory records.
+	 */
+	private void initializeInventoryForAllTimeSlots() {
+		// All time slots used across all test scenarios
+		final List<LocalDateTime> allTimeSlots = List.of(
+				LocalDateTime.of(2025, 1, 15, 10, 0),
+				LocalDateTime.of(2025, 1, 15, 14, 0),
+				LocalDateTime.of(2025, 1, 15, 18, 0)
+		);
+
+		for (LocalDateTime timeSlot : allTimeSlots) {
+			// PLACE Scope product inventory
+			jdbcTemplate.update(
+					"INSERT INTO product_time_slot_inventory (product_id, room_id, time_slot, total_quantity, reserved_quantity) " +
+							"VALUES (?, ?, ?, 10, 0)",
+					placeProductId, testRoomId, timeSlot
+			);
+
+			// ROOM Scope product inventory
+			jdbcTemplate.update(
+					"INSERT INTO product_time_slot_inventory (product_id, room_id, time_slot, total_quantity, reserved_quantity) " +
+							"VALUES (?, ?, ?, 5, 0)",
+					roomProductId, testRoomId, timeSlot
+			);
+		}
 	}
 }

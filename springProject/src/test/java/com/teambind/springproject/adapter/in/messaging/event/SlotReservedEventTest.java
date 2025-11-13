@@ -2,6 +2,7 @@ package com.teambind.springproject.adapter.in.messaging.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.teambind.springproject.adapter.in.messaging.kafka.event.SlotReservedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

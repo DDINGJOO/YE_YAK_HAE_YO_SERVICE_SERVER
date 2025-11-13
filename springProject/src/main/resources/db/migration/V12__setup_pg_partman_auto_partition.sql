@@ -1,14 +1,23 @@
 -- V12: Setup pg_partman for automatic partition management
 -- This migration configures automatic partition creation for product_time_slot_inventory table
+-- NOTE: This migration is optional and will skip silently if pg_partman is not installed
 
--- 1. Enable pg_partman extension
-CREATE EXTENSION IF NOT EXISTS pg_partman;
-
--- 2. Configure pg_partman for product_time_slot_inventory table (idempotent)
--- Check if already configured, only create if not exists
+-- Try to enable pg_partman extension (skip if not available)
 DO $$
 BEGIN
-    -- Check if table is already managed by pg_partman
+    -- Try to create extension, catch error if not available
+    BEGIN
+        CREATE EXTENSION IF NOT EXISTS pg_partman;
+        RAISE NOTICE 'pg_partman extension enabled';
+    EXCEPTION
+        WHEN OTHERS THEN
+            RAISE NOTICE 'pg_partman extension not available - skipping automatic partition setup';
+            RAISE NOTICE 'This is OK for test/development environments where V11 partitions are sufficient';
+            RETURN;  -- Exit early
+    END;
+
+    -- 2. Configure pg_partman for product_time_slot_inventory table (idempotent)
+    -- Check if already configured, only create if not exists
     IF NOT EXISTS (
         SELECT 1 FROM partman.part_config
         WHERE parent_table = 'public.product_time_slot_inventory'
@@ -27,20 +36,20 @@ BEGIN
     ELSE
         RAISE NOTICE 'pg_partman already configured for product_time_slot_inventory, skipping create_parent';
     END IF;
+
+    -- 3. Configure partition retention (idempotent update)
+    -- This will update settings even if already configured
+    UPDATE partman.part_config
+    SET retention = '12 months',
+        retention_keep_table = false,  -- Drop old partitions (not just detach)
+        infinite_time_partitions = true,  -- Continue creating partitions indefinitely
+        premake = 3  -- Ensure premake is set to 3
+    WHERE parent_table = 'public.product_time_slot_inventory';
+
+    -- 4. Run initial partition creation (safe to run multiple times)
+    -- This will create partitions for the next 3 months immediately if they don't exist
+    PERFORM partman.run_maintenance('public.product_time_slot_inventory');
 END $$;
-
--- 3. Configure partition retention (idempotent update)
--- This will update settings even if already configured
-UPDATE partman.part_config
-SET retention = '12 months',
-    retention_keep_table = false,  -- Drop old partitions (not just detach)
-    infinite_time_partitions = true,  -- Continue creating partitions indefinitely
-    premake = 3  -- Ensure premake is set to 3
-WHERE parent_table = 'public.product_time_slot_inventory';
-
--- 4. Run initial partition creation (safe to run multiple times)
--- This will create partitions for the next 3 months immediately if they don't exist
-SELECT partman.run_maintenance('public.product_time_slot_inventory');
 
 -- 5. Setup automatic maintenance (run daily at 3 AM)
 -- Note: This requires pg_cron extension or external cron job

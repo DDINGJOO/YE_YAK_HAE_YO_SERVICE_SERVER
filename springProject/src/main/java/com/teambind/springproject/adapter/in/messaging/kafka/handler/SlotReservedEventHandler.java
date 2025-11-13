@@ -1,6 +1,6 @@
-package com.teambind.springproject.adapter.in.messaging.handler;
+package com.teambind.springproject.adapter.in.messaging.kafka.handler;
 
-import com.teambind.springproject.adapter.in.messaging.event.SlotReservedEvent;
+import com.teambind.springproject.adapter.in.messaging.kafka.event.SlotReservedEvent;
 import com.teambind.springproject.application.port.out.PricingPolicyRepository;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;

@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DisplayName("예약 동시성 제어 E2E 테스트")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-class ReservationConcurrencyE2ETest extends BaseE2ETest {
+public class ReservationConcurrencyE2ETest extends BaseE2ETest {
 
 	@Autowired
 	private PricingPolicyRepository pricingPolicyRepository;

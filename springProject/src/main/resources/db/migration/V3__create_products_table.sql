@@ -1,6 +1,10 @@
--- Product Aggregate 테이블 생성
+-- Product Aggregate 테이블 재생성
+-- V1에서 생성한 products 테이블을 새로운 구조로 변경
 
--- 추가상품 메인 테이블
+-- 기존 테이블 삭제 (CASCADE로 관련 제약조건도 함께 삭제)
+DROP TABLE IF EXISTS products CASCADE;
+
+-- 추가상품 메인 테이블 (새로운 구조)
 CREATE TABLE products
 (
     product_id BIGSERIAL PRIMARY KEY,

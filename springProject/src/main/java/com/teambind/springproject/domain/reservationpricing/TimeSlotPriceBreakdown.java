@@ -4,9 +4,7 @@ import com.teambind.springproject.domain.shared.Money;
 import com.teambind.springproject.domain.shared.TimeSlot;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * 시간대별 가격 내역을 나타내는 Value Object (Record).
@@ -75,5 +73,9 @@ public record TimeSlotPriceBreakdown(
 	 */
 	public Money getPriceAt(final LocalDateTime slot) {
 		return slotPrices.getOrDefault(Objects.requireNonNull(slot), Money.ZERO);
+	}
+	
+	public List<LocalDateTime> getSlotTimes() {
+		return Collections.unmodifiableList(new ArrayList<>(slotPrices.keySet()));
 	}
 }

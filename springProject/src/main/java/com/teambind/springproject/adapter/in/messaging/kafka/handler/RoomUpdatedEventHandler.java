@@ -1,6 +1,6 @@
-package com.teambind.springproject.adapter.in.messaging.handler;
+package com.teambind.springproject.adapter.in.messaging.kafka.handler;
 
-import com.teambind.springproject.adapter.in.messaging.event.RoomUpdatedEvent;
+import com.teambind.springproject.adapter.in.messaging.kafka.event.RoomUpdatedEvent;
 import com.teambind.springproject.application.port.in.UpdatePricingPolicyUseCase;
 import com.teambind.springproject.domain.pricingpolicy.exception.PricingPolicyNotFoundException;
 import com.teambind.springproject.domain.shared.RoomId;

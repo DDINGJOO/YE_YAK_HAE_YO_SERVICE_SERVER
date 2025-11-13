@@ -1,6 +1,7 @@
 package com.teambind.springproject.adapter.in.messaging.handler;
 
-import com.teambind.springproject.adapter.in.messaging.event.ReservationConfirmedEvent;
+import com.teambind.springproject.adapter.in.messaging.kafka.event.ReservationConfirmedEvent;
+import com.teambind.springproject.adapter.in.messaging.kafka.handler.ReservationConfirmedEventHandler;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.reservationpricing.TimeSlotPriceBreakdown;

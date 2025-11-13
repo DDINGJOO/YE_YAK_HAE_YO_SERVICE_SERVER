@@ -1,15 +1,20 @@
 package com.teambind.springproject.application.service.reservationpricing;
 
+import com.teambind.springproject.adapter.out.messaging.kafka.event.ReservationPendingPaymentEvent;
 import com.teambind.springproject.application.dto.request.CreateReservationRequest;
 import com.teambind.springproject.application.dto.request.ProductRequest;
 import com.teambind.springproject.application.dto.request.UpdateProductsRequest;
+import com.teambind.springproject.application.dto.response.ProductPriceDetail;
 import com.teambind.springproject.application.dto.response.ReservationPricingResponse;
+import com.teambind.springproject.application.dto.response.ReservationTimePriceDetail;
 import com.teambind.springproject.application.port.in.CreateReservationUseCase;
 import com.teambind.springproject.application.port.in.UpdateReservationProductsUseCase;
 import com.teambind.springproject.application.port.out.InventoryCompensationQueue;
 import com.teambind.springproject.application.port.out.PricingPolicyRepository;
 import com.teambind.springproject.application.port.out.ProductRepository;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
+import com.teambind.springproject.application.port.out.publisher.EventPublisher;
+import com.teambind.springproject.common.config.ReservationConfiguration;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
 import com.teambind.springproject.domain.product.Product;
 import com.teambind.springproject.domain.product.vo.ProductPriceBreakdown;
@@ -24,7 +29,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,18 +53,23 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	private final ProductRepository productRepository;
 	private final ReservationPricingRepository reservationPricingRepository;
 	private final InventoryCompensationQueue compensationQueue;
+	private final EventPublisher eventPublisher;
 	private final long pendingTimeoutMinutes;
+
+	@org.springframework.beans.factory.annotation.Value("${kafka.topics.reservation-pending-payment:reservation-pending-payment}")
+	private String reservationPendingPaymentTopic;
 
 	public ReservationPricingService(
 			final PricingPolicyRepository pricingPolicyRepository,
 			final ProductRepository productRepository,
 			final ReservationPricingRepository reservationPricingRepository,
-			final InventoryCompensationQueue compensationQueue,
-			final com.teambind.springproject.common.config.ReservationConfiguration reservationConfiguration) {
+			final InventoryCompensationQueue compensationQueue, EventPublisher eventPublisher,
+			final ReservationConfiguration reservationConfiguration) {
 		this.pricingPolicyRepository = pricingPolicyRepository;
 		this.productRepository = productRepository;
 		this.reservationPricingRepository = reservationPricingRepository;
 		this.compensationQueue = compensationQueue;
+		this.eventPublisher = eventPublisher;
 		this.pendingTimeoutMinutes = reservationConfiguration.getPending().getTimeoutMinutes();
 	}
 	
@@ -103,6 +115,9 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		logger.info("Successfully created reservation: reservationId={}, totalPrice={}",
 				savedReservation.getReservationId().getValue(),
 				savedReservation.getTotalPrice().getAmount());
+		
+		// 8. 결제 대기 이벤트 발행
+		publishReservationPendingPaymentEvent(savedReservation, pricingPolicy);
 
 		return ReservationPricingResponse.from(savedReservation);
 	}
@@ -630,4 +645,55 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		final TimeSlotPriceBreakdown breakdown = reservation.getTimeSlotBreakdown();
 		return new ArrayList<>(breakdown.slotPrices().keySet());
 	}
+	
+	
+	private void publishReservationPendingPaymentEvent(
+			final ReservationPricing reservation,
+			final PricingPolicy pricingPolicy)
+	{
+		final ReservationPendingPaymentEvent event = buildReservationPendingPaymentEvent(reservation, pricingPolicy);
+		eventPublisher.publish(event);
+		
+		logger.info("Reservation pending payment event published for reservation ID: {}", reservation.getReservationId().getValue());
+	}
+	
+	private ReservationPendingPaymentEvent buildReservationPendingPaymentEvent(
+			final ReservationPricing reservation,
+			final PricingPolicy pricingPolicy)
+	{
+		final TimeSlotPriceBreakdown timeSlotBreakdown = reservation.getTimeSlotBreakdown();
+		final List<LocalDateTime> timeSlots = extractTimeSlots(reservation);
+		final LocalDate reservationDate = timeSlots.get(0).toLocalDate();
+
+		// ReservationTimePriceDetail.from() 사용 - 내부에서 시간을 "HH:mm" 포맷으로 변환
+		final ReservationTimePriceDetail timePriceDetail = ReservationTimePriceDetail.from(reservation);
+
+		final List<ProductPriceDetail> productBreakdowns = reservation.getProductBreakdowns().stream()
+				.map(breakdown -> new ProductPriceDetail(
+					breakdown.productId().getValue(),
+					breakdown.productName(),
+					breakdown.quantity(),
+					breakdown.unitPrice().getAmount(),
+					breakdown.totalPrice().getAmount()
+				)).toList();
+
+		// 날짜/시간을 String으로 포맷팅
+		final String formattedDate = reservationDate.format(DateTimeFormatter.ISO_LOCAL_DATE);  // "yyyy-MM-dd"
+		final String formattedOccurredAt = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);  // "yyyy-MM-dd'T'HH:mm:ss"
+
+		return new ReservationPendingPaymentEvent(
+				reservationPendingPaymentTopic,  // yaml에서 주입받은 토픽 사용
+				null,  // eventType - 기본값 사용
+				reservation.getReservationId().getValue(),
+				pricingPolicy.getPlaceId().getValue(),
+				reservation.getRoomId().getValue(),
+				formattedDate,
+				productBreakdowns,
+				timePriceDetail,
+				reservation.getTotalPrice().getAmount(),
+				formattedOccurredAt
+		);
+	}
+	
+	
 }

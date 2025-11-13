@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Smoke test to verify integration test infrastructure is working.
  */
 @DisplayName("Integration 인프라 검증 테스트")
-class E2ESmokeTest extends BaseE2ETest {
+public class E2ESmokeTest extends BaseE2ETest {
 
 	@Autowired
 	private ApplicationContext applicationContext;

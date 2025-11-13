@@ -1,4 +1,4 @@
-package com.teambind.springproject.adapter.in.messaging.event;
+package com.teambind.springproject.adapter.in.messaging.kafka.event;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

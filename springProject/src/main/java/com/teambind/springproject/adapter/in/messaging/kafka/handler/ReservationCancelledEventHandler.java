@@ -1,6 +1,6 @@
-package com.teambind.springproject.adapter.in.messaging.handler;
+package com.teambind.springproject.adapter.in.messaging.kafka.handler;
 
-import com.teambind.springproject.adapter.in.messaging.event.ReservationConfirmedEvent;
+import com.teambind.springproject.adapter.in.messaging.kafka.event.ReservationCancelledEvent;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
 import com.teambind.springproject.domain.reservationpricing.ReservationPricing;
 import com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException;
@@ -12,26 +12,28 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * ReservationConfirmedEvent 핸들러.
- * 결제 서비스에서 결제 완료 이벤트를 수신하여 예약 상태를 CONFIRMED로 변경합니다.
+ * ReservationCancelledEvent 핸들러.
+ * 결제 서비스에서 결제 실패 또는 취소 이벤트를 수신하여 예약 상태를 CANCELLED로 변경합니다.
+ * 재고는 자동으로 복구됩니다 (CANCELLED 상태는 재고 계산에서 제외됨).
  */
 @Component
 @Transactional
-public class ReservationConfirmedEventHandler implements EventHandler<ReservationConfirmedEvent> {
+public class ReservationCancelledEventHandler implements
+		EventHandler<ReservationCancelledEvent> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(
-			ReservationConfirmedEventHandler.class);
+			ReservationCancelledEventHandler.class);
 	
 	private final ReservationPricingRepository reservationPricingRepository;
 	
-	public ReservationConfirmedEventHandler(
+	public ReservationCancelledEventHandler(
 			final ReservationPricingRepository reservationPricingRepository) {
 		this.reservationPricingRepository = reservationPricingRepository;
 	}
 	
 	@Override
-	public void handle(final ReservationConfirmedEvent event) {
-		logger.info("Handling ReservationConfirmedEvent: reservationId={}, occurredAt={}",
+	public void handle(final ReservationCancelledEvent event) {
+		logger.info("Handling ReservationCancelledEvent: reservationId={}, occurredAt={}",
 				event.getReservationId(), event.getOccurredAt());
 		
 		try {
@@ -41,13 +43,13 @@ public class ReservationConfirmedEventHandler implements EventHandler<Reservatio
 			final ReservationPricing reservation = reservationPricingRepository.findById(reservationId)
 					.orElseThrow(() -> new ReservationPricingNotFoundException(event.getReservationId()));
 			
-			// 2. 상태 변경 (PENDING → CONFIRMED)
-			reservation.confirm();
+			// 2. 상태 변경 (PENDING/CONFIRMED → CANCELLED)
+			reservation.cancel();
 			
 			// 3. 저장
 			reservationPricingRepository.save(reservation);
 			
-			logger.info("Successfully confirmed reservation: reservationId={}, status={}",
+			logger.info("Successfully cancelled reservation: reservationId={}, status={}",
 					event.getReservationId(), reservation.getStatus());
 			
 		} catch (final ReservationPricingNotFoundException e) {
@@ -58,13 +60,13 @@ public class ReservationConfirmedEventHandler implements EventHandler<Reservatio
 					event.getReservationId(), e.getMessage(), e);
 			throw e;
 		} catch (final Exception e) {
-			logger.error("Failed to handle ReservationConfirmedEvent: {}", event, e);
-			throw new RuntimeException("Failed to handle ReservationConfirmedEvent", e);
+			logger.error("Failed to handle ReservationCancelledEvent: {}", event, e);
+			throw new RuntimeException("Failed to handle ReservationCancelledEvent", e);
 		}
 	}
 	
 	@Override
 	public String getSupportedEventType() {
-		return "ReservationConfirmed";
+		return "ReservationCancelled";
 	}
 }

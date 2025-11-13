@@ -1,6 +1,6 @@
-package com.teambind.springproject.adapter.in.messaging.handler;
+package com.teambind.springproject.adapter.in.messaging.kafka.handler;
 
-import com.teambind.springproject.adapter.in.messaging.event.ReservationRefundEvent;
+import com.teambind.springproject.adapter.in.messaging.kafka.event.ReservationRefundEvent;
 import com.teambind.springproject.application.service.reservationpricing.ReservationPricingService;
 import com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException;
 import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;

@@ -1,6 +1,10 @@
--- PricingPolicy Aggregate 테이블 생성
+-- PricingPolicy Aggregate 테이블 재생성
+-- V1에서 생성한 pricing_policies 테이블을 새로운 구조로 변경
 
--- 가격 정책 메인 테이블
+-- 기존 테이블 삭제 (CASCADE로 관련 제약조건도 함께 삭제)
+DROP TABLE IF EXISTS pricing_policies CASCADE;
+
+-- 가격 정책 메인 테이블 (새로운 구조)
 CREATE TABLE pricing_policies
 (
     room_id       BIGINT         NOT NULL,

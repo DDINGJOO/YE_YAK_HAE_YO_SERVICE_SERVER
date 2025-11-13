@@ -7,6 +7,7 @@ import com.teambind.springproject.application.port.out.InventoryCompensationQueu
 import com.teambind.springproject.application.port.out.PricingPolicyRepository;
 import com.teambind.springproject.application.port.out.ProductRepository;
 import com.teambind.springproject.application.port.out.ReservationPricingRepository;
+import com.teambind.springproject.application.port.out.publisher.EventPublisher;
 import com.teambind.springproject.common.config.ReservationConfiguration;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
 import com.teambind.springproject.domain.product.Product;
@@ -54,6 +55,9 @@ class ReservationPricingServiceTest {
 	@Mock
 	private InventoryCompensationQueue compensationQueue;
 
+	@Mock
+	private EventPublisher eventPublisher;
+
 	private ReservationPricingService reservationPricingService;
 
 	private RoomId roomId;
@@ -74,6 +78,7 @@ class ReservationPricingServiceTest {
 				productRepository,
 				reservationPricingRepository,
 				compensationQueue,
+				eventPublisher,
 				reservationConfiguration
 		);
 
