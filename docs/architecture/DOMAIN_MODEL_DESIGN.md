@@ -488,6 +488,116 @@ class ProductAvailabilityService {
 
 ---
 
+### 구현 완료 (2025-11-15): 동시성 제어 추가
+
+**Product 도메인 모델 확장 (V9~V13):**
+
+```java
+@Entity
+class Product {
+    @Id
+    @GeneratedValue(generator = "snowflake-id")
+    private Long productId;
+
+    @Enumerated(EnumType.STRING)
+    private ProductScope scope;
+
+    private Long placeId;  // PLACE, ROOM scope만 사용
+    private Long roomId;   // ROOM scope만 사용
+
+    private String name;
+
+    @Embedded
+    private PricingStrategy pricingStrategy;
+
+    private int totalQuantity;
+    private int reservedQuantity;  // V9: 동시성 제어용 예약 수량
+
+    // 가용 재고 계산
+    public int getAvailableQuantity() {
+        return totalQuantity - reservedQuantity;
+    }
+
+    // 예약 가능 여부 확인
+    public boolean canReserve(int quantity) {
+        return getAvailableQuantity() >= quantity;
+    }
+
+    // Factory Methods
+    public static Product createPlaceScoped(
+        ProductId productId, PlaceId placeId,
+        String name, PricingStrategy strategy, int quantity) {
+        return new Product(productId, ProductScope.PLACE,
+                           placeId, null, name, strategy, quantity, 0);
+    }
+
+    public static Product createRoomScoped(
+        ProductId productId, PlaceId placeId, RoomId roomId,
+        String name, PricingStrategy strategy, int quantity) {
+        return new Product(productId, ProductScope.ROOM,
+                           placeId, roomId, name, strategy, quantity, 0);
+    }
+
+    public static Product createReservationScoped(
+        ProductId productId, String name,
+        PricingStrategy strategy, int quantity) {
+        return new Product(productId, ProductScope.RESERVATION,
+                           null, null, name, strategy, quantity, 0);
+    }
+}
+```
+
+**시간대별 재고 관리 (V10~V13):**
+
+PLACE/ROOM Scope 상품의 경우, 시간대별로 독립적인 재고를 관리합니다.
+
+```java
+@Entity
+@Table(name = "product_time_slot_inventory")
+class ProductTimeSlotInventory {
+    @EmbeddedId
+    private ProductTimeSlotInventoryId id;
+
+    private int reservedQuantity;  // V10: 해당 시간대 예약 수량
+    private int totalQuantity;     // V13: 해당 시간대 총 재고
+
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public int getAvailableQuantity() {
+        return totalQuantity - reservedQuantity;
+    }
+
+    public boolean canReserve(int quantity) {
+        return getAvailableQuantity() >= quantity;
+    }
+}
+
+@Embeddable
+class ProductTimeSlotInventoryId {
+    private Long productId;
+    private Long roomId;
+    private LocalDateTime timeSlot;
+}
+```
+
+**파티셔닝 전략 (V10~V12):**
+- 월별 파티셔닝으로 시간대별 재고 데이터 관리
+- pg_partman을 통한 자동 파티션 생성/삭제
+- 3개월 선행 파티션 생성, 12개월 후 자동 삭제
+
+**동시성 제어 메커니즘:**
+- Atomic UPDATE를 통한 낙관적 동시성 제어
+- WHERE 절에서 재고 검증과 차감 동시 수행
+- 상세 내용은 [ADR_002_CONCURRENCY_CONTROL.md](../adr/ADR_002_CONCURRENCY_CONTROL.md) 참조
+
+**재고 보상 트랜잭션 (V13):**
+- 재고 해제 실패 시 보상 큐에 추가
+- InventoryCompensationScheduler를 통한 자동 재시도
+- 재고 정합성 100% 보장
+
+---
+
 ## 3. 예약 가격 스냅샷 모델
 
 ### 설계 대안 A: Flat Structure (모든 정보 Embedded)
@@ -811,4 +921,9 @@ ReservationId (예약 식별자)
 
 ---
 
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-11-15
+
+**주요 변경사항 (2025-11-15):**
+- Product 도메인 모델에 동시성 제어 필드 추가 (reservedQuantity)
+- ProductTimeSlotInventory 도메인 모델 추가
+- 파티셔닝 전략 및 재고 보상 트랜잭션 설명 추가

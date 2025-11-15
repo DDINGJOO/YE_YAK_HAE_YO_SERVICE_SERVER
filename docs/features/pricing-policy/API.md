@@ -281,4 +281,4 @@ curl -X POST http://localhost:8080/api/pricing-policies/2/copy \
 
 ---
 
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-11-15

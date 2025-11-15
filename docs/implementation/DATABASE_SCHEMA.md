@@ -717,7 +717,10 @@ INSERT INTO reservation_pricing_products (reservation_id, product_id, product_na
 | V7 | reservation_pricings에 expires_at 컬럼 추가 (PENDING 예약 자동 만료) | 2025-11-09 |
 | V8 | shedlock 테이블 추가 (분산 스케줄링 잠금) | 2025-11-09 |
 | V9 | products에 reserved_quantity 컬럼 추가 (재고 동시성 제어) | 2025-11-12 |
-| V10 | product_time_slot_inventory 테이블 추가 (시간대별 재고 관리, 월별 파티셔닝) | 2025-11-12 |
+| V10 | product_time_slot_inventory 테이블 추가 (시간대별 재고 관리, 월별 파티셔닝, 2025년 1-3월 파티션 생성) | 2025-11-12 |
+| V11 | product_time_slot_inventory 파티션 확장 (2025년 12월까지) | 2025-11-13 |
+| V12 | pg_partman 설치 및 자동 파티션 관리 설정 (3개월 선행 생성, 12개월 후 삭제) | 2025-11-13 |
+| V13 | inventory_compensation_queue 테이블 추가 (재고 보상 트랜잭션 큐) | 2025-11-14 |
 
 ---
 
@@ -738,4 +741,9 @@ INSERT INTO reservation_pricing_products (reservation_id, product_id, product_na
 
 ---
 
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-11-15
+
+**주요 변경사항 (2025-11-15):**
+- V11~V13 마이그레이션 이력 추가
+- pg_partman 자동 파티션 관리 설명 추가
+- 재고 보상 트랜잭션 큐 테이블 추가

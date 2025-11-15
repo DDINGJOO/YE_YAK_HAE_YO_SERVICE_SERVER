@@ -270,7 +270,7 @@ Money totalPrice = projector.getPricingStrategy().calculatePrice(3);
 
 2. 가격 계산 및 PENDING 상태 예약 생성 (이 서비스)
    - 시간대별 가격 계산
-   - 추가상품 재고 확인 및 소프트 락
+   - 추가상품 재고 확인 및 원자적 예약
    - 총 가격 계산 및 스냅샷 저장
    ↓
 
@@ -278,7 +278,8 @@ Money totalPrice = projector.getPricingStrategy().calculatePrice(3);
    ↓ ReservationConfirmedEvent 수신
 
 4. 예약 확정 (이 서비스)
-   - 소프트 락 → 하드 락 전환
+   - PENDING → CONFIRMED 상태 전환
+   - 재고 확정 (이미 예약된 상태 유지)
    ↓
 
 5. 환불 처리 (외부 서비스)
@@ -286,7 +287,8 @@ Money totalPrice = projector.getPricingStrategy().calculatePrice(3);
 
 6. 예약 취소 및 재고 해제 (이 서비스)
    - CONFIRMED → CANCELLED 상태 전환
-   - 하드 락 해제
+   - 예약 재고 해제 (rollback)
+   - 실패 시 보상 큐에 추가 (자동 재시도)
 ```
 
 #### 불변 스냅샷 구현
@@ -752,11 +754,14 @@ public class ReservationPricingService {
              │ *                │
 ┌────────────▼───────────────┐  │
 │product_time_slot_inventory │  │ V10: 시간대별 재고 관리
-├────────────────────────────┤  │
+├────────────────────────────┤  │ (월별 파티셔닝 적용)
 │ PK  product_id  BIGINT     │──┘
 │ PK  room_id     BIGINT     │
 │ PK  time_slot   TIMESTAMP  │
-│     reserved_qty INTEGER   │
+│     reserved_quantity INT  │ V10: 예약된 수량
+│     total_quantity INT     │ V13: 총 재고 수량
+│     created_at TIMESTAMP   │
+│     updated_at TIMESTAMP   │
 └────────────────────────────┘
                                 │
 ┌────────────────────────────┐  │
@@ -831,6 +836,37 @@ public class ProductEntity {
 }
 ```
 
+### 파티셔닝 전략 (V10~V12)
+
+**product_time_slot_inventory 테이블 월별 파티셔닝:**
+
+```sql
+-- V10: 월별 파티션 생성 (2025년 1월~3월)
+CREATE TABLE product_time_slot_inventory (
+    product_id BIGINT NOT NULL,
+    room_id BIGINT NOT NULL,
+    time_slot TIMESTAMP NOT NULL,
+    reserved_quantity INTEGER NOT NULL DEFAULT 0,
+    total_quantity INTEGER NOT NULL DEFAULT 0,  -- V13 추가
+    PRIMARY KEY (product_id, room_id, time_slot)
+) PARTITION BY RANGE (time_slot);
+
+-- V11: 파티션 확장 (2025년 12월까지)
+CREATE TABLE product_time_slot_inventory_2025_12
+    PARTITION OF product_time_slot_inventory
+    FOR VALUES FROM ('2025-12-01 00:00:00') TO ('2026-01-01 00:00:00');
+
+-- V12: pg_partman을 통한 자동 파티션 관리
+-- - 3개월 선행 파티션 생성
+-- - 12개월 후 오래된 파티션 자동 삭제
+-- - 일일 유지보수 작업 스케줄링 (3 AM)
+```
+
+**파티셔닝 장점:**
+- 시간대별 쿼리 성능 향상 (파티션 프루닝)
+- 오래된 데이터 정리 용이
+- 인덱스 크기 감소로 메모리 효율 증가
+
 ### 인덱싱 전략
 
 ```sql
@@ -846,6 +882,14 @@ CREATE INDEX idx_products_scope_place_id
 -- 예약 가격: 룸 + 상태 복합 조회 (재고 관리 쿼리 최적화)
 CREATE INDEX idx_reservation_pricings_room_status
     ON reservation_pricings(room_id, status);
+
+-- 시간대별 재고: 상품 + 시간대 조회 최적화 (PLACE Scope)
+CREATE INDEX idx_product_time_slot_inventory_product_time
+    ON product_time_slot_inventory(product_id, time_slot);
+
+-- 시간대별 재고: 과거 데이터 정리용
+CREATE INDEX idx_product_time_slot_inventory_time_slot
+    ON product_time_slot_inventory(time_slot);
 ```
 
 ### 도메인 규칙 (DB Constraints)
@@ -1388,6 +1432,34 @@ ls -la build/libs/
 - ReservationPricing에 PlaceId 중복 저장
 - PlaceId 기준 조회 시 조인 없이 빠른 검색
 
+#### 4. N+1 쿼리 최적화
+
+JPQL Fetch Join을 활용하여 컬렉션 로딩 시 N+1 문제를 해결합니다.
+
+**구현 예시 (ReservationPricingJpaRepository):**
+```java
+@Query("""
+    SELECT DISTINCT rp FROM ReservationPricingEntity rp
+    LEFT JOIN FETCH rp.slotPrices
+    WHERE rp.roomId = :roomId
+      AND rp.status = :status
+      AND rp.expiresAt BETWEEN :start AND :end
+    """)
+List<ReservationPricingEntity> findByRoomIdAndStatusAndTimePeriodWithSlots(
+    Long roomId, ReservationStatus status,
+    LocalDateTime start, LocalDateTime end);
+```
+
+**최적화 효과:**
+- 2단계 Fetch Join으로 slotPrices와 productPrices 컬렉션 모두 로딩
+- 단일 쿼리로 모든 연관 데이터 조회 (N+1 → 1+1 쿼리)
+- 재고 가용성 조회 시 성능 크게 개선
+
+**적용 위치:**
+- ReservationPricingRepositoryAdapter:163
+- PlaceId/RoomId + 시간 범위 기준 조회
+- 상태별 예약 목록 조회
+
 ---
 
 ## 향후 개선사항
@@ -1585,4 +1657,4 @@ docker-compose up -d
 
 ---
 
-Last Updated: 2025-11-12
+Last Updated: 2025-11-15

@@ -575,4 +575,4 @@ public void cancelExpiredPendingReservations() {
 - 통계 및 리포트 기능 (예약 패턴 분석)
 ---
 
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-11-15

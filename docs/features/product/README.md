@@ -284,4 +284,4 @@ DELETE /api/admin/rooms/{roomId}/allowed-products
 
 ---
 
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-11-15

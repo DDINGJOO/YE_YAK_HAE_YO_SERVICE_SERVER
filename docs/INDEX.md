@@ -492,7 +492,7 @@ docs/
   - docs/features/product/: 동시성 제어 관련 내용 추가 (reserved_quantity, V9/V10 migrations)
   - docs/features/reservation-pricing/: ReservationRefundEventHandler 및 재고 통합 내용 추가
   - docs/implementation/PACKAGE_STRUCTURE.md: 이벤트 핸들러 6개 모두 문서화, 동시성 제어 Issue 참조 추가
-  - docs/architecture 폴더: 모든 문서 Last Updated 2025-11-12로 갱신
+  - docs/architecture 폴더: 모든 문서 Last Updated 2025-11-15로 갱신
 
 ### 2025-11-10
 - **예약 가격 기능 문서 작성 완료** (Task #74, #88, #89)
@@ -552,4 +552,9 @@ docs/
   - architecture.md: 계층별 설계, 디자인 패턴, 확장 전략
   - events.md: RoomCreatedEvent 스키마 및 처리 흐름
 
-**Last Updated:** 2025-11-12
+**Last Updated:** 2025-11-15
+
+**주요 변경사항 (2025-11-15):**
+- 동시성 제어 및 재고 관리 관련 문서 최신화 (ADR_002, DOMAIN_MODEL_DESIGN, DATABASE_SCHEMA)
+- V9~V13 데이터베이스 마이그레이션 내역 반영
+- 파티셔닝, 재고 보상 트랜잭션, 환불 처리 관련 문서 업데이트

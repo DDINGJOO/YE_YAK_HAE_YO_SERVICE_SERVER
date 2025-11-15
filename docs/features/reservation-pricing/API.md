@@ -791,4 +791,4 @@ curl -X PUT $BASE_URL/api/reservations/$RESERVATION_ID/cancel
 - 이벤트 핸들러는 멱등성 보장 (중복 이벤트 무시)
 ---
 
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-11-15
