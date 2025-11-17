@@ -35,21 +35,6 @@ public class ReservationPricingController {
 		this.updateReservationProductsUseCase = updateReservationProductsUseCase;
 	}
 	
-	/**
-	 * 예약 생성 (가격 계산 포함).
-	 *
-	 * @param request 예약 생성 요청
-	 * @return 생성된 예약 정보
-	 */
-	@PostMapping
-	public ResponseEntity<ReservationPricingResponse> createReservation(
-			@RequestBody @Valid final CreateReservationRequest request) {
-		
-		final ReservationPricingResponse response = createReservationUseCase.createReservation(
-				request);
-		
-		return ResponseEntity.status(HttpStatus.CREATED).body(response);
-	}
 	
 	/**
 	 * 예약 확정.
