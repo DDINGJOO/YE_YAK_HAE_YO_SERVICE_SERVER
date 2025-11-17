@@ -4,8 +4,10 @@ import com.teambind.springproject.application.dto.request.CopyPricingPolicyReque
 import com.teambind.springproject.application.dto.request.TimeRangePriceDto;
 import com.teambind.springproject.application.dto.request.UpdateDefaultPriceRequest;
 import com.teambind.springproject.application.dto.request.UpdateTimeRangePricesRequest;
+import com.teambind.springproject.application.dto.response.DatePricingResponse;
 import com.teambind.springproject.application.dto.response.PricingPolicyResponse;
 import com.teambind.springproject.application.port.in.CopyPricingPolicyUseCase;
+import com.teambind.springproject.application.port.in.GetDatePricingUseCase;
 import com.teambind.springproject.application.port.in.GetPricingPolicyUseCase;
 import com.teambind.springproject.application.port.in.UpdatePricingPolicyUseCase;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
@@ -20,9 +22,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 가격 정책 관리 REST Controller.
@@ -35,14 +40,17 @@ public class PricingPolicyController {
 	private final GetPricingPolicyUseCase getPricingPolicyUseCase;
 	private final UpdatePricingPolicyUseCase updatePricingPolicyUseCase;
 	private final CopyPricingPolicyUseCase copyPricingPolicyUseCase;
-	
+	private final GetDatePricingUseCase getDatePricingUseCase;
+
 	public PricingPolicyController(
 			final GetPricingPolicyUseCase getPricingPolicyUseCase,
 			final UpdatePricingPolicyUseCase updatePricingPolicyUseCase,
-			final CopyPricingPolicyUseCase copyPricingPolicyUseCase) {
+			final CopyPricingPolicyUseCase copyPricingPolicyUseCase,
+			final GetDatePricingUseCase getDatePricingUseCase) {
 		this.getPricingPolicyUseCase = getPricingPolicyUseCase;
 		this.updatePricingPolicyUseCase = updatePricingPolicyUseCase;
 		this.copyPricingPolicyUseCase = copyPricingPolicyUseCase;
+		this.getDatePricingUseCase = getDatePricingUseCase;
 	}
 	
 	/**
@@ -60,7 +68,30 @@ public class PricingPolicyController {
 		
 		return ResponseEntity.ok(response);
 	}
-	
+
+	/**
+	 * 특정 날짜의 시간대별 가격 조회.
+	 * 시작 시간(예: "11:00")을 키로, 해당 타임슬롯의 가격을 값으로 가지는 Map을 반환합니다.
+	 *
+	 * @param roomId 룸 ID
+	 * @param date   조회할 날짜 (yyyy-MM-dd)
+	 * @return 시간대별 가격
+	 */
+	@GetMapping("/{roomId}/date/{date}")
+	public ResponseEntity<DatePricingResponse> getPricingByDate(
+			@PathVariable @Positive(message = "Room ID must be positive") final Long roomId,
+			@PathVariable final LocalDate date) {
+
+		final Map<String, BigDecimal> timeSlotPrices = getDatePricingUseCase.getPricingByDate(
+				RoomId.of(roomId),
+				date
+		);
+
+		final DatePricingResponse response = DatePricingResponse.of(timeSlotPrices);
+
+		return ResponseEntity.ok(response);
+	}
+
 	/**
 	 * 기본 가격 업데이트.
 	 *
