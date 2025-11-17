@@ -1,5 +1,6 @@
 package com.teambind.springproject.application.service.reservationpricing;
 
+import com.teambind.springproject.adapter.out.messaging.kafka.event.ReservationCancelledEvent;
 import com.teambind.springproject.adapter.out.messaging.kafka.event.ReservationPendingPaymentEvent;
 import com.teambind.springproject.application.dto.request.CreateReservationRequest;
 import com.teambind.springproject.application.dto.request.ProductRequest;
@@ -58,6 +59,9 @@ public class ReservationPricingService implements CreateReservationUseCase,
 
 	@org.springframework.beans.factory.annotation.Value("${kafka.topics.reservation-pending-payment:reservation-pending-payment}")
 	private String reservationPendingPaymentTopic;
+
+	@org.springframework.beans.factory.annotation.Value("${kafka.topics.reservation-cancelled:reservation-cancelled}")
+	private String reservationCancelledTopic;
 
 	public ReservationPricingService(
 			final PricingPolicyRepository pricingPolicyRepository,
@@ -140,7 +144,20 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	
 	@Override
 	public ReservationPricingResponse cancelReservation(final Long reservationId) {
-		logger.info("Cancelling reservation: reservationId={}", reservationId);
+		return cancelReservation(reservationId, "Operator rejected");
+	}
+
+	/**
+	 * 예약 취소 처리 (운영자 거절).
+	 * PENDING → CANCELLED 상태 전환과 함께 재고를 해제하고 이벤트를 발행합니다.
+	 *
+	 * @param reservationId 취소할 예약 ID
+	 * @param cancelReason  취소 사유
+	 * @return 취소된 예약 정보
+	 * @throws ReservationPricingNotFoundException 예약을 찾을 수 없는 경우
+	 */
+	public ReservationPricingResponse cancelReservation(final Long reservationId, final String cancelReason) {
+		logger.info("Cancelling reservation: reservationId={}, reason={}", reservationId, cancelReason);
 
 		final ReservationPricing reservation = reservationPricingRepository
 				.findById(ReservationId.of(reservationId))
@@ -152,6 +169,9 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		// 2. 예약 취소 처리
 		reservation.cancel();
 		final ReservationPricing savedReservation = reservationPricingRepository.save(reservation);
+
+		// 3. 취소 이벤트 발행 (시간관리 서비스에서 시간 락 해제)
+		publishReservationCancelledEvent(savedReservation, cancelReason);
 
 		logger.info("Successfully cancelled reservation: reservationId={}", reservationId);
 
@@ -694,6 +714,23 @@ public class ReservationPricingService implements CreateReservationUseCase,
 				formattedOccurredAt
 		);
 	}
-	
-	
+
+	private void publishReservationCancelledEvent(
+			final ReservationPricing reservation,
+			final String cancelReason) {
+
+		final ReservationCancelledEvent event = new ReservationCancelledEvent(
+				reservationCancelledTopic,
+				null,
+				reservation.getReservationId().getValue(),
+				reservation.getRoomId().getValue(),
+				cancelReason,
+				LocalDateTime.now()
+		);
+
+		eventPublisher.publish(event);
+
+		logger.info("Reservation cancelled event published: reservationId={}, reason={}",
+				reservation.getReservationId().getValue(), cancelReason);
+	}
 }
