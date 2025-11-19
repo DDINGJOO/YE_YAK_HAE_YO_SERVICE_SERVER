@@ -2,6 +2,7 @@ package com.teambind.springproject.adapter.out.messaging.kafka;
 
 
 import com.teambind.springproject.adapter.out.messaging.kafka.event.Event;
+import com.teambind.springproject.adapter.out.messaging.kafka.event.dto.EventDtoFactory;
 import com.teambind.springproject.application.port.out.publisher.EventPublisher;
 import com.teambind.springproject.common.util.json.JsonUtil;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,9 @@ public class KafkaEventPublisher  implements EventPublisher {
 	public void publish(final Event event) {
 		final String json;
 		try {
-			json = jsonUtil.toJson(event);
+			// Event -> DTO 변환 (Long ID를 String으로 직렬화하기 위함)
+			final Object eventDto = EventDtoFactory.createDto(event);
+			json = jsonUtil.toJson(eventDto);
 		} catch (final Exception e) {
 			logger.error("Failed to serialize event: {}", event, e);
 			throw new IllegalArgumentException("Failed to serialize event", e);
