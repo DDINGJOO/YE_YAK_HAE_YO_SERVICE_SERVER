@@ -50,10 +50,10 @@
 - **CopyPricingPolicyUseCase**: 가격 정책 복사 Use Case
 
 ## 관련 Issues
-- Issue #7: PricingPolicy Aggregate 구현 ✅
-- Issue #8: PricingPolicy Repository 구현 ✅
-- Issue #9: RoomCreatedEvent 리스너 및 가격 정책 자동 생성 ✅
-- Issue #10: 가격 정책 관리 API 구현 ✅
+- Issue #7: PricingPolicy Aggregate 구현 
+- Issue #8: PricingPolicy Repository 구현 
+- Issue #9: RoomCreatedEvent 리스너 및 가격 정책 자동 생성 
+- Issue #10: 가격 정책 관리 API 구현 
 
 ---
 

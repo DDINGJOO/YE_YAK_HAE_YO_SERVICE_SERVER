@@ -9,9 +9,11 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Kafka 이벤트 Consumer.
@@ -88,22 +90,29 @@ public class KafkaEventConsumer {
 
 	/**
 	 * 공통 이벤트 처리 로직.
-	 * eventType을 추출하고 적절한 핸들러로 라우팅합니다.
+	 * eventType 또는 topic을 추출하고 적절한 핸들러로 라우팅합니다.
 	 *
 	 * @param message        Kafka 메시지 (JSON)
 	 * @param acknowledgment Kafka acknowledgment
 	 */
 	private void processEvent(final String message, final Acknowledgment acknowledgment) {
 		try {
-			// 1. eventType 추출 (Map으로 파싱)
+			// 1. eventType 또는 topic 추출 (Map으로 파싱)
 			@SuppressWarnings("unchecked")
 			final Map<String, Object> messageMap = jsonUtil.fromJson(message, Map.class);
-			final String eventType = (String) messageMap.get("eventType");
+			String eventType = (String) messageMap.get("eventType");
 
+			// eventType이 없으면 topic에서 변환
 			if (eventType == null) {
-				logger.warn("Missing eventType in message: {}", message);
-				acknowledgment.acknowledge();
-				return;
+				final String topic = (String) messageMap.get("topic");
+				if (topic == null) {
+					logger.warn("Missing both eventType and topic in message: {}", message);
+					acknowledgment.acknowledge();
+					return;
+				}
+				// topic을 eventType으로 변환
+				eventType = convertTopicToEventType(topic);
+				logger.debug("Converted topic '{}' to eventType '{}'", topic, eventType);
 			}
 
 			// 2. eventType에 해당하는 클래스 찾기
@@ -114,8 +123,10 @@ public class KafkaEventConsumer {
 				return;
 			}
 
-			// 3. JSON을 이벤트 객체로 역직렬화
-			final Event event = jsonUtil.fromJson(message, eventClass);
+			// 3. JSON을 이벤트 객체로 역직렬화 (eventType 필드 추가)
+			messageMap.put("eventType", eventType);
+			final String enhancedMessage = jsonUtil.toJson(messageMap);
+			final Event event = jsonUtil.fromJson(enhancedMessage, eventClass);
 
 			// 4. 적절한 핸들러 찾기
 			final EventHandler<Event> handler = findHandler(eventType);
@@ -137,6 +148,26 @@ public class KafkaEventConsumer {
 			// TODO: DLQ(Dead Letter Queue)로 전송 또는 재처리 로직 구현
 			acknowledgment.acknowledge(); // 실패해도 일단 acknowledge (무한 재시도 방지)
 		}
+	}
+
+	/**
+	 * Kafka topic 이름을 eventType 형식으로 변환합니다.
+	 * 예: "room-created" -> "RoomCreated"
+	 *     "reservation-reserved" -> "ReservationReserved"
+	 *
+	 * @param topic Kafka topic 이름
+	 * @return eventType 문자열
+	 */
+	private String convertTopicToEventType(final String topic) {
+		// 특별 케이스: reservation-reserved -> SlotReserved (이벤트명이 다름)
+		if ("reservation-reserved".equals(topic)) {
+			return "SlotReserved";
+		}
+
+		// 일반 변환: room-created -> RoomCreated
+		return Arrays.stream(topic.split("-"))
+				.map(word -> word.substring(0, 1).toUpperCase() + word.substring(1))
+				.collect(Collectors.joining(""));
 	}
 	
 	@SuppressWarnings("unchecked")

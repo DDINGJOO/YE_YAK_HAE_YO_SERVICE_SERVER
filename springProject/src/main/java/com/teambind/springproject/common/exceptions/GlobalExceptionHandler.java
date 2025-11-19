@@ -18,7 +18,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	
-	
 	@ExceptionHandler(PricingPolicyException.class)
 	public ResponseEntity<ErrorResponse> handlePricingPolicyException(
 			PricingPolicyException ex, HttpServletRequest request) {
