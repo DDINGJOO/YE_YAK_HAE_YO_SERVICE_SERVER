@@ -27,7 +27,6 @@ public class GetDatePricingService implements GetDatePricingUseCase {
 
 	private static final Logger logger = LoggerFactory.getLogger(GetDatePricingService.class);
 	private static final LocalTime START_TIME = LocalTime.of(0, 0);
-	private static final LocalTime END_TIME = LocalTime.of(23, 59);
 
 	private final PricingPolicyRepository pricingPolicyRepository;
 
@@ -55,17 +54,15 @@ public class GetDatePricingService implements GetDatePricingUseCase {
 			final int timeSlotMinutes) {
 
 		final Map<String, BigDecimal> timeSlotPrices = new LinkedHashMap<>();
+
+		// 24시간을 timeSlotMinutes로 나눈 슬롯 개수 계산
+		final int totalSlots = (24 * 60) / timeSlotMinutes;
 		LocalTime currentTime = START_TIME;
 
-		while (currentTime.isBefore(END_TIME) || currentTime.equals(END_TIME)) {
+		for (int i = 0; i < totalSlots; i++) {
 			final Money price = findPriceForTime(policy, dayOfWeek, currentTime);
 			timeSlotPrices.put(currentTime.toString(), price.getAmount());
-
 			currentTime = currentTime.plusMinutes(timeSlotMinutes);
-
-			if (currentTime.isAfter(END_TIME)) {
-				break;
-			}
 		}
 
 		return timeSlotPrices;
