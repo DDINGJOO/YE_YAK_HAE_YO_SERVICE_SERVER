@@ -1,5 +1,6 @@
 package com.teambind.springproject.common.util.json;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,8 @@ public class JsonUtilWithObjectMapper implements JsonUtil {
 	public JsonUtilWithObjectMapper() {
 		this.objectMapper = new ObjectMapper();
 		this.objectMapper.registerModule(new JavaTimeModule());
+		// 알 수 없는 속성 무시
+		this.objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 	}
 	
 	public String toJson(Object object) {

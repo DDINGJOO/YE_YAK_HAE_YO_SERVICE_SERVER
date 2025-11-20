@@ -26,10 +26,10 @@ public final class ReservationRefundEvent extends Event {
 	public ReservationRefundEvent(
 			@JsonProperty("topic") final String topic,
 			@JsonProperty("eventType") final String eventType,
-			@JsonProperty("reservationId") final Long reservationId,
+			@JsonProperty("reservationId") final Object reservationId,
 			@JsonProperty("occurredAt") final LocalDateTime occurredAt) {
 		super(topic != null ? topic : DEFAULT_TOPIC, eventType != null ? eventType : EVENT_TYPE_NAME);
-		this.reservationId = reservationId;
+		this.reservationId = parseLong(reservationId);
 		this.occurredAt = occurredAt;
 	}
 

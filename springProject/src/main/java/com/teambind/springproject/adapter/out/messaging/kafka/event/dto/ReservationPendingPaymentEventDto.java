@@ -2,12 +2,12 @@ package com.teambind.springproject.adapter.out.messaging.kafka.event.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.teambind.springproject.adapter.out.messaging.kafka.event.ReservationPendingPaymentEvent;
-import com.teambind.springproject.application.dto.response.ProductPriceDetail;
 import com.teambind.springproject.application.dto.response.ReservationTimePriceDetail;
 import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 예약 결제 대기 이벤트 DTO.
@@ -39,7 +39,7 @@ public class ReservationPendingPaymentEventDto {
 	private final String reservationDate;
 
 	@JsonProperty("productPriceDetails")
-	private final List<ProductPriceDetail> productPriceDetails;
+	private final List<ProductPriceDetailDto> productPriceDetails;
 
 	@JsonProperty("reservationTimePriceDetail")
 	private final ReservationTimePriceDetail reservationTimePriceDetail;
@@ -57,7 +57,7 @@ public class ReservationPendingPaymentEventDto {
 			final String placeId,
 			final String roomId,
 			final String reservationDate,
-			final List<ProductPriceDetail> productPriceDetails,
+			final List<ProductPriceDetailDto> productPriceDetails,
 			final ReservationTimePriceDetail reservationTimePriceDetail,
 			final BigDecimal totalPrice,
 			final String occurredAt) {
@@ -81,6 +81,11 @@ public class ReservationPendingPaymentEventDto {
 	 * @return Kafka 발행용 DTO
 	 */
 	public static ReservationPendingPaymentEventDto from(final ReservationPendingPaymentEvent event) {
+		final List<ProductPriceDetailDto> productPriceDetailDtos = event.getProductPriceDetails()
+				.stream()
+				.map(ProductPriceDetailDto::from)
+				.collect(Collectors.toList());
+
 		return new ReservationPendingPaymentEventDto(
 				event.getTopic(),
 				event.getEventType(),
@@ -88,7 +93,7 @@ public class ReservationPendingPaymentEventDto {
 				String.valueOf(event.getPlaceId()),
 				String.valueOf(event.getRoomId()),
 				event.getReservationDate(),
-				event.getProductPriceDetails(),
+				productPriceDetailDtos,
 				event.getReservationTimePriceDetail(),
 				event.getTotalPrice(),
 				event.getOccurredAt()

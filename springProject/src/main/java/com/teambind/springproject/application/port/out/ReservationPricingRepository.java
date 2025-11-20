@@ -94,4 +94,10 @@ public interface ReservationPricingRepository {
 	 * @return 만료된 PENDING 예약 목록
 	 */
 	List<ReservationPricing> findExpiredPendingReservations();
+
+	/**
+	 * 영속성 컨텍스트의 변경사항을 데이터베이스에 즉시 반영합니다.
+	 * Kafka 이벤트 처리 등 트랜잭션 경계가 명확하지 않은 경우 사용합니다.
+	 */
+	void flush();
 }

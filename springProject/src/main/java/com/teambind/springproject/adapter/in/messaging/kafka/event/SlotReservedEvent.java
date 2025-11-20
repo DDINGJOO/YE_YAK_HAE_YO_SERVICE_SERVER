@@ -32,19 +32,19 @@ public final class SlotReservedEvent extends Event {
 	public SlotReservedEvent(
 			@JsonProperty("topic") final String topic,
 			@JsonProperty("eventType") final String eventType,
-			@JsonProperty("roomId") final Long roomId,
+			@JsonProperty("roomId") final Object roomId,
 			@JsonProperty("slotDate") final LocalDate slotDate,
 			@JsonProperty("startTimes") final List<LocalTime> startTimes,
-			@JsonProperty("reservationId") final Long reservationId,
+			@JsonProperty("reservationId") final Object reservationId,
 			@JsonProperty("occurredAt") final LocalDateTime occurredAt) {
 		super(topic != null ? topic : DEFAULT_TOPIC, eventType != null ? eventType : EVENT_TYPE_NAME);
-		this.roomId = roomId;
+		this.roomId = parseLong(roomId);
 		this.slotDate = slotDate;
 		this.startTimes = startTimes != null ? List.copyOf(startTimes) : Collections.emptyList();
-		this.reservationId = reservationId;
+		this.reservationId = parseLong(reservationId);
 		this.occurredAt = occurredAt;
 	}
-	
+
 	@Override
 	public String getEventTypeName() {
 		return EVENT_TYPE_NAME;

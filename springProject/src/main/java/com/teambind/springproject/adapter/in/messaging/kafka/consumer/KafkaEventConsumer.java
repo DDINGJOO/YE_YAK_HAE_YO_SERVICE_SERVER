@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
  * 이벤트를 수신하고 적절한 핸들러로 라우팅합니다.
  */
 @Component
+@Transactional
 public class KafkaEventConsumer {
 
 	private static final Logger logger = LoggerFactory.getLogger(KafkaEventConsumer.class);

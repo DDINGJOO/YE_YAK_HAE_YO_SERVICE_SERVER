@@ -90,10 +90,24 @@ public class SlotReservedEventHandler implements EventHandler<SlotReservedEvent>
 					Collections.emptyList(),  // 상품 정보는 예약 확정 시 업데이트
 					pendingTimeoutMinutes
 			);
-			
+
+			logger.info("Created ReservationPricing entity: reservationId={}, roomId={}, status={}, totalPrice={}",
+					reservationPricing.getReservationId().getValue(),
+					reservationPricing.getRoomId().getValue(),
+					reservationPricing.getStatus(),
+					reservationPricing.getTotalPrice().getAmount());
+
 			// 6. 저장
-			reservationPricingRepository.save(reservationPricing);
-			
+			logger.info("Attempting to save ReservationPricing to database...");
+			final ReservationPricing savedEntity = reservationPricingRepository.save(reservationPricing);
+			logger.info("Successfully saved ReservationPricing to database: reservationId={}, savedEntityId={}",
+					event.getReservationId(), savedEntity.getReservationId().getValue());
+
+			// 7. 즉시 flush하여 DB에 반영 (Kafka 트랜잭션 경계 문제 해결)
+			logger.info("Flushing changes to database...");
+			reservationPricingRepository.flush();
+			logger.info("Successfully flushed changes to database");
+
 			logger.info("Successfully handled SlotReservedEvent: reservationId={}, totalPrice={}",
 					event.getReservationId(), reservationPricing.getTotalPrice().getAmount());
 			

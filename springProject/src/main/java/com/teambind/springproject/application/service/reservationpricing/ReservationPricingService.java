@@ -126,6 +126,8 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		return ReservationPricingResponse.from(savedReservation);
 	}
 	
+	// 예약을 확정 -> 상품 고르는 페이지 -> 예약 추가정보를 입력하는 페이지
+	// 상태는 아직 PENDING  => 아직 결제가 일어나지 않음
 	@Override
 	public ReservationPricingResponse confirmReservation(final Long reservationId) {
 		logger.info("Confirming reservation: reservationId={}", reservationId);
@@ -134,11 +136,12 @@ public class ReservationPricingService implements CreateReservationUseCase,
 				.findById(ReservationId.of(reservationId))
 				.orElseThrow(() -> new ReservationPricingNotFoundException(reservationId));
 		
-		reservation.confirm();
+		
 		final ReservationPricing savedReservation = reservationPricingRepository.save(reservation);
 		
 		logger.info("Successfully confirmed reservation: reservationId={}", reservationId);
 		
+		// reservation Manager 에 예약정보 추가요청
 		return ReservationPricingResponse.from(savedReservation);
 	}
 	

@@ -21,12 +21,12 @@ public final class RoomCreatedEvent extends Event {
 	public RoomCreatedEvent(
 			@JsonProperty("topic") final String topic,
 			@JsonProperty("eventType") final String eventType,
-			@JsonProperty("placeId") final Long placeId,
-			@JsonProperty("roomId") final Long roomId,
+			@JsonProperty("placeId") final Object placeId,
+			@JsonProperty("roomId") final Object roomId,
 			@JsonProperty("timeSlot") final String timeSlot) {
 		super(topic, eventType);
-		this.placeId = placeId;
-		this.roomId = roomId;
+		this.placeId = parseLong(placeId);
+		this.roomId = parseLong(roomId);
 		this.timeSlot = timeSlot;
 	}
 	

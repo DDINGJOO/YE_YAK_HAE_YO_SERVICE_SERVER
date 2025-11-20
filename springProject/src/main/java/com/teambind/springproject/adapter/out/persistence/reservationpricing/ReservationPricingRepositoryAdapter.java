@@ -150,6 +150,11 @@ public class ReservationPricingRepositoryAdapter implements ReservationPricingRe
 				.toList();
 	}
 	
+	@Override
+	public void flush() {
+		jpaRepository.flush();
+	}
+
 	/**
 	 * RoomId로 PlaceId를 조회합니다.
 	 * PricingPolicy에서 Room-Place 매핑을 가져옵니다.
@@ -160,10 +165,10 @@ public class ReservationPricingRepositoryAdapter implements ReservationPricingRe
 	 */
 	private Long findPlaceIdByRoomId(final RoomId roomId) {
 		final RoomIdEmbeddable roomIdEmbeddable = new RoomIdEmbeddable(roomId.getValue());
-		
+
 		final Optional<PricingPolicyEntity> pricingPolicy = pricingPolicyJpaRepository.findById(
 				roomIdEmbeddable);
-		
+
 		return pricingPolicy
 				.map(entity -> entity.getPlaceId().getValue())
 				.orElseThrow(() -> new IllegalArgumentException(
