@@ -5,3 +5,13 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+external:
+  reservation-service:
+    url: ${EXTERNAL_RESERVATION_SERVICE_URL:http://localhost:9417}
+    endpoints:
+      confirm: /api/v1/reservations/product
+
+
+reservation:
+  pending:
+    timeout-minutes: ${RESERVATION_PENDING_TIMEOUT_MINUTES:10}
