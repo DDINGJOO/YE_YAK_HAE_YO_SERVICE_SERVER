@@ -1,0 +1,76 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      retries: 3
+      batch-size: 16384
+      buffer-memory: 33554432
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      compression-type: snappy
+    consumer:
+      group-id: pricing-consumer-group-test
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: "*"
+    listener:
+      ack-mode: manual
+      concurrency: 1
+
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+    open-in-view: false
+
+  flyway:
+    enabled: false
+
+  data:
+    redis:
+      repositories:
+        enabled: false
+      host: localhost
+      port: 6379
+
+logging:
+  level:
+    root: INFO
+    com.teambind.springproject: DEBUG
+    org.springframework: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
+
+reservation:
+  pending:
+    timeout-minutes: 10
+
+external:
+  reservation-service:
+    url: http://localhost:9417
+    endpoints:
+      confirm: /api/v1/reservations/product
+
+kafka:
+  topics:
+    room-created: room-created-test
+    room-updated: room-updated-test
+    reservation-reserved: reservation-reserved-test
+    reservation-confirmed: reservation-confirmed-test
+    reservation-refund: reservation-refund-test
+    reservation-pending-payment: reservation-pending-payment-test
+    reservation-cancelled: reservation-cancelled-test

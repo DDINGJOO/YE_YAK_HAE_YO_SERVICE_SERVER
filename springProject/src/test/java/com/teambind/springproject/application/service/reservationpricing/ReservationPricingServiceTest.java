@@ -58,6 +58,9 @@ class ReservationPricingServiceTest {
 	@Mock
 	private EventPublisher eventPublisher;
 
+	@Mock
+	private org.springframework.web.client.RestTemplate restTemplate;
+
 	private ReservationPricingService reservationPricingService;
 
 	private RoomId roomId;
@@ -79,6 +82,7 @@ class ReservationPricingServiceTest {
 				reservationPricingRepository,
 				compensationQueue,
 				eventPublisher,
+				restTemplate,
 				reservationConfiguration
 		);
 
@@ -280,6 +284,10 @@ class ReservationPricingServiceTest {
 
 			when(reservationPricingRepository.findById(ReservationId.of(reservationId)))
 					.thenReturn(Optional.of(reservation));
+			when(pricingPolicyRepository.findById(roomId))
+					.thenReturn(Optional.of(pricingPolicy));
+			when(restTemplate.postForEntity(anyString(), any(), eq(Void.class)))
+					.thenReturn(org.springframework.http.ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).build());
 			when(reservationPricingRepository.save(any(ReservationPricing.class)))
 					.thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -289,9 +297,11 @@ class ReservationPricingServiceTest {
 
 			// then
 			assertThat(response).isNotNull();
-			assertThat(response.status()).isEqualTo(ReservationStatus.CONFIRMED);
+			assertThat(response.status()).isEqualTo(ReservationStatus.PENDING);
 
 			verify(reservationPricingRepository).findById(ReservationId.of(reservationId));
+			verify(pricingPolicyRepository).findById(roomId);
+			verify(restTemplate).postForEntity(anyString(), any(), eq(Void.class));
 			verify(reservationPricingRepository).save(any(ReservationPricing.class));
 		}
 
