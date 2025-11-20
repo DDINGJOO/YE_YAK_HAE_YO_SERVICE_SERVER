@@ -4,6 +4,7 @@ import com.teambind.springproject.adapter.out.messaging.kafka.event.ReservationC
 import com.teambind.springproject.adapter.out.messaging.kafka.event.ReservationPendingPaymentEvent;
 import com.teambind.springproject.application.dto.request.CreateReservationRequest;
 import com.teambind.springproject.application.dto.request.ProductRequest;
+import com.teambind.springproject.application.dto.request.ReservationConfirmRequest;
 import com.teambind.springproject.application.dto.request.UpdateProductsRequest;
 import com.teambind.springproject.application.dto.response.ProductPriceDetail;
 import com.teambind.springproject.application.dto.response.ReservationPricingResponse;
@@ -27,8 +28,15 @@ import com.teambind.springproject.domain.reservationpricing.exception.Reservatio
 import com.teambind.springproject.domain.shared.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -55,25 +63,35 @@ public class ReservationPricingService implements CreateReservationUseCase,
 	private final ReservationPricingRepository reservationPricingRepository;
 	private final InventoryCompensationQueue compensationQueue;
 	private final EventPublisher eventPublisher;
+	private final RestTemplate restTemplate;
 	private final long pendingTimeoutMinutes;
 
-	@org.springframework.beans.factory.annotation.Value("${kafka.topics.reservation-pending-payment:reservation-pending-payment}")
+	@Value("${kafka.topics.reservation-pending-payment:reservation-pending-payment}")
 	private String reservationPendingPaymentTopic;
 
-	@org.springframework.beans.factory.annotation.Value("${kafka.topics.reservation-cancelled:reservation-cancelled}")
+	@Value("${kafka.topics.reservation-cancelled:reservation-cancelled}")
 	private String reservationCancelledTopic;
+
+	@Value("${external.reservation-service.url}")
+	private String reservationServiceUrl;
+
+	@Value("${external.reservation-service.endpoints.confirm}")
+	private String confirmEndpoint;
 
 	public ReservationPricingService(
 			final PricingPolicyRepository pricingPolicyRepository,
 			final ProductRepository productRepository,
 			final ReservationPricingRepository reservationPricingRepository,
-			final InventoryCompensationQueue compensationQueue, EventPublisher eventPublisher,
+			final InventoryCompensationQueue compensationQueue,
+			final EventPublisher eventPublisher,
+			final RestTemplate restTemplate,
 			final ReservationConfiguration reservationConfiguration) {
 		this.pricingPolicyRepository = pricingPolicyRepository;
 		this.productRepository = productRepository;
 		this.reservationPricingRepository = reservationPricingRepository;
 		this.compensationQueue = compensationQueue;
 		this.eventPublisher = eventPublisher;
+		this.restTemplate = restTemplate;
 		this.pendingTimeoutMinutes = reservationConfiguration.getPending().getTimeoutMinutes();
 	}
 	
@@ -119,30 +137,98 @@ public class ReservationPricingService implements CreateReservationUseCase,
 		logger.info("Successfully created reservation: reservationId={}, totalPrice={}",
 				savedReservation.getReservationId().getValue(),
 				savedReservation.getTotalPrice().getAmount());
-		
-		// 8. 결제 대기 이벤트 발행
-		publishReservationPendingPaymentEvent(savedReservation, pricingPolicy);
 
 		return ReservationPricingResponse.from(savedReservation);
 	}
 	
-	// 예약을 확정 -> 상품 고르는 페이지 -> 예약 추가정보를 입력하는 페이지
-	// 상태는 아직 PENDING  => 아직 결제가 일어나지 않음
+	/**
+	 * 예약을 확정하고 외부 예약 관리 서비스에 HTTP 요청을 전송합니다.
+	 * 상태는 PENDING 유지 (아직 결제가 일어나지 않음).
+	 *
+	 * @param reservationId 확정할 예약 ID
+	 * @return 확정된 예약 정보
+	 * @throws ReservationPricingNotFoundException 예약을 찾을 수 없는 경우
+	 * @throws IllegalStateException           외부 서비스 통신 실패 시
+	 */
 	@Override
 	public ReservationPricingResponse confirmReservation(final Long reservationId) {
 		logger.info("Confirming reservation: reservationId={}", reservationId);
-		
+
 		final ReservationPricing reservation = reservationPricingRepository
 				.findById(ReservationId.of(reservationId))
 				.orElseThrow(() -> new ReservationPricingNotFoundException(reservationId));
-		
-		
+
+		final RoomId roomId = reservation.getRoomId();
+		final PricingPolicy pricingPolicy = pricingPolicyRepository.findById(roomId)
+				.orElseThrow(() -> new ReservationPricingNotFoundException(
+						"Pricing policy not found for roomId: " + roomId.getValue()));
+
+		sendReservationConfirmRequest(reservation, pricingPolicy);
+
 		final ReservationPricing savedReservation = reservationPricingRepository.save(reservation);
-		
+
 		logger.info("Successfully confirmed reservation: reservationId={}", reservationId);
-		
-		// reservation Manager 에 예약정보 추가요청
+
 		return ReservationPricingResponse.from(savedReservation);
+	}
+
+	/**
+	 * 외부 예약 관리 서비스로 예약 확정 요청을 전송합니다.
+	 *
+	 * @param reservation   예약 정보
+	 * @param pricingPolicy 가격 정책
+	 * @throws IllegalStateException 외부 서비스 통신 실패 시
+	 */
+	private void sendReservationConfirmRequest(
+			final ReservationPricing reservation,
+			final PricingPolicy pricingPolicy) {
+
+		final ReservationConfirmRequest request = ReservationConfirmRequest.from(
+				reservation, pricingPolicy);
+
+		final String url = reservationServiceUrl + confirmEndpoint;
+
+		logger.info("Sending reservation confirm request to external service: reservationId={}, url={}",
+				reservation.getReservationId().getValue(), url);
+
+		try {
+			final ResponseEntity<Void> response = restTemplate.postForEntity(
+					url, request, Void.class);
+
+			if (response.getStatusCode() != HttpStatus.CREATED) {
+				logger.error("External service returned unexpected status: reservationId={}, status={}",
+						reservation.getReservationId().getValue(), response.getStatusCode());
+				throw new IllegalStateException(
+						"External service returned unexpected status: " + response.getStatusCode());
+			}
+
+			logger.info("Successfully sent reservation confirm request: reservationId={}, status={}",
+					reservation.getReservationId().getValue(), response.getStatusCode());
+
+		} catch (final HttpClientErrorException e) {
+			logger.error("External service returned client error: reservationId={}, status={}, body={}",
+					reservation.getReservationId().getValue(), e.getStatusCode(), e.getResponseBodyAsString());
+			throw new IllegalStateException(
+					"External service returned client error: " + e.getStatusCode(), e);
+
+		} catch (final HttpServerErrorException e) {
+			logger.error("External service returned server error: reservationId={}, status={}, body={}",
+					reservation.getReservationId().getValue(), e.getStatusCode(), e.getResponseBodyAsString());
+			throw new IllegalStateException(
+					"External service returned server error: " + e.getStatusCode(), e);
+
+		} catch (final ResourceAccessException e) {
+			logger.error("Failed to connect to external service: reservationId={}, url={}, error={}",
+					reservation.getReservationId().getValue(), url, e.getMessage());
+			throw new IllegalStateException(
+					"Failed to connect to external service: " + url, e);
+
+		} catch (final Exception e) {
+			logger.error("Unexpected error while sending reservation confirm request: reservationId={}, error={}",
+					reservation.getReservationId().getValue(), e.getMessage());
+			throw new IllegalStateException(
+					"Unexpected error while sending reservation confirm request", e);
+		}
 	}
 	
 	@Override
