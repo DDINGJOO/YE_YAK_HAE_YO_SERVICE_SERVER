@@ -109,7 +109,6 @@ kafka:
     reservation-refund: ${KAFKA_TOPIC_RESERVATION_REFUND:reservation-refund}
 
     # Outbound topics (publish to other services)
-    reservation-pending-payment: ${KAFKA_TOPIC_RESERVATION_PENDING_PAYMENT:reservation-pending-payment}
     reservation-cancelled: ${KAFKA_TOPIC_RESERVATION_CANCELLED:reservation-cancelled}
 
 
