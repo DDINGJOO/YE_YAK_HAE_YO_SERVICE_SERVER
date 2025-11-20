@@ -22,11 +22,6 @@ import java.util.stream.Collectors;
 public class ReservationPricingEntity {
 	
 	@Id
-	@GeneratedValue(generator = "snowflake-id")
-	@org.hibernate.annotations.GenericGenerator(
-			name = "snowflake-id",
-			type = com.teambind.springproject.common.util.generator.SnowflakeIdGenerator.class
-	)
 	@Column(name = "reservation_id")
 	private Long id;
 	
