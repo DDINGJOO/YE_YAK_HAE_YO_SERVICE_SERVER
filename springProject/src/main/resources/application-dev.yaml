@@ -102,6 +102,13 @@ reservation:
   pending:
     timeout-minutes: ${RESERVATION_PENDING_TIMEOUT_MINUTES:10}
 
+# External Services Configuration
+external:
+  reservation-service:
+    url: ${EXTERNAL_RESERVATION_SERVICE_URL:http://localhost:9417}
+    endpoints:
+      confirm: /api/v1/reservations/product
+
 # Kafka Topics Configuration
 kafka:
   topics:
