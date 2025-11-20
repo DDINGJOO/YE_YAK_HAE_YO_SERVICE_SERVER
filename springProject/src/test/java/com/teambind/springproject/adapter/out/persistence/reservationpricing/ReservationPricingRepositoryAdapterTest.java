@@ -29,16 +29,23 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
-@Import({ReservationPricingRepositoryAdapter.class, PricingPolicyRepositoryAdapter.class})
+@Import({
+		ReservationPricingRepositoryAdapter.class,
+		PricingPolicyRepositoryAdapter.class,
+		com.teambind.springproject.common.util.generator.Snowflake.class
+})
 @DisplayName("ReservationPricingRepository 통합 테스트")
 class ReservationPricingRepositoryAdapterTest {
-	
+
 	@Autowired
 	private ReservationPricingRepositoryAdapter repository;
-	
+
 	@Autowired
 	private PricingPolicyRepositoryAdapter pricingPolicyRepository;
-	
+
+	@Autowired
+	private com.teambind.springproject.common.util.generator.PrimaryKeyGenerator idGenerator;
+
 	private RoomId testRoomId;
 	private PlaceId testPlaceId;
 	
@@ -86,7 +93,7 @@ class ReservationPricingRepositoryAdapterTest {
 			);
 			
 			final ReservationPricing pricing = ReservationPricing.calculate(
-					ReservationId.of(null), // Auto-generated
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					timeSlotBreakdown,
 					productBreakdowns,
@@ -125,7 +132,7 @@ class ReservationPricingRepositoryAdapterTest {
 			);
 			
 			final ReservationPricing pricing = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					unknownRoomId,
 					timeSlotBreakdown,
 					List.of(),
@@ -152,7 +159,7 @@ class ReservationPricingRepositoryAdapterTest {
 			);
 			
 			final ReservationPricing pricing = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					timeSlotBreakdown,
 					List.of(), // 상품 없음
@@ -183,7 +190,7 @@ class ReservationPricingRepositoryAdapterTest {
 			);
 			
 			final ReservationPricing pricing = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					timeSlotBreakdown,
 					List.of(),
@@ -217,7 +224,7 @@ class ReservationPricingRepositoryAdapterTest {
 			);
 			
 			final ReservationPricing pricing = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					timeSlotBreakdown,
 					List.of(),
@@ -248,7 +255,7 @@ class ReservationPricingRepositoryAdapterTest {
 			);
 			
 			final ReservationPricing pricing = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					timeSlotBreakdown,
 					List.of(),
@@ -277,7 +284,7 @@ class ReservationPricingRepositoryAdapterTest {
 			slotPrices1.put(LocalDateTime.of(2025, 1, 15, 11, 0), Money.of(10000));
 			
 			final ReservationPricing pricing1 = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					new TimeSlotPriceBreakdown(slotPrices1, TimeSlot.HOUR),
 					List.of(),
@@ -290,7 +297,7 @@ class ReservationPricingRepositoryAdapterTest {
 			slotPrices2.put(LocalDateTime.of(2025, 1, 15, 14, 0), Money.of(10000));
 			
 			final ReservationPricing pricing2 = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					new TimeSlotPriceBreakdown(slotPrices2, TimeSlot.HOUR),
 					List.of(),
@@ -321,7 +328,7 @@ class ReservationPricingRepositoryAdapterTest {
 			);
 			
 			final ReservationPricing pricing1 = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					new TimeSlotPriceBreakdown(slotPrices1, TimeSlot.HOUR),
 					List.of(),
@@ -344,7 +351,7 @@ class ReservationPricingRepositoryAdapterTest {
 			);
 			
 			final ReservationPricing pricing2 = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					anotherRoomId,
 					new TimeSlotPriceBreakdown(slotPrices2, TimeSlot.HOUR),
 					List.of(),
@@ -380,7 +387,7 @@ class ReservationPricingRepositoryAdapterTest {
 			
 			// PENDING 예약
 			final ReservationPricing pending1 = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					timeSlotBreakdown,
 					List.of(),
@@ -389,7 +396,7 @@ class ReservationPricingRepositoryAdapterTest {
 			repository.save(pending1);
 			
 			final ReservationPricing pending2 = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					timeSlotBreakdown,
 					List.of(),
@@ -399,7 +406,7 @@ class ReservationPricingRepositoryAdapterTest {
 			
 			// CONFIRMED 예약
 			final ReservationPricing confirmed = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					timeSlotBreakdown,
 					List.of(),
@@ -473,7 +480,7 @@ class ReservationPricingRepositoryAdapterTest {
 			);
 			
 			final ReservationPricing pricing = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					timeSlotBreakdown,
 					productBreakdowns,
@@ -507,7 +514,7 @@ class ReservationPricingRepositoryAdapterTest {
 			);
 			
 			final ReservationPricing pricing = ReservationPricing.calculate(
-					ReservationId.of(null),
+					ReservationId.of(idGenerator.generateLongKey()),
 					testRoomId,
 					timeSlotBreakdown,
 					List.of(),
