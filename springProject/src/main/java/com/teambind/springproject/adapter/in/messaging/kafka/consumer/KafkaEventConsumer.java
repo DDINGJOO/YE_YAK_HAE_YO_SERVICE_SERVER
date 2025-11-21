@@ -33,6 +33,7 @@ public class KafkaEventConsumer {
 		EVENT_TYPE_MAP.put("SlotReserved", SlotReservedEvent.class);
 		EVENT_TYPE_MAP.put("ReservationConfirmed", ReservationConfirmedEvent.class);
 		EVENT_TYPE_MAP.put("ReservationRefund", ReservationRefundEvent.class);
+		EVENT_TYPE_MAP.put("RefundCompleted", ReservationRefundEvent.class);
 	}
 
 	private final JsonUtil jsonUtil;
@@ -82,7 +83,8 @@ public class KafkaEventConsumer {
 	@KafkaListener(
 			topics = {
 					"${kafka.topics.reservation-confirmed}",
-					"${kafka.topics.reservation-refund}"
+					"${kafka.topics.reservation-refund}",
+					"${kafka.topics.refund-completed}"
 			},
 			groupId = "${spring.kafka.consumer.group-id}")
 	public void consumePaymentEvents(final String message, final Acknowledgment acknowledgment) {

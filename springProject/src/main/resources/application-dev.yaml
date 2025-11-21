@@ -107,6 +107,7 @@ kafka:
     reservation-reserved: ${KAFKA_TOPIC_RESERVATION_RESERVED:reservation-reserved}
     reservation-confirmed: ${KAFKA_TOPIC_RESERVATION_CONFIRMED:reservation-confirmed}
     reservation-refund: ${KAFKA_TOPIC_RESERVATION_REFUND:reservation-refund}
+    refund-completed: ${KAFKA_TOPIC_REFUND_COMPLETED:refund-completed}
 
     # Outbound topics (publish to other services)
     reservation-cancelled: ${KAFKA_TOPIC_RESERVATION_CANCELLED:reservation-cancelled}
