@@ -1,6 +1,6 @@
 package com.teambind.springproject.adapter.in.messaging.kafka.handler;
 
-import com.teambind.springproject.adapter.in.messaging.kafka.event.ReservationRefundEvent;
+import com.teambind.springproject.adapter.in.messaging.kafka.event.RefundCompletedEvent;
 import com.teambind.springproject.application.service.reservationpricing.ReservationPricingService;
 import com.teambind.springproject.domain.reservationpricing.exception.InvalidReservationStatusException;
 import com.teambind.springproject.domain.reservationpricing.exception.ReservationPricingNotFoundException;
@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Component
 @Transactional
-public class RefundCompletedEventHandler implements EventHandler<ReservationRefundEvent> {
+public class RefundCompletedEventHandler implements EventHandler<RefundCompletedEvent> {
 
 	private static final Logger logger = LoggerFactory.getLogger(RefundCompletedEventHandler.class);
 
@@ -27,16 +27,16 @@ public class RefundCompletedEventHandler implements EventHandler<ReservationRefu
 	}
 
 	@Override
-	public void handle(final ReservationRefundEvent event) {
-		logger.info("Handling RefundCompletedEvent: reservationId={}, occurredAt={}",
-				event.getReservationId(), event.getOccurredAt());
+	public void handle(final RefundCompletedEvent event) {
+		logger.info("Handling RefundCompletedEvent: refundId={}, reservationId={}, refundAmount={}, completedAt={}",
+				event.getRefundId(), event.getReservationId(), event.getRefundAmount(), event.getCompletedAt());
 
 		try {
 			// 환불 처리: 재고 해제 + 상태 변경 (CONFIRMED → CANCELLED)
 			reservationPricingService.refundReservation(event.getReservationId());
 
-			logger.info("Successfully processed refund completed: reservationId={}",
-					event.getReservationId());
+			logger.info("Successfully processed refund completed: refundId={}, reservationId={}",
+					event.getRefundId(), event.getReservationId());
 
 		} catch (final ReservationPricingNotFoundException e) {
 			logger.error("Reservation not found: reservationId={}", event.getReservationId(), e);

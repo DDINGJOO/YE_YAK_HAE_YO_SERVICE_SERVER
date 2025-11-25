@@ -31,9 +31,9 @@ public class KafkaEventConsumer {
 		EVENT_TYPE_MAP.put("RoomCreated", RoomCreatedEvent.class);
 		EVENT_TYPE_MAP.put("RoomUpdated", RoomUpdatedEvent.class);
 		EVENT_TYPE_MAP.put("SlotReserved", SlotReservedEvent.class);
-		EVENT_TYPE_MAP.put("ReservationConfirmed", ReservationConfirmedEvent.class);
+		EVENT_TYPE_MAP.put("PaymentCompleted", PaymentCompletedEvent.class);
+		EVENT_TYPE_MAP.put("RefundCompleted", RefundCompletedEvent.class);
 		EVENT_TYPE_MAP.put("ReservationRefund", ReservationRefundEvent.class);
-		EVENT_TYPE_MAP.put("RefundCompleted", ReservationRefundEvent.class);
 	}
 
 	private final JsonUtil jsonUtil;
@@ -75,14 +75,14 @@ public class KafkaEventConsumer {
 	}
 
 	/**
-	 * reservation-confirmed, reservation-refund 토픽에서 결제 이벤트를 수신합니다.
+	 * payment-completed, reservation-refund, refund-completed 토픽에서 결제 이벤트를 수신합니다.
 	 *
 	 * @param message        Kafka 메시지 (JSON)
 	 * @param acknowledgment Kafka acknowledgment
 	 */
 	@KafkaListener(
 			topics = {
-					"${kafka.topics.reservation-confirmed}",
+					"${kafka.topics.payment-completed}",
 					"${kafka.topics.reservation-refund}",
 					"${kafka.topics.refund-completed}"
 			},

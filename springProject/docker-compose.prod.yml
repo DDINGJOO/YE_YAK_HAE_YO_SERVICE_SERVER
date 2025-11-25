@@ -32,6 +32,9 @@ services:
       # Logging
       - LOG_LEVEL=INFO
       - SQL_LOG_LEVEL=WARN
+
+      # External Services
+      - EXTERNAL_RESERVATION_SERVICE_URL=http://teambind.co.kr:9417
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]

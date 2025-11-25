@@ -105,7 +105,7 @@ kafka:
     room-created: ${KAFKA_TOPIC_ROOM_CREATED:room-created}
     room-updated: ${KAFKA_TOPIC_ROOM_UPDATED:room-updated}
     reservation-reserved: ${KAFKA_TOPIC_RESERVATION_RESERVED:reservation-reserved}
-    reservation-confirmed: ${KAFKA_TOPIC_RESERVATION_CONFIRMED:reservation-confirmed}
+    payment-completed: ${KAFKA_TOPIC_PAYMENT_COMPLETED:payment-completed}
     reservation-refund: ${KAFKA_TOPIC_RESERVATION_REFUND:reservation-refund}
     refund-completed: ${KAFKA_TOPIC_REFUND_COMPLETED:refund-completed}
 
