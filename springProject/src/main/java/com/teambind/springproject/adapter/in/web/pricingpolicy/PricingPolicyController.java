@@ -5,15 +5,18 @@ import com.teambind.springproject.application.dto.request.TimeRangePriceDto;
 import com.teambind.springproject.application.dto.request.UpdateDefaultPriceRequest;
 import com.teambind.springproject.application.dto.request.UpdateTimeRangePricesRequest;
 import com.teambind.springproject.application.dto.response.DatePricingResponse;
+import com.teambind.springproject.application.dto.response.PlacePricingBatchResponse;
 import com.teambind.springproject.application.dto.response.PricingPolicyResponse;
 import com.teambind.springproject.application.port.in.CopyPricingPolicyUseCase;
 import com.teambind.springproject.application.port.in.GetDatePricingUseCase;
+import com.teambind.springproject.application.port.in.GetPlacePricingBatchUseCase;
 import com.teambind.springproject.application.port.in.GetPricingPolicyUseCase;
 import com.teambind.springproject.application.port.in.UpdatePricingPolicyUseCase;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
 import com.teambind.springproject.domain.pricingpolicy.TimeRangePrice;
 import com.teambind.springproject.domain.shared.DayOfWeek;
 import com.teambind.springproject.domain.shared.Money;
+import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.RoomId;
 import com.teambind.springproject.domain.shared.TimeRange;
 import jakarta.validation.Valid;
@@ -28,6 +31,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 가격 정책 관리 REST Controller.
@@ -41,16 +45,19 @@ public class PricingPolicyController {
 	private final UpdatePricingPolicyUseCase updatePricingPolicyUseCase;
 	private final CopyPricingPolicyUseCase copyPricingPolicyUseCase;
 	private final GetDatePricingUseCase getDatePricingUseCase;
+	private final GetPlacePricingBatchUseCase getPlacePricingBatchUseCase;
 
 	public PricingPolicyController(
 			final GetPricingPolicyUseCase getPricingPolicyUseCase,
 			final UpdatePricingPolicyUseCase updatePricingPolicyUseCase,
 			final CopyPricingPolicyUseCase copyPricingPolicyUseCase,
-			final GetDatePricingUseCase getDatePricingUseCase) {
+			final GetDatePricingUseCase getDatePricingUseCase,
+			final GetPlacePricingBatchUseCase getPlacePricingBatchUseCase) {
 		this.getPricingPolicyUseCase = getPricingPolicyUseCase;
 		this.updatePricingPolicyUseCase = updatePricingPolicyUseCase;
 		this.copyPricingPolicyUseCase = copyPricingPolicyUseCase;
 		this.getDatePricingUseCase = getDatePricingUseCase;
+		this.getPlacePricingBatchUseCase = getPlacePricingBatchUseCase;
 	}
 	
 	/**
@@ -151,14 +158,50 @@ public class PricingPolicyController {
 	public ResponseEntity<PricingPolicyResponse> copyPricingPolicy(
 			@PathVariable @Positive(message = "Target room ID must be positive") final Long targetRoomId,
 			@RequestBody @Valid final CopyPricingPolicyRequest request) {
-		
+
 		final PricingPolicy policy = copyPricingPolicyUseCase.copyFromRoom(
 				RoomId.of(targetRoomId),
 				RoomId.of(request.sourceRoomId())
 		);
-		
+
 		final PricingPolicyResponse response = PricingPolicyResponse.from(policy);
-		
+
+		return ResponseEntity.ok(response);
+	}
+
+	/**
+	 * PlaceId 기반 배치 조회.
+	 * 특정 Place에 속한 모든 Room의 가격 정책을 한 번에 조회합니다.
+	 * date 파라미터를 제공하면 해당 날짜의 시간대별 가격도 함께 조회합니다.
+	 *
+	 * @param placeId Place ID
+	 * @param date    조회할 날짜 (선택적, yyyy-MM-dd)
+	 * @return PlaceId에 속한 모든 Room의 가격 정보
+	 */
+	@GetMapping("/places/{placeId}/batch")
+	public ResponseEntity<PlacePricingBatchResponse> getPricingByPlace(
+			@PathVariable @Positive(message = "Place ID must be positive") final Long placeId,
+			@RequestParam(required = false) final LocalDate date) {
+
+		final PlaceId place = PlaceId.of(placeId);
+		final Optional<LocalDate> optionalDate = Optional.ofNullable(date);
+
+		// Service 호출하여 정책 리스트 조회
+		final List<PricingPolicy> policies = getPlacePricingBatchUseCase.getPricingByPlace(
+				place,
+				optionalDate
+		);
+
+		// 응답 생성
+		final PlacePricingBatchResponse response;
+		if (policies.isEmpty()) {
+			// Room이 없는 경우 빈 응답 반환 (200 OK with empty list)
+			response = PlacePricingBatchResponse.empty(place);
+		} else {
+			// 정책이 있는 경우 날짜 포함 여부에 따라 응답 생성
+			response = PlacePricingBatchResponse.from(place, policies, optionalDate);
+		}
+
 		return ResponseEntity.ok(response);
 	}
 	
