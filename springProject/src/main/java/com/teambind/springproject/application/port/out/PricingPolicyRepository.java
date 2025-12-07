@@ -1,8 +1,10 @@
 package com.teambind.springproject.application.port.out;
 
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
+import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.RoomId;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -42,4 +44,13 @@ public interface PricingPolicyRepository {
 	 * @return 존재하면 true, 아니면 false
 	 */
 	boolean existsById(RoomId roomId);
+
+	/**
+	 * PlaceId로 모든 가격 정책을 조회합니다.
+	 * 한 Place에 속한 모든 Room의 가격 정책을 한 번에 조회합니다.
+	 *
+	 * @param placeId 장소 ID
+	 * @return 해당 Place의 모든 가격 정책 리스트
+	 */
+	List<PricingPolicy> findAllByPlaceId(PlaceId placeId);
 }
