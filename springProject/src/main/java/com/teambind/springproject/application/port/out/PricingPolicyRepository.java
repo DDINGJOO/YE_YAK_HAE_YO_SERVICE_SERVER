@@ -53,4 +53,13 @@ public interface PricingPolicyRepository {
 	 * @return 해당 Place의 모든 가격 정책 리스트
 	 */
 	List<PricingPolicy> findAllByPlaceId(PlaceId placeId);
+
+	/**
+	 * Room ID 리스트로 가격 정책들을 조회합니다.
+	 * 여러 Room의 가격 정책을 한 번에 조회합니다.
+	 *
+	 * @param roomIds Room ID 리스트
+	 * @return 요청된 Room들의 가격 정책 리스트
+	 */
+	List<PricingPolicy> findAllByRoomIds(List<RoomId> roomIds);
 }
