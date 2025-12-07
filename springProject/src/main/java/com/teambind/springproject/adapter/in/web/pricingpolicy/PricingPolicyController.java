@@ -1,5 +1,6 @@
 package com.teambind.springproject.adapter.in.web.pricingpolicy;
 
+import com.teambind.springproject.application.dto.request.BatchPricingRequest;
 import com.teambind.springproject.application.dto.request.CopyPricingPolicyRequest;
 import com.teambind.springproject.application.dto.request.TimeRangePriceDto;
 import com.teambind.springproject.application.dto.request.UpdateDefaultPriceRequest;
@@ -7,10 +8,12 @@ import com.teambind.springproject.application.dto.request.UpdateTimeRangePricesR
 import com.teambind.springproject.application.dto.response.DatePricingResponse;
 import com.teambind.springproject.application.dto.response.PlacePricingBatchResponse;
 import com.teambind.springproject.application.dto.response.PricingPolicyResponse;
+import com.teambind.springproject.application.dto.response.RoomsPricingBatchResponse;
 import com.teambind.springproject.application.port.in.CopyPricingPolicyUseCase;
 import com.teambind.springproject.application.port.in.GetDatePricingUseCase;
 import com.teambind.springproject.application.port.in.GetPlacePricingBatchUseCase;
 import com.teambind.springproject.application.port.in.GetPricingPolicyUseCase;
+import com.teambind.springproject.application.port.in.GetRoomsPricingBatchUseCase;
 import com.teambind.springproject.application.port.in.UpdatePricingPolicyUseCase;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
 import com.teambind.springproject.domain.pricingpolicy.TimeRangePrice;
@@ -32,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 가격 정책 관리 REST Controller.
@@ -46,18 +50,21 @@ public class PricingPolicyController {
 	private final CopyPricingPolicyUseCase copyPricingPolicyUseCase;
 	private final GetDatePricingUseCase getDatePricingUseCase;
 	private final GetPlacePricingBatchUseCase getPlacePricingBatchUseCase;
+	private final GetRoomsPricingBatchUseCase getRoomsPricingBatchUseCase;
 
 	public PricingPolicyController(
 			final GetPricingPolicyUseCase getPricingPolicyUseCase,
 			final UpdatePricingPolicyUseCase updatePricingPolicyUseCase,
 			final CopyPricingPolicyUseCase copyPricingPolicyUseCase,
 			final GetDatePricingUseCase getDatePricingUseCase,
-			final GetPlacePricingBatchUseCase getPlacePricingBatchUseCase) {
+			final GetPlacePricingBatchUseCase getPlacePricingBatchUseCase,
+			final GetRoomsPricingBatchUseCase getRoomsPricingBatchUseCase) {
 		this.getPricingPolicyUseCase = getPricingPolicyUseCase;
 		this.updatePricingPolicyUseCase = updatePricingPolicyUseCase;
 		this.copyPricingPolicyUseCase = copyPricingPolicyUseCase;
 		this.getDatePricingUseCase = getDatePricingUseCase;
 		this.getPlacePricingBatchUseCase = getPlacePricingBatchUseCase;
+		this.getRoomsPricingBatchUseCase = getRoomsPricingBatchUseCase;
 	}
 	
 	/**
@@ -204,7 +211,45 @@ public class PricingPolicyController {
 
 		return ResponseEntity.ok(response);
 	}
-	
+
+	/**
+	 * Room ID 리스트 기반 배치 조회.
+	 * 여러 Room ID를 받아 해당 Room들의 가격 정책을 한 번에 조회합니다.
+	 * date를 포함하면 해당 날짜의 시간대별 가격도 함께 조회합니다.
+	 *
+	 * @param request Room ID 리스트와 선택적 날짜
+	 * @return 요청된 Room들의 가격 정보
+	 */
+	@PostMapping("/rooms/batch")
+	public ResponseEntity<RoomsPricingBatchResponse> getPricingByRoomIds(
+			@RequestBody @Valid final BatchPricingRequest request) {
+
+		// Room ID 리스트를 RoomId 도메인 객체로 변환
+		final List<RoomId> roomIds = request.roomIds().stream()
+				.map(RoomId::of)
+				.collect(Collectors.toList());
+
+		final Optional<LocalDate> optionalDate = Optional.ofNullable(request.date());
+
+		// Service 호출하여 정책 리스트 조회
+		final List<PricingPolicy> policies = getRoomsPricingBatchUseCase.getPricingByRoomIds(
+				roomIds,
+				optionalDate
+		);
+
+		// 응답 생성
+		final RoomsPricingBatchResponse response;
+		if (policies.isEmpty()) {
+			// 조회 결과가 없는 경우 빈 응답 반환 (200 OK with empty list)
+			response = RoomsPricingBatchResponse.empty();
+		} else {
+			// 정책이 있는 경우 날짜 포함 여부에 따라 응답 생성
+			response = RoomsPricingBatchResponse.from(policies, optionalDate);
+		}
+
+		return ResponseEntity.ok(response);
+	}
+
 	private List<TimeRangePrice> convertToTimeRangePriceList(
 			final Iterable<TimeRangePriceDto> timeRangePriceDtos) {
 		final List<TimeRangePrice> result = new ArrayList<>();
