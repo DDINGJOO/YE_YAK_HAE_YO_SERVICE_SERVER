@@ -2,10 +2,13 @@ package com.teambind.springproject.adapter.out.persistence.pricingpolicy;
 
 import com.teambind.springproject.application.port.out.PricingPolicyRepository;
 import com.teambind.springproject.domain.pricingpolicy.PricingPolicy;
+import com.teambind.springproject.domain.shared.PlaceId;
 import com.teambind.springproject.domain.shared.RoomId;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * PricingPolicyRepository Port의 JPA Adapter 구현.
@@ -44,5 +47,13 @@ public class PricingPolicyRepositoryAdapter implements PricingPolicyRepository {
 	public boolean existsById(final RoomId roomId) {
 		final RoomIdEmbeddable id = new RoomIdEmbeddable(roomId.getValue());
 		return jpaRepository.existsById(id);
+	}
+
+	@Override
+	public List<PricingPolicy> findAllByPlaceId(final PlaceId placeId) {
+		final List<PricingPolicyEntity> entities = jpaRepository.findAllByPlaceId(placeId.getValue());
+		return entities.stream()
+				.map(PricingPolicyEntity::toDomain)
+				.collect(Collectors.toList());
 	}
 }
