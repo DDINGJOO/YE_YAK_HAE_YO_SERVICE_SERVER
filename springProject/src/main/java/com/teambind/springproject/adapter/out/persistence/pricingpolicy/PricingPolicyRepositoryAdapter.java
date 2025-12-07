@@ -56,4 +56,16 @@ public class PricingPolicyRepositoryAdapter implements PricingPolicyRepository {
 				.map(PricingPolicyEntity::toDomain)
 				.collect(Collectors.toList());
 	}
+
+	@Override
+	public List<PricingPolicy> findAllByRoomIds(final List<RoomId> roomIds) {
+		final List<RoomIdEmbeddable> embeddableIds = roomIds.stream()
+				.map(roomId -> new RoomIdEmbeddable(roomId.getValue()))
+				.collect(Collectors.toList());
+
+		final List<PricingPolicyEntity> entities = jpaRepository.findAllByRoomIdIn(embeddableIds);
+		return entities.stream()
+				.map(PricingPolicyEntity::toDomain)
+				.collect(Collectors.toList());
+	}
 }
