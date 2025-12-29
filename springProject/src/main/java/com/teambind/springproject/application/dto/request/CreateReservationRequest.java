@@ -17,8 +17,7 @@ public record CreateReservationRequest(
 		@NotEmpty(message = "Time slots cannot be empty")
 		List<LocalDateTime> timeSlots,
 		
-		@NotEmpty(message = "Products cannot be empty")
-		@Valid
+
 		List<ProductRequest> products
 ) {
 }

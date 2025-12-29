@@ -19,18 +19,26 @@ public interface ReservationPricingJpaRepository extends
 	 * <p>
 	 * N+1 문제 해결을 위해 slotPrices를 Fetch Join으로 로딩합니다.
 	 * 시간 범위 체크는 slotPrices의 키(LocalDateTime)를 기준으로 합니다.
+	 * <p>
+	 * 주의: 서브쿼리를 사용하여 필터링과 페칭을 분리합니다.
+	 * WHERE 절에서 컬렉션을 필터링하면 해당 조건에 맞는 요소만 로드되므로,
+	 * 예약의 전체 slotPrices를 로드하기 위해 서브쿼리로 ID를 먼저 조회합니다.
 	 *
 	 * @param placeId  플레이스 ID
 	 * @param start    시작 시간 (inclusive)
-	 * @param end      종료 시간 (exclusive)
+	 * @param end      종료 시간 (inclusive) - 마지막 슬롯 시간을 포함
 	 * @param statuses 조회할 예약 상태 목록
-	 * @return 조건에 맞는 예약 가격 엔티티 목록 (slotPrices 로딩됨)
+	 * @return 조건에 맞는 예약 가격 엔티티 목록 (전체 slotPrices 로딩됨)
 	 */
 	@Query("SELECT DISTINCT rp FROM ReservationPricingEntity rp "
-			+ "LEFT JOIN FETCH rp.slotPrices sp "
-			+ "WHERE rp.placeId = :placeId "
-			+ "AND KEY(sp) >= :start AND KEY(sp) < :end "
-			+ "AND rp.status IN :statuses")
+			+ "LEFT JOIN FETCH rp.slotPrices "
+			+ "WHERE rp.id IN ("
+			+ "  SELECT DISTINCT rp2.id FROM ReservationPricingEntity rp2 "
+			+ "  JOIN rp2.slotPrices sp2 "
+			+ "  WHERE rp2.placeId = :placeId "
+			+ "  AND KEY(sp2) >= :start AND KEY(sp2) <= :end "
+			+ "  AND rp2.status IN :statuses"
+			+ ")")
 	List<ReservationPricingEntity> findByPlaceIdAndTimeRange(
 			@Param("placeId") Long placeId,
 			@Param("start") LocalDateTime start,
@@ -42,18 +50,26 @@ public interface ReservationPricingJpaRepository extends
 	 * <p>
 	 * N+1 문제 해결을 위해 slotPrices를 Fetch Join으로 로딩합니다.
 	 * 시간 범위 체크는 slotPrices의 키(LocalDateTime)를 기준으로 합니다.
+	 * <p>
+	 * 주의: 서브쿼리를 사용하여 필터링과 페칭을 분리합니다.
+	 * WHERE 절에서 컬렉션을 필터링하면 해당 조건에 맞는 요소만 로드되므로,
+	 * 예약의 전체 slotPrices를 로드하기 위해 서브쿼리로 ID를 먼저 조회합니다.
 	 *
 	 * @param roomId   룸 ID
 	 * @param start    시작 시간 (inclusive)
-	 * @param end      종료 시간 (exclusive)
+	 * @param end      종료 시간 (inclusive) - 마지막 슬롯 시간을 포함
 	 * @param statuses 조회할 예약 상태 목록
-	 * @return 조건에 맞는 예약 가격 엔티티 목록 (slotPrices 로딩됨)
+	 * @return 조건에 맞는 예약 가격 엔티티 목록 (전체 slotPrices 로딩됨)
 	 */
 	@Query("SELECT DISTINCT rp FROM ReservationPricingEntity rp "
-			+ "LEFT JOIN FETCH rp.slotPrices sp "
-			+ "WHERE rp.roomId = :roomId "
-			+ "AND KEY(sp) >= :start AND KEY(sp) < :end "
-			+ "AND rp.status IN :statuses")
+			+ "LEFT JOIN FETCH rp.slotPrices "
+			+ "WHERE rp.id IN ("
+			+ "  SELECT DISTINCT rp2.id FROM ReservationPricingEntity rp2 "
+			+ "  JOIN rp2.slotPrices sp2 "
+			+ "  WHERE rp2.roomId = :roomId "
+			+ "  AND KEY(sp2) >= :start AND KEY(sp2) <= :end "
+			+ "  AND rp2.status IN :statuses"
+			+ ")")
 	List<ReservationPricingEntity> findByRoomIdAndTimeRange(
 			@Param("roomId") Long roomId,
 			@Param("start") LocalDateTime start,

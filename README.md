@@ -1,951 +1,533 @@
-# 예약 가격 관리 서비스 (Reservation Pricing Service)
+# 예약 가격 관리 서비스 가이드 문서
 
-**Version:** 0.0.1-SNAPSHOT
-**Team:** DDINGJOO
-**Tech Stack:** Java 21 | Spring Boot 3.2.5 | PostgreSQL 16 | Kafka 3.6 | Hexagonal Architecture + DDD
+## 1. 개요
 
----
+### 1.1 목적
 
-## 목차
+예약 가격 관리 서비스(Reservation Pricing Service)는 플랫폼 내 공간 예약 시스템에서 가격 정책 관리, 추가상품 관리, 예약 가격 계산을 담당하는 마이크로서비스이다.
 
-- [프로젝트 개요](#프로젝트-개요)
-- [핵심 기능](#핵심-기능)
-- [아키텍처](#아키텍처)
-- [디자인 패턴](#디자인-패턴)
-- [데이터베이스 스키마](#데이터베이스-스키마)
-- [API 엔드포인트](#api-엔드포인트)
-- [기술 스택](#기술-스택)
-- [테스팅](#테스팅)
-- [실행 가이드](#실행-가이드)
-- [프로젝트 분석](#프로젝트-분석)
-- [향후 개선사항](#향후-개선사항)
-- [문서](#문서)
+### 1.2 주요 기능
 
----
+| 기능 | 설명 |
+|------|------|
+| 가격 정책 관리 | 룸별 시간대/요일별 차등 가격 설정 |
+| 추가상품 관리 | PLACE/ROOM/RESERVATION 범위별 상품 관리 |
+| 가격 계산 전략 | 초기+추가, 일회성, 단순재고 3가지 전략 |
+| 재고 관리 | 시간대별 원자적 재고 예약/해제 |
+| 예약 가격 스냅샷 | 예약 시점 가격 불변 저장 |
+| 예약 상태 관리 | PENDING → CONFIRMED → CANCELLED 전이 |
+| 배치 가격 조회 | Place/Room ID 리스트 기반 일괄 조회 |
+| 이벤트 처리 | Kafka 기반 비동기 이벤트 수신/발행 |
 
-## 프로젝트 개요
+### 1.3 기술 스택
 
-### 비즈니스 목표
-
-플레이스(Place)와 룸(Room)을 관리하는 공간 예약 시스템에서 가격 계산 로직을 독립된 마이크로서비스로 분리하여:
-
-- **유연한 가격 정책 관리**: 시간대별, 요일별 차등 가격 설정으로 수익 최적화
-- **정확한 가격 계산**: 복잡한 추가상품 가격 전략(렌탈, 일회성, 단순 재고)을 자동 계산
-- **가격 이력 관리**: 예약 시점의 가격을 불변 스냅샷으로 저장하여 분쟁 방지
-
-### 핵심 가치
-
-1. **일관성**: 과거 예약의 가격 정보가 정책 변경에 영향받지 않음 (Immutable Snapshot)
-2. **확장성**: MSA 아키텍처로 독립적인 배포 및 스케일링
-3. **유지보수성**: Hexagonal Architecture와 DDD로 도메인 로직과 인프라 완전 분리
+| 구분 | 기술 |
+|------|------|
+| Framework | Spring Boot 3.2.5 |
+| Language | Java 21 LTS (Virtual Threads) |
+| Database | PostgreSQL 16 |
+| Message Broker | Apache Kafka 3.6 |
+| Build Tool | Gradle 8.14 |
+| Architecture | Hexagonal Architecture + DDD |
+| ID Generator | Snowflake ID |
+| Migration | Flyway |
+| Testing | JUnit 5, Testcontainers 1.19.3 |
 
 ---
 
-## 핵심 기능
+## 2. 시스템 아키텍처
 
-### 1. 시간대별 가격 정책 관리
+### 2.1 전체 구조
 
-룸별로 요일과 시간대에 따른 차등 가격을 설정하고, 예약 시점에 정확한 가격을 계산합니다.
+```mermaid
+flowchart TB
+    subgraph External_Services
+        ROOM[Room Service]
+        RESERVATION[Reservation Service]
+        PAYMENT[Payment Service]
+    end
 
-#### 비즈니스 시나리오
+    subgraph Pricing_Service
+        KAFKA_IN[Kafka Consumer]
+        CTRL[REST Controllers]
+        SVC[Application Services]
+        DOMAIN[Domain Layer]
+        REPO[JPA Repositories]
+        KAFKA_OUT[Kafka Producer]
+    end
 
+    subgraph Data_Layer
+        POSTGRES[(PostgreSQL 16)]
+    end
+
+    subgraph Messaging
+        KAFKA[Kafka Cluster]
+    end
+
+    ROOM -->|RoomCreatedEvent| KAFKA
+    RESERVATION -->|SlotReservedEvent| KAFKA
+    PAYMENT -->|PaymentCompletedEvent| KAFKA
+
+    KAFKA --> KAFKA_IN
+    KAFKA_IN --> SVC
+    CTRL --> SVC
+    SVC --> DOMAIN
+    SVC --> REPO
+    REPO --> POSTGRES
+    SVC --> KAFKA_OUT
+    KAFKA_OUT --> KAFKA
 ```
-스터디 카페 룸 가격 정책:
-- 기본 가격: 8,000원/시간
-- 평일 피크타임 (14:00-21:00): 15,000원/시간
-- 주말 전 시간대: 12,000원/시간
+
+### 2.2 레이어 아키텍처 (Hexagonal)
+
+```mermaid
+flowchart TB
+    subgraph Adapter_In["Adapter Layer (Inbound)"]
+        REST[REST Controllers]
+        CONSUMER[Kafka Consumers]
+        SCHEDULER[Scheduled Tasks]
+    end
+
+    subgraph Application["Application Layer"]
+        USE_CASE[Use Case Services]
+        PORT_IN[Input Ports]
+        PORT_OUT[Output Ports]
+    end
+
+    subgraph Domain["Domain Layer"]
+        AGG[Aggregates]
+        VO[Value Objects]
+        REPO_IF[Repository Interfaces]
+    end
+
+    subgraph Adapter_Out["Adapter Layer (Outbound)"]
+        JPA[JPA Repositories]
+        PRODUCER[Kafka Producers]
+    end
+
+    subgraph Infra["Infrastructure"]
+        DB[(PostgreSQL)]
+        BROKER[Kafka]
+    end
+
+    REST --> USE_CASE
+    CONSUMER --> USE_CASE
+    SCHEDULER --> USE_CASE
+    USE_CASE --> AGG
+    USE_CASE --> REPO_IF
+    JPA -.implements.-> REPO_IF
+    PRODUCER --> BROKER
+    JPA --> DB
 ```
 
-#### 도메인 모델 (코드 예제)
+### 2.3 예약 가격 계산 흐름
 
-```java
-public class PricingPolicy {
-  private final RoomId roomId;
-  private final PlaceId placeId;
-  private final TimeSlot timeSlot;           // HOUR | HALFHOUR
-  private Money defaultPrice;
-  private TimeRangePrices timeRangePrices;   // 시간대별 가격 컬렉션
+```mermaid
+sequenceDiagram
+    participant RS as Reservation Service
+    participant K as Kafka
+    participant PS as Pricing Service
+    participant DB as PostgreSQL
 
-  // Factory Method Pattern
-  public static PricingPolicy create(
-      RoomId roomId, PlaceId placeId, TimeSlot timeSlot, Money defaultPrice) {
-    return new PricingPolicy(roomId, placeId, timeSlot, defaultPrice,
-                             TimeRangePrices.empty());
-  }
-
-  // 시간대별 가격 계산
-  public Money calculatePrice(DayOfWeek dayOfWeek, LocalTime time) {
-    return timeRangePrices
-        .findPriceForTime(dayOfWeek, time)
-        .orElse(defaultPrice);
-  }
-}
+    RS ->> K: SlotReservedEvent 발행
+    K ->> PS: 이벤트 수신
+    PS ->> DB: 가격 정책 조회
+    DB -->> PS: PricingPolicy 반환
+    PS ->> DB: 상품 재고 확인 및 예약
+    PS ->> PS: 시간대별 가격 계산
+    PS ->> PS: 상품 가격 계산
+    PS ->> DB: ReservationPricing 저장 (PENDING)
+    PS ->> K: ReservationPricingCreatedEvent 발행
+    K -->> RS: 가격 계산 완료 통보
 ```
 
-#### Value Object를 통한 도메인 규칙 강제
+### 2.4 예약 확정 흐름
 
-```java
-// 불변 금액 객체
-public record Money(BigDecimal amount) {
-  public Money {
-    if (amount.compareTo(BigDecimal.ZERO) < 0) {
-      throw new IllegalArgumentException("금액은 0 이상이어야 합니다");
+```mermaid
+sequenceDiagram
+    participant PAY as Payment Service
+    participant K as Kafka
+    participant PS as Pricing Service
+    participant DB as PostgreSQL
+
+    PAY ->> K: PaymentCompletedEvent 발행
+    K ->> PS: 이벤트 수신
+    PS ->> DB: ReservationPricing 조회
+    alt PENDING 상태
+        PS ->> PS: 상태 전환 (PENDING → CONFIRMED)
+        PS ->> DB: 상태 업데이트
+        PS ->> K: ReservationConfirmedEvent 발행
+    else 이미 처리됨
+        PS -->> PS: 멱등성 처리 (무시)
+    end
+```
+
+### 2.5 예약 취소/환불 흐름
+
+```mermaid
+sequenceDiagram
+    participant REFUND as Refund Service
+    participant K as Kafka
+    participant PS as Pricing Service
+    participant DB as PostgreSQL
+
+    REFUND ->> K: ReservationRefundEvent 발행
+    K ->> PS: 이벤트 수신
+    PS ->> DB: ReservationPricing 조회
+    PS ->> PS: 상태 전환 (CONFIRMED → CANCELLED)
+    PS ->> DB: 재고 해제 (원자적 UPDATE)
+    alt 재고 해제 성공
+        PS ->> DB: 상태 업데이트
+        PS ->> K: ReservationCancelledEvent 발행
+    else 재고 해제 실패
+        PS ->> DB: 보상 태스크 큐에 추가
+        PS -->> PS: 자동 재시도 스케줄링
+    end
+```
+
+---
+
+## 3. 데이터 모델
+
+### 3.1 ERD
+
+```mermaid
+erDiagram
+    PricingPolicy ||--o{ TimeRangePrice: contains
+    Product ||--o{ ProductTimeSlotInventory: tracks
+    Product }o--o{ RoomAllowedProduct: allows
+    ReservationPricing ||--o{ TimeSlotPriceBreakdown: has
+    ReservationPricing ||--o{ ProductPriceBreakdown: has
+
+    PricingPolicy {
+        bigint id PK "Snowflake ID"
+        bigint room_id "룸 식별자"
+        bigint place_id "플레이스 식별자"
+        varchar time_slot "HOUR | HALFHOUR"
+        decimal default_price "기본 가격"
+        datetime created_at
+        datetime updated_at
     }
-  }
 
-  public Money add(Money other) {
-    return new Money(this.amount.add(other.amount));
-  }
-}
-
-// 시간 범위 Value Object
-public record TimeRange(LocalTime start, LocalTime end) {
-  public TimeRange {
-    if (start.isAfter(end) || start.equals(end)) {
-      throw new IllegalArgumentException("시작 시간은 종료 시간보다 이전이어야 합니다");
+    TimeRangePrice {
+        bigint id PK
+        bigint pricing_policy_id FK
+        varchar day_of_week "요일"
+        time start_time "시작 시간"
+        time end_time "종료 시간"
+        decimal price "해당 시간대 가격"
     }
-  }
 
-  public boolean contains(LocalTime time) {
-    return !time.isBefore(start) && time.isBefore(end);
-  }
-}
+    Product {
+        bigint product_id PK "Snowflake ID"
+        varchar scope "PLACE | ROOM | RESERVATION"
+        bigint place_id "PLACE/ROOM Scope만"
+        bigint room_id "ROOM Scope만"
+        varchar name "상품명"
+        varchar pricing_type "가격 전략 타입"
+        decimal initial_price "초기 가격"
+        decimal additional_price "추가 가격"
+        int total_quantity "총 재고"
+        int reserved_quantity "예약된 재고"
+        datetime created_at
+        datetime updated_at
+    }
+
+    ProductTimeSlotInventory {
+        bigint product_id FK "복합 PK"
+        bigint room_id "복합 PK"
+        timestamp time_slot "복합 PK - 월별 파티셔닝"
+        int reserved_quantity "예약된 수량"
+        int total_quantity "총 재고"
+        datetime created_at
+        datetime updated_at
+    }
+
+    RoomAllowedProduct {
+        bigint room_id PK "복합 PK"
+        bigint product_id FK "복합 PK"
+    }
+
+    ReservationPricing {
+        bigint reservation_id PK "Snowflake ID"
+        bigint room_id
+        bigint place_id
+        varchar status "PENDING | CONFIRMED | CANCELLED"
+        varchar time_slot "HOUR | HALFHOUR"
+        decimal total_price "총 가격"
+        timestamp expires_at "PENDING 만료 시간"
+        datetime calculated_at "계산 시점"
+        datetime created_at
+        datetime updated_at
+    }
+
+    TimeSlotPriceBreakdown {
+        bigint reservation_id FK
+        timestamp slot_time "시간대"
+        decimal slot_price "해당 시간 가격"
+    }
+
+    ProductPriceBreakdown {
+        bigint reservation_id FK
+        bigint product_id "스냅샷 참조용"
+        varchar product_name "스냅샷"
+        int quantity "수량"
+        decimal unit_price "스냅샷 단가"
+        decimal total_price "계산된 총 가격"
+        varchar pricing_type "스냅샷 전략"
+    }
 ```
 
-**비즈니스 규칙 강제:**
-- 생성자에서 음수 금액 차단
-- 시간 범위 유효성 자동 검증
-- 불변성으로 예기치 않은 상태 변경 방지
+### 3.2 테이블 상세
+
+#### pricing_policies (가격 정책)
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| id | BIGINT | Y | Snowflake ID |
+| room_id | BIGINT | Y | 룸 식별자 |
+| place_id | BIGINT | Y | 플레이스 식별자 |
+| time_slot | VARCHAR(20) | Y | HOUR, HALFHOUR |
+| default_price | DECIMAL(15,2) | Y | 기본 시간당 가격 |
+| created_at | TIMESTAMP | N | 생성 시간 |
+| updated_at | TIMESTAMP | N | 수정 시간 |
+
+#### products (추가상품)
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| product_id | BIGINT | Y | Snowflake ID |
+| scope | VARCHAR(20) | Y | PLACE, ROOM, RESERVATION |
+| place_id | BIGINT | N | PLACE/ROOM Scope 시 필수 |
+| room_id | BIGINT | N | ROOM Scope 시 필수 |
+| name | VARCHAR(100) | Y | 상품명 |
+| pricing_type | VARCHAR(30) | Y | 가격 전략 타입 |
+| initial_price | DECIMAL(15,2) | Y | 초기/기본 가격 |
+| additional_price | DECIMAL(15,2) | N | 추가 가격 |
+| total_quantity | INTEGER | Y | 총 재고 수량 |
+| reserved_quantity | INTEGER | Y | 예약된 수량 (동시성 제어) |
+| created_at | TIMESTAMP | N | 생성 시간 |
+| updated_at | TIMESTAMP | N | 수정 시간 |
+
+#### product_time_slot_inventory (시간대별 재고)
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| product_id | BIGINT | Y | PK, FK |
+| room_id | BIGINT | Y | PK |
+| time_slot | TIMESTAMP | Y | PK, 파티션 키 |
+| reserved_quantity | INTEGER | Y | 예약된 수량 |
+| total_quantity | INTEGER | Y | 총 재고 |
+| created_at | TIMESTAMP | N | 생성 시간 |
+| updated_at | TIMESTAMP | N | 수정 시간 |
+
+**파티셔닝:** 월별 RANGE 파티셔닝 적용 (pg_partman 자동 관리)
+
+#### reservation_pricings (예약 가격 스냅샷)
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| reservation_id | BIGINT | Y | Snowflake ID |
+| room_id | BIGINT | Y | 룸 식별자 |
+| place_id | BIGINT | Y | 플레이스 식별자 |
+| status | VARCHAR(20) | Y | PENDING, CONFIRMED, CANCELLED |
+| time_slot | VARCHAR(20) | Y | HOUR, HALFHOUR |
+| total_price | DECIMAL(15,2) | Y | 총 예약 가격 |
+| expires_at | TIMESTAMP | N | PENDING 만료 시간 |
+| calculated_at | TIMESTAMP | Y | 가격 계산 시점 |
+| created_at | TIMESTAMP | N | 생성 시간 |
+| updated_at | TIMESTAMP | N | 수정 시간 |
+
+#### room_allowed_products (룸별 허용 상품)
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| room_id | BIGINT | Y | PK |
+| product_id | BIGINT | Y | PK, FK |
 
 ---
 
-### 2. 추가상품 재고 및 가격 관리
+## 4. API 명세
 
-플레이스, 룸, 예약 단위로 적용 범위가 다른 상품을 관리하며, 3가지 가격 책정 전략을 지원합니다.
+### 4.1 가격 정책 API
 
-#### 상품 범위 (Scope)
+#### 가격 정책 조회
 
-```java
-public enum ProductScope {
-  PLACE,        // 플레이스 전체 공유 (예: 빔프로젝터)
-  ROOM,         // 특정 룸 전용 (예: 전용 장비)
-  RESERVATION   // 시간 독립적 (예: 음료, 간식)
-}
+```
+GET /api/pricing-policies/{roomId}
 ```
 
-#### Factory Pattern을 활용한 상품 생성
+**Response**
 
-```java
-public class Product {
-  private final ProductId productId;
-  private final ProductScope scope;
-  private final PlaceId placeId;    // PLACE, ROOM scope만 사용
-  private final RoomId roomId;      // ROOM scope만 사용
-  private String name;
-  private PricingStrategy pricingStrategy;
-  private int totalQuantity;
-
-  // Private 생성자 - 직접 생성 차단
-  private Product(ProductId productId, ProductScope scope, ...) {
-    validateScopeIds(placeId, roomId, scope);  // 도메인 규칙 강제
-    this.productId = productId;
-    // ...
-  }
-
-  // PLACE scope 상품 생성
-  public static Product createPlaceScoped(
-      ProductId productId, PlaceId placeId, String name,
-      PricingStrategy strategy, int quantity) {
-    return new Product(productId, ProductScope.PLACE,
-                       placeId, null, name, strategy, quantity);
-  }
-
-  // ROOM scope 상품 생성
-  public static Product createRoomScoped(
-      ProductId productId, PlaceId placeId, RoomId roomId,
-      String name, PricingStrategy strategy, int quantity) {
-    return new Product(productId, ProductScope.ROOM,
-                       placeId, roomId, name, strategy, quantity);
-  }
-
-  // RESERVATION scope 상품 생성
-  public static Product createReservationScoped(
-      ProductId productId, String name,
-      PricingStrategy strategy, int quantity) {
-    return new Product(productId, ProductScope.RESERVATION,
-                       null, null, name, strategy, quantity);
-  }
-}
-```
-
-**Factory Pattern 장점:**
-- Scope별로 필수 파라미터가 명확함 (컴파일 타임 검증)
-- 불가능한 조합 생성 차단 (예: PLACE scope인데 roomId 있음)
-- 자기 문서화 (메서드명으로 의도 명확)
-
-#### Strategy Pattern을 활용한 가격 책정
-
-```java
-// 전략 인터페이스
-public interface PricingStrategy {
-  Money calculatePrice(int quantity);
-  PricingType getType();
-}
-
-// 전략 1: 초기 가격 + 추가 가격 (1개 초과 시)
-public class InitialPlusAdditionalPricing implements PricingStrategy {
-  private final Money initialPrice;
-  private final Money additionalPrice;
-
-  @Override
-  public Money calculatePrice(int quantity) {
-    if (quantity <= 0) {
-      throw new IllegalArgumentException("수량은 1 이상이어야 합니다");
+```json
+{
+  "roomId": 1,
+  "placeId": 100,
+  "timeSlot": "HOUR",
+  "defaultPrice": 10000,
+  "timeRangePrices": [
+    {
+      "dayOfWeek": "MONDAY",
+      "startTime": "14:00",
+      "endTime": "21:00",
+      "price": 15000
     }
-    if (quantity == 1) {
-      return initialPrice;
+  ]
+}
+```
+
+#### 기본 가격 업데이트
+
+```
+PUT /api/pricing-policies/{roomId}/default-price
+```
+
+**Request**
+
+```json
+{
+  "defaultPrice": 12000
+}
+```
+
+#### 시간대별 가격 업데이트
+
+```
+PUT /api/pricing-policies/{roomId}/time-range-prices
+```
+
+**Request**
+
+```json
+{
+  "timeRangePrices": [
+    {
+      "dayOfWeek": "SATURDAY",
+      "startTime": "09:00",
+      "endTime": "18:00",
+      "price": 18000
     }
-    // 첫 1개 초기 가격 + 나머지 추가 가격
-    Money additionalTotal = additionalPrice.multiply(quantity - 1);
-    return initialPrice.add(additionalTotal);
-  }
-}
-
-// 전략 2: 1회 대여료 (수량 무관)
-public class OneTimePricing implements PricingStrategy {
-  private final Money price;
-
-  @Override
-  public Money calculatePrice(int quantity) {
-    return price;  // 수량과 관계없이 고정 가격
-  }
-}
-
-// 전략 3: 단순 재고 (단가 × 수량)
-public class SimpleStockPricing implements PricingStrategy {
-  private final Money unitPrice;
-
-  @Override
-  public Money calculatePrice(int quantity) {
-    return unitPrice.multiply(quantity);
-  }
+  ]
 }
 ```
 
-#### 사용 예시
-
-```java
-// 빔프로젝터: 첫 1시간 10,000원, 추가 5,000원/시간
-Product projector = Product.createPlaceScoped(
-    productId,
-    placeId,
-    "빔프로젝터",
-    new InitialPlusAdditionalPricing(
-        Money.of(10000),
-        Money.of(5000)
-    ),
-    5  // 총 재고 5개
-);
-
-// 3시간 대여 가격 계산: 10,000 + 5,000 + 5,000 = 20,000원
-Money totalPrice = projector.getPricingStrategy().calculatePrice(3);
-```
-
-**Strategy Pattern 장점:**
-- 런타임에 가격 계산 알고리즘 교체 가능 (OCP 준수)
-- 각 전략이 단일 책임만 가짐 (SRP 준수)
-- 새로운 가격 정책 추가 시 기존 코드 수정 불필요
-
----
-
-### 3. 예약 가격 계산 및 불변 스냅샷 저장
-
-예약 시점의 가격 정보를 불변 객체로 저장하여 이후 가격 정책 변경에 영향받지 않습니다.
-
-#### 예약 프로세스 (4단계)
+#### 가격 정책 복사
 
 ```
-1. 슬롯 예약 (외부 서비스)
-   ↓ SlotReservedEvent 발행
-
-2. 가격 계산 및 PENDING 상태 예약 생성 (이 서비스)
-   - 시간대별 가격 계산
-   - 추가상품 재고 확인 및 원자적 예약
-   - 총 가격 계산 및 스냅샷 저장
-   ↓
-
-3. 결제 완료 후 CONFIRMED 상태 전환 (외부 서비스)
-   ↓ ReservationConfirmedEvent 수신
-
-4. 예약 확정 (이 서비스)
-   - PENDING → CONFIRMED 상태 전환
-   - 재고 확정 (이미 예약된 상태 유지)
-   ↓
-
-5. 환불 처리 (외부 서비스)
-   ↓ ReservationRefundEvent 수신
-
-6. 예약 취소 및 재고 해제 (이 서비스)
-   - CONFIRMED → CANCELLED 상태 전환
-   - 예약 재고 해제 (rollback)
-   - 실패 시 보상 큐에 추가 (자동 재시도)
+POST /api/pricing-policies/{targetRoomId}/copy
 ```
 
-#### 불변 스냅샷 구현
+**Request**
 
-```java
-public class ReservationPricing {
-  private final ReservationId reservationId;
-  private final RoomId roomId;
-  private final PlaceId placeId;
-  private ReservationStatus status;  // PENDING → CONFIRMED → CANCELLED
-
-  // 불변 가격 정보 (생성 후 변경 불가)
-  private final TimeSlot timeSlot;
-  private final List<TimeSlotPriceBreakdown> timeSlotPrices;
-  private final List<ProductPriceBreakdown> productPrices;
-  private final Money totalPrice;
-  private final LocalDateTime calculatedAt;
-
-  // 생성 시점 가격 계산
-  public static ReservationPricing create(
-      ReservationId reservationId,
-      RoomId roomId,
-      PlaceId placeId,
-      TimeSlot timeSlot,
-      List<TimeSlotPriceBreakdown> timeSlotPrices,
-      List<ProductPriceBreakdown> productPrices) {
-
-    // 총 가격 = 시간대 가격 합 + 상품 가격 합
-    Money totalPrice = calculateTotalPrice(timeSlotPrices, productPrices);
-
-    return new ReservationPricing(
-        reservationId, roomId, placeId,
-        ReservationStatus.PENDING,
-        timeSlot, timeSlotPrices, productPrices,
-        totalPrice, LocalDateTime.now()
-    );
-  }
-
-  // 상태 전이만 허용
-  public void confirm() {
-    if (status != ReservationStatus.PENDING) {
-      throw new InvalidReservationStatusException(
-          "PENDING 상태만 확정할 수 있습니다"
-      );
-    }
-    this.status = ReservationStatus.CONFIRMED;
-  }
-
-  public void cancel() {
-    if (status == ReservationStatus.CANCELLED) {
-      throw new InvalidReservationStatusException(
-          "이미 취소된 예약입니다"
-      );
-    }
-    this.status = ReservationStatus.CANCELLED;
-  }
+```json
+{
+  "sourceRoomId": 1
 }
 ```
 
-#### 상품 가격 스냅샷 (Embeddable)
+**비즈니스 규칙:** 동일 Place 내 Room 간만 복사 가능
 
-```java
-@Embeddable
-public class ProductPriceBreakdown {
-  private final Long productId;        // 참조용 (FK 아님)
-  private final String productName;    // 스냅샷 (상품명 변경되어도 유지)
-  private final int quantity;
-  private final Money unitPrice;       // 스냅샷 (단가)
-  private final Money totalPrice;      // 계산된 총 가격
-  private final PricingType pricingType;  // 전략 타입 스냅샷
+#### 배치 가격 조회 (Place 기준)
 
-  // 불변 객체
-  public ProductPriceBreakdown(
-      Long productId, String productName, int quantity,
-      Money unitPrice, Money totalPrice, PricingType pricingType) {
-    // 모든 필드 final + 생성자에서만 초기화
-  }
+```
+GET /api/pricing-policies/batch/places
+```
+
+**Query Parameters**
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| placeIds | List\<Long\> | Y | Place ID 목록 |
+
+#### 배치 가격 조회 (Room 기준)
+
+```
+GET /api/pricing-policies/batch/rooms
+```
+
+**Query Parameters**
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| roomIds | List\<Long\> | Y | Room ID 목록 |
+
+### 4.2 추가상품 API
+
+#### 상품 등록
+
+```
+POST /api/v1/products
+```
+
+**Request**
+
+```json
+{
+  "scope": "PLACE",
+  "placeId": 100,
+  "name": "빔프로젝터",
+  "pricingType": "SIMPLE_STOCK",
+  "initialPrice": 30000,
+  "totalQuantity": 5
 }
 ```
 
-**불변성의 이점:**
-- 예약 후 가격 정책이 변경되어도 기존 예약 가격 유지
-- 멀티스레드 환경에서 동기화 불필요
-- 이력 추적 및 감사(Audit) 용이
+**Response**
 
----
-
-## 아키텍처
-
-### Hexagonal Architecture (Ports & Adapters)
-
-도메인 로직을 외부 기술 스택으로부터 완전히 격리하여 테스트 가능성과 유지보수성을 극대화합니다.
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Adapter Layer (외부)                       │
-│                                                                 │
-│  ┌──────────────────┐                    ┌──────────────────┐  │
-│  │  REST Controller │                    │ JPA Repository   │  │
-│  │  (Inbound)       │                    │  (Outbound)      │  │
-│  └────────┬─────────┘                    └────────▲─────────┘  │
-│           │                                       │            │
-│           │ HTTP Request                          │ Persist    │
-│           │                                       │            │
-├───────────┼───────────────────────────────────────┼────────────┤
-│           │         Application Layer             │            │
-│           │                                       │            │
-│           │    ┌──────────────────────────┐       │            │
-│           │    │   Use Case Service       │       │            │
-│           ├───►│  - CreateReservation     │───────┤            │
-│           │    │  - CalculatePrice        │       │            │
-│           │    │  - ConfirmReservation    │       │            │
-│           │    └──────────┬───────────────┘       │            │
-│           │               │ Use Domain Logic      │            │
-├───────────┼───────────────┼───────────────────────┼────────────┤
-│           │    Domain Layer (핵심 비즈니스 로직)   │            │
-│           │               │                       │            │
-│           │    ┌──────────▼───────────┐           │            │
-│           └───►│   Aggregates         │◄──────────┘            │
-│                │  - PricingPolicy     │                        │
-│                │  - Product           │                        │
-│                │  - ReservationPricing│                        │
-│                │                      │                        │
-│                │  Value Objects       │                        │
-│                │  - Money, RoomId     │                        │
-│                │  - TimeRange, ...    │                        │
-│                └──────────────────────┘                        │
-│                                                                 │
-│  ┌──────────────────┐                    ┌──────────────────┐  │
-│  │ Kafka Consumer   │                    │ Kafka Producer   │  │
-│  │  (Inbound)       │                    │  (Outbound)      │  │
-│  └──────────────────┘                    └──────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 의존성 규칙 (Dependency Rule)
-
-```
-┌────────────────────────────────────────┐
-│         Adapter Layer (외부)           │  ─┐
-│  의존성: Application Layer에만 의존    │   │
-└────────────────────────────────────────┘   │
-                  ↓ depends on               │ 의존성 방향
-┌────────────────────────────────────────┐   │ (안쪽으로만)
-│      Application Layer (중간)          │   │
-│  의존성: Domain Layer에만 의존         │   │
-└────────────────────────────────────────┘   │
-                  ↓ depends on               │
-┌────────────────────────────────────────┐   │
-│        Domain Layer (핵심)             │   │
-│  의존성: 없음 (순수 Java)              │  ─┘
-└────────────────────────────────────────┘
-```
-
-**핵심 원칙:**
-- Domain Layer는 어떤 레이어에도 의존하지 않음 (Spring, JPA, Kafka 모름)
-- Application Layer는 Domain을 사용하지만 Adapter는 모름
-- Adapter Layer는 Port 인터페이스를 구현하여 주입됨 (DIP)
-
-### Domain-Driven Design (DDD)
-
-#### Bounded Context
-
-```
-┌─────────────────────────────────────────────────────────┐
-│         Reservation Pricing Service (이 서비스)         │
-├─────────────────────────────────────────────────────────┤
-│  Aggregates:                                            │
-│  - PricingPolicy (가격 정책)                            │
-│  - Product (추가상품)                                   │
-│  - ReservationPricing (예약 가격 스냅샷)                │
-│                                                         │
-│  Shared Kernel:                                         │
-│  - Money, RoomId, PlaceId, TimeRange                    │
-└─────────────────────────────────────────────────────────┘
-         ▲                              ▲
-         │ RoomCreatedEvent            │ SlotReservedEvent
-         │                              │
-┌────────┴────────┐          ┌─────────┴────────┐
-│  Room Service   │          │ Reservation Svc  │
-│  (외부 서비스)   │          │  (외부 서비스)   │
-└─────────────────┘          └──────────────────┘
-```
-
-#### Aggregate 경계
-
-각 Aggregate는 트랜잭션 일관성 경계를 정의합니다:
-
-**PricingPolicy Aggregate:**
-- Root: PricingPolicy
-- Entities: 없음
-- Value Objects: TimeRangePrice, TimeRangePrices
-- 불변 규칙: 같은 요일 내 시간대 중복 불가
-
-**Product Aggregate:**
-- Root: Product
-- Entities: 없음
-- Value Objects: PricingStrategy, ProductScope
-- 불변 규칙: Scope에 따른 placeId/roomId 조합 검증
-
-**ReservationPricing Aggregate:**
-- Root: ReservationPricing
-- Entities: 없음
-- Value Objects: TimeSlotPriceBreakdown, ProductPriceBreakdown
-- 불변 규칙: 생성 후 가격 정보 변경 불가
-
----
-
-## 디자인 패턴
-
-### 1. Factory Pattern
-
-**목적:** 복잡한 객체 생성 로직을 캡슐화하고, 생성 시점에 비즈니스 규칙을 강제합니다.
-
-#### 단순 Factory
-
-```java
-public class PricingPolicy {
-  private PricingPolicy(...) { /* private 생성자 */ }
-
-  // 기본 가격만 설정
-  public static PricingPolicy create(
-      RoomId roomId, PlaceId placeId,
-      TimeSlot timeSlot, Money defaultPrice) {
-    return new PricingPolicy(
-        roomId, placeId, timeSlot,
-        defaultPrice, TimeRangePrices.empty()
-    );
-  }
-
-  // 시간대별 가격 포함
-  public static PricingPolicy createWithTimeRangePrices(
-      RoomId roomId, PlaceId placeId, TimeSlot timeSlot,
-      Money defaultPrice, TimeRangePrices timeRangePrices) {
-    return new PricingPolicy(
-        roomId, placeId, timeSlot,
-        defaultPrice, timeRangePrices
-    );
-  }
+```json
+{
+  "productId": 1234567890123456789,
+  "scope": "PLACE",
+  "placeId": 100,
+  "name": "빔프로젝터",
+  "pricingType": "SIMPLE_STOCK",
+  "initialPrice": 30000,
+  "totalQuantity": 5
 }
 ```
 
-#### 다중 시나리오 Factory
+**상태 코드**
 
-```java
-public class Product {
-  // Scope별로 다른 Factory Method
-  public static Product createPlaceScoped(...) { }
-  public static Product createRoomScoped(...) { }
-  public static Product createReservationScoped(...) { }
-}
-```
+| 코드 | 설명 |
+|------|------|
+| 201 | 등록 성공 |
+| 400 | Scope와 ID 조합 오류 |
 
-**장점:**
-- 불가능한 상태 조합 컴파일 타임에 차단
-- 메서드명으로 생성 의도 명확히 표현 (자기 문서화)
-- 생성자 파라미터 순서 오류 방지
-
-### 2. Strategy Pattern
-
-**목적:** 알고리즘 군을 정의하고, 각각을 캡슐화하여 런타임에 교체 가능하도록 합니다.
-
-#### 구현 예시
-
-```java
-// 전략 인터페이스
-public interface PricingStrategy {
-  Money calculatePrice(int quantity);
-  PricingType getType();
-}
-
-// 구체 전략 1
-public class InitialPlusAdditionalPricing implements PricingStrategy {
-  private final Money initialPrice;
-  private final Money additionalPrice;
-
-  @Override
-  public Money calculatePrice(int quantity) {
-    if (quantity == 1) return initialPrice;
-    return initialPrice.add(
-        additionalPrice.multiply(quantity - 1)
-    );
-  }
-
-  @Override
-  public PricingType getType() {
-    return PricingType.INITIAL_PLUS_ADDITIONAL;
-  }
-}
-
-// 컨텍스트
-public class Product {
-  private PricingStrategy pricingStrategy;
-
-  public Money calculateTotalPrice(int quantity) {
-    return pricingStrategy.calculatePrice(quantity);
-  }
-}
-```
-
-**OCP (Open-Closed Principle) 준수:**
-- 새로운 가격 전략 추가 시 기존 코드 수정 불필요
-- PricingStrategy 인터페이스만 구현하면 됨
-
-### 3. Value Object Pattern
-
-**목적:** 불변 객체로 도메인 개념을 표현하고, 생성자에서 비즈니스 규칙을 강제합니다.
-
-```java
-// Money Value Object
-public record Money(BigDecimal amount) {
-  public Money {
-    if (amount == null) {
-      throw new IllegalArgumentException("금액은 null일 수 없습니다");
-    }
-    if (amount.compareTo(BigDecimal.ZERO) < 0) {
-      throw new IllegalArgumentException("금액은 0 이상이어야 합니다");
-    }
-  }
-
-  public static Money of(long amount) {
-    return new Money(BigDecimal.valueOf(amount));
-  }
-
-  public Money add(Money other) {
-    return new Money(this.amount.add(other.amount));
-  }
-
-  public Money multiply(int multiplier) {
-    return new Money(
-        this.amount.multiply(BigDecimal.valueOf(multiplier))
-    );
-  }
-}
-```
-
-**장점:**
-- 불변성으로 스레드 안전성 보장
-- equals/hashCode 자동 구현 (record)
-- 생성자에서 유효성 검증으로 항상 유효한 상태 보장
-
-### 4. Repository Pattern
-
-**목적:** 도메인과 데이터 접근 로직을 분리하여 도메인 계층의 순수성을 유지합니다.
-
-```java
-// Domain Layer: Port 정의
-public interface PricingPolicyRepository {
-  PricingPolicy findByRoomId(RoomId roomId);
-  void save(PricingPolicy pricingPolicy);
-  void delete(PricingPolicy pricingPolicy);
-}
-
-// Adapter Layer: Port 구현
-@Repository
-public class PricingPolicyRepositoryAdapter
-    implements PricingPolicyRepository {
-
-  private final PricingPolicyJpaRepository jpaRepository;
-
-  @Override
-  public PricingPolicy findByRoomId(RoomId roomId) {
-    PricingPolicyEntity entity = jpaRepository
-        .findByRoomId(roomId.value())
-        .orElseThrow(() -> new PricingPolicyNotFoundException(...));
-
-    return toDomain(entity);  // Entity → Domain 변환
-  }
-
-  @Override
-  public void save(PricingPolicy pricingPolicy) {
-    PricingPolicyEntity entity = toEntity(pricingPolicy);
-    jpaRepository.save(entity);
-  }
-}
-```
-
-**DIP (Dependency Inversion Principle) 준수:**
-- Domain이 Repository 인터페이스(Port)를 정의
-- Adapter가 구현체를 주입
-- Domain은 JPA, PostgreSQL 등의 세부사항을 모름
-
-### 5. Domain Event Pattern
-
-**목적:** 도메인 이벤트를 통해 Bounded Context 간 느슨한 결합을 유지합니다.
-
-```java
-// 도메인 이벤트
-public record ReservationPricingCreatedEvent(
-    Long reservationId,
-    Long roomId,
-    Long placeId,
-    BigDecimal totalPrice,
-    LocalDateTime calculatedAt
-) {
-  public static ReservationPricingCreatedEvent from(
-      ReservationPricing reservationPricing) {
-    return new ReservationPricingCreatedEvent(
-        reservationPricing.getReservationId().value(),
-        reservationPricing.getRoomId().value(),
-        reservationPricing.getPlaceId().value(),
-        reservationPricing.getTotalPrice().amount(),
-        reservationPricing.getCalculatedAt()
-    );
-  }
-}
-
-// Application Service에서 이벤트 발행
-@Service
-public class ReservationPricingService {
-  private final EventPublisher eventPublisher;
-
-  @Transactional
-  public ReservationPricingResponse createReservation(...) {
-    ReservationPricing reservationPricing = ReservationPricing.create(...);
-    repository.save(reservationPricing);
-
-    // 이벤트 발행
-    eventPublisher.publish(
-        ReservationPricingCreatedEvent.from(reservationPricing)
-    );
-
-    return ReservationPricingResponse.from(reservationPricing);
-  }
-}
-```
-
----
-
-## 데이터베이스 스키마
-
-### ERD
+#### 상품 조회
 
 ```
-┌────────────────────────────┐
-│   pricing_policies         │
-├────────────────────────────┤
-│ PK  id          BIGSERIAL  │
-│     room_id     BIGINT     │──┐ 외부 서비스 참조
-│     place_id    BIGINT     │  │
-│     day_of_week VARCHAR(10)│  │
-│     start_time  TIME       │  │
-│     end_time    TIME       │  │
-│     price       DECIMAL    │  │
-└────────────────────────────┘  │
-                                │
-┌────────────────────────────┐  │
-│       products             │  │
-├────────────────────────────┤  │
-│ PK  product_id  BIGINT     │ Snowflake ID
-│     scope       VARCHAR(20)│  │ PLACE|ROOM|RESERVATION
-│     place_id    BIGINT     │──┤
-│     room_id     BIGINT     │──┤
-│     name        VARCHAR    │  │
-│     pricing_type VARCHAR   │  │
-│     initial_price DECIMAL  │  │
-│     total_quantity INTEGER │  │
-│     reserved_quantity INT  │  │ V9: 동시성 제어용
-└────────────┬───────────────┘  │
-             │                  │
-             │ 1                │
-             │                  │
-             │ *                │
-┌────────────▼───────────────┐  │
-│product_time_slot_inventory │  │ V10: 시간대별 재고 관리
-├────────────────────────────┤  │ (월별 파티셔닝 적용)
-│ PK  product_id  BIGINT     │──┘
-│ PK  room_id     BIGINT     │
-│ PK  time_slot   TIMESTAMP  │
-│     reserved_quantity INT  │ V10: 예약된 수량
-│     total_quantity INT     │ V13: 총 재고 수량
-│     created_at TIMESTAMP   │
-│     updated_at TIMESTAMP   │
-└────────────────────────────┘
-                                │
-┌────────────────────────────┐  │
-│  reservation_pricings      │  │
-├────────────────────────────┤  │
-│ PK  reservation_id BIGINT  │ Snowflake ID
-│     room_id        BIGINT  │──┘
-│     place_id       BIGINT  │
-│     status         VARCHAR │  PENDING|CONFIRMED|CANCELLED
-│     total_price    DECIMAL │
-│     expires_at  TIMESTAMP  │  V7: PENDING 타임아웃
-│     calculated_at  TIMESTAMP│
-└───────────┬────────────────┘
-            │ 1
-            │
-            │ *
-┌───────────▼────────────────┐
-│ reservation_pricing_slots  │ ElementCollection
-├────────────────────────────┤
-│ FK  reservation_id BIGINT  │
-│ PK  slot_time   TIMESTAMP  │
-│     slot_price  DECIMAL    │
-└────────────────────────────┘
-
-            │ *
-┌───────────▼────────────────┐
-│reservation_pricing_products│ ElementCollection
-├────────────────────────────┤
-│ FK  reservation_id BIGINT  │
-│     product_id     BIGINT  │ 스냅샷 (FK 아님)
-│     product_name   VARCHAR │ 스냅샷
-│     quantity       INTEGER │
-│     unit_price     DECIMAL │ 스냅샷
-│     total_price    DECIMAL │
-│     pricing_type   VARCHAR │ 스냅샷
-└────────────────────────────┘
-
-┌────────────────────────────┐
-│  room_allowed_products     │ V6: 룸별 허용 상품
-├────────────────────────────┤
-│ PK  room_id     BIGINT     │
-│ PK  product_id  BIGINT     │
-└────────────────────────────┘
+GET /api/v1/products/{productId}
 ```
 
-### Snowflake ID Generator
+#### 상품 수정
 
-분산 환경에서 고유 ID를 생성하는 알고리즘입니다.
-
-**구조 (64-bit Long):**
 ```
-[Sign 1bit] [Timestamp 41bits] [Node ID 10bits] [Sequence 12bits]
+PUT /api/v1/products/{productId}
 ```
 
-**특징:**
-- Custom Epoch: 2024-01-01T00:00:00Z
-- 초당 최대 400만개 ID 생성 (단일 노드)
-- 시간 기반 정렬 가능 (생성 순서 보장)
-- 69년간 사용 가능
+#### 상품 삭제
 
-**사용 예시:**
-```java
-@Entity
-public class ProductEntity {
-  @Id
-  @GeneratedValue(generator = "snowflake-id")
-  @GenericGenerator(
-      name = "snowflake-id",
-      type = SnowflakeIdGenerator.class
-  )
-  private Long id;
-}
+```
+DELETE /api/v1/products/{productId}
 ```
 
-### 파티셔닝 전략 (V10~V12)
+#### 상품 가용성 조회
 
-**product_time_slot_inventory 테이블 월별 파티셔닝:**
-
-```sql
--- V10: 월별 파티션 생성 (2025년 1월~3월)
-CREATE TABLE product_time_slot_inventory (
-    product_id BIGINT NOT NULL,
-    room_id BIGINT NOT NULL,
-    time_slot TIMESTAMP NOT NULL,
-    reserved_quantity INTEGER NOT NULL DEFAULT 0,
-    total_quantity INTEGER NOT NULL DEFAULT 0,  -- V13 추가
-    PRIMARY KEY (product_id, room_id, time_slot)
-) PARTITION BY RANGE (time_slot);
-
--- V11: 파티션 확장 (2025년 12월까지)
-CREATE TABLE product_time_slot_inventory_2025_12
-    PARTITION OF product_time_slot_inventory
-    FOR VALUES FROM ('2025-12-01 00:00:00') TO ('2026-01-01 00:00:00');
-
--- V12: pg_partman을 통한 자동 파티션 관리
--- - 3개월 선행 파티션 생성
--- - 12개월 후 오래된 파티션 자동 삭제
--- - 일일 유지보수 작업 스케줄링 (3 AM)
+```
+GET /api/products/availability
 ```
 
-**파티셔닝 장점:**
-- 시간대별 쿼리 성능 향상 (파티션 프루닝)
-- 오래된 데이터 정리 용이
-- 인덱스 크기 감소로 메모리 효율 증가
+**Query Parameters**
 
-### 인덱싱 전략
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| roomId | Long | Y | 룸 ID |
+| placeId | Long | Y | 플레이스 ID |
+| timeSlots | List\<LocalDateTime\> | Y | 예약 시간대 목록 |
 
-```sql
--- 가격 정책: 룸별 조회 최적화
-CREATE INDEX idx_pricing_policies_room_id
-    ON pricing_policies(room_id);
+**Response**
 
--- 추가상품: Scope + PlaceId 복합 조회
-CREATE INDEX idx_products_scope_place_id
-    ON products(scope, place_id)
-    WHERE place_id IS NOT NULL;
-
--- 예약 가격: 룸 + 상태 복합 조회 (재고 관리 쿼리 최적화)
-CREATE INDEX idx_reservation_pricings_room_status
-    ON reservation_pricings(room_id, status);
-
--- 시간대별 재고: 상품 + 시간대 조회 최적화 (PLACE Scope)
-CREATE INDEX idx_product_time_slot_inventory_product_time
-    ON product_time_slot_inventory(product_id, time_slot);
-
--- 시간대별 재고: 과거 데이터 정리용
-CREATE INDEX idx_product_time_slot_inventory_time_slot
-    ON product_time_slot_inventory(time_slot);
-```
-
-### 도메인 규칙 (DB Constraints)
-
-```sql
--- PricingPolicy: 시간대 중복 방지
-ALTER TABLE pricing_policies
-  ADD CONSTRAINT uq_room_day_time
-  UNIQUE (room_id, day_of_week, start_time, end_time);
-
--- PricingPolicy: 시간 순서 검증
-ALTER TABLE pricing_policies
-  ADD CONSTRAINT chk_time_range
-  CHECK (start_time < end_time);
-
--- Product: Scope에 따른 ID 조합 검증
-ALTER TABLE products
-  ADD CONSTRAINT chk_scope_ids CHECK (
-    (scope = 'PLACE' AND place_id IS NOT NULL AND room_id IS NULL) OR
-    (scope = 'ROOM' AND place_id IS NOT NULL AND room_id IS NOT NULL) OR
-    (scope = 'RESERVATION' AND place_id IS NULL AND room_id IS NULL)
-  );
-
--- ReservationPricing: 총 가격 0 이상
-ALTER TABLE reservation_pricings
-  ADD CONSTRAINT chk_total_price
-  CHECK (total_price >= 0);
-```
-
----
-
-## API 엔드포인트
-
-### 가격 정책 관리 API
-
-**Base URL:** `/api/pricing-policies`
-
-```http
-GET    /{roomId}                           # 가격 정책 조회
-PUT    /{roomId}/default-price             # 기본 가격 업데이트
-PUT    /{roomId}/time-range-prices         # 시간대별 가격 업데이트
-POST   /{targetRoomId}/copy                # 가격 정책 복사
-```
-
-### 추가상품 관리 API
-
-**Base URL:** `/api/products`
-
-```http
-GET    /availability                       # 상품 재고 가용성 조회
-  Query Params:
-  - roomId: Long
-  - placeId: Long
-  - timeSlots: List<LocalDateTime>
-
-Response:
+```json
 {
   "availableProducts": [
     {
@@ -961,22 +543,23 @@ Response:
 }
 ```
 
-### 예약 가격 관리 API
+#### 룸별 허용 상품 조회
 
-**Base URL:** `/api/reservations/pricing`
-
-```http
-POST   /                                   # 예약 생성 (가격 계산 및 저장)
-POST   /preview                            # 가격 미리보기
-PUT    /{reservationId}/confirm            # 예약 확정
-PUT    /{reservationId}/cancel             # 예약 취소
-PUT    /{reservationId}/products           # 예약 상품 업데이트
+```
+GET /api/products/room/{roomId}
 ```
 
-#### 예약 생성 요청 예시
+### 4.3 예약 가격 API
+
+#### 예약 가격 생성
+
+```
+POST /api/reservations/pricing
+```
+
+**Request**
 
 ```json
-POST /api/reservations/pricing
 {
   "reservationId": 1234567890,
   "roomId": 1,
@@ -990,16 +573,12 @@ POST /api/reservations/pricing
     {
       "productId": 1,
       "quantity": 1
-    },
-    {
-      "productId": 2,
-      "quantity": 2
     }
   ]
 }
 ```
 
-#### 예약 생성 응답 예시
+**Response**
 
 ```json
 {
@@ -1029,632 +608,685 @@ POST /api/reservations/pricing
       "unitPrice": 30000,
       "totalPrice": 30000,
       "pricingType": "SIMPLE_STOCK"
-    },
-    {
-      "productId": 2,
-      "productName": "화이트보드",
-      "quantity": 2,
-      "unitPrice": 10000,
-      "totalPrice": 20000,
-      "pricingType": "ONE_TIME"
     }
   ],
-  "totalPrice": 85000,
+  "totalPrice": 65000,
   "calculatedAt": "2025-01-10T14:30:00"
 }
 ```
 
----
+**상태 코드**
 
-## 기술 스택
-
-### 언어 및 프레임워크
-
-| 기술 | 버전 | 목적 |
-|------|------|------|
-| Java | 21 LTS | Virtual Threads 지원, 최신 언어 기능 |
-| Spring Boot | 3.2.5 | 안정성과 최신 기능의 균형 |
-| Spring Data JPA | 3.2.5 | 영속성 관리 |
-| Spring Kafka | 3.2.5 | 이벤트 기반 통신 |
-
-### 데이터베이스 및 메시징
-
-| 기술 | 버전 | 목적 |
-|------|------|------|
-| PostgreSQL | 16 | 메인 데이터베이스, JSONB 지원 |
-| Flyway | - | 데이터베이스 마이그레이션 |
-| Apache Kafka | 3.6 | 이벤트 스트리밍 플랫폼 |
-
-### 빌드 및 테스트
-
-| 기술 | 버전 | 목적 |
-|------|------|------|
-| Gradle | 8.14 | 빌드 도구 |
-| JUnit 5 | - | 단위 테스트 프레임워크 |
-| Mockito | - | Mock 객체 생성 |
-| AssertJ | - | Fluent Assertion |
-| H2 Database | - | 통합 테스트용 인메모리 DB |
-| Testcontainers | 1.19.3 | E2E 테스트 (PostgreSQL, Kafka) |
-
-### 코드 품질
-
-| 도구 | 목적 |
+| 코드 | 설명 |
 |------|------|
-| CheckStyle | Google Java Style Guide 준수 |
-| PMD | 코드 품질 분석 |
-| SpotBugs | 버그 패턴 탐지 |
+| 201 | 생성 성공 |
+| 400 | 잘못된 요청 |
+| 404 | 가격 정책 없음 |
+| 409 | 재고 부족 |
 
-### CI/CD
+#### 가격 미리보기
 
-| 도구 | 목적 |
+```
+POST /api/reservations/pricing/preview
+```
+
+**설명:** 예약 레코드 생성 없이 가격만 계산하여 반환
+
+#### 예약 확정
+
+```
+PUT /api/reservations/pricing/{reservationId}/confirm
+```
+
+**Response**
+
+```json
+{
+  "reservationId": 1234567890,
+  "status": "CONFIRMED",
+  "confirmedAt": "2025-01-10T15:00:00"
+}
+```
+
+#### 예약 취소
+
+```
+PUT /api/reservations/pricing/{reservationId}/cancel
+```
+
+**Response**
+
+```json
+{
+  "reservationId": 1234567890,
+  "status": "CANCELLED",
+  "cancelledAt": "2025-01-10T16:00:00"
+}
+```
+
+#### 예약 상품 업데이트
+
+```
+PUT /api/reservations/pricing/{reservationId}/products
+```
+
+**Request**
+
+```json
+{
+  "products": [
+    {
+      "productId": 2,
+      "quantity": 3
+    }
+  ]
+}
+```
+
+---
+
+## 5. 이벤트 명세
+
+### 5.1 Kafka Topics
+
+| Topic | Direction | Description |
+|-------|-----------|-------------|
+| room-created | Inbound | 룸 생성 시 가격 정책 자동 생성 |
+| room-updated | Inbound | 룸 정보 변경 동기화 |
+| slot-reserved | Inbound | 슬롯 예약 시 가격 계산 트리거 |
+| payment-completed | Inbound | 결제 완료 시 예약 확정 |
+| reservation-refund | Inbound | 환불 시 예약 취소 및 재고 해제 |
+| reservation-pricing-created | Outbound | 가격 계산 완료 통보 |
+| reservation-confirmed | Outbound | 예약 확정 통보 |
+| reservation-cancelled | Outbound | 예약 취소 통보 |
+
+### 5.2 이벤트 페이로드
+
+#### RoomCreatedEvent (Inbound)
+
+```json
+{
+  "eventId": "evt-uuid-1234",
+  "eventType": "ROOM_CREATED",
+  "timestamp": "2025-01-15T10:00:00Z",
+  "payload": {
+    "roomId": 1,
+    "placeId": 100,
+    "timeSlot": "HOUR",
+    "defaultPrice": 10000
+  }
+}
+```
+
+#### SlotReservedEvent (Inbound)
+
+```json
+{
+  "eventId": "evt-uuid-2345",
+  "eventType": "SLOT_RESERVED",
+  "timestamp": "2025-01-15T10:01:00Z",
+  "payload": {
+    "reservationId": 1234567890,
+    "roomId": 1,
+    "placeId": 100,
+    "timeSlots": [
+      "2025-01-15T10:00:00",
+      "2025-01-15T11:00:00"
+    ],
+    "products": [
+      {
+        "productId": 1,
+        "quantity": 1
+      }
+    ]
+  }
+}
+```
+
+#### PaymentCompletedEvent (Inbound)
+
+```json
+{
+  "eventId": "evt-uuid-3456",
+  "eventType": "PAYMENT_COMPLETED",
+  "timestamp": "2025-01-15T10:05:00Z",
+  "payload": {
+    "reservationId": 1234567890,
+    "paymentId": "pay-uuid-5678",
+    "amount": 65000
+  }
+}
+```
+
+#### ReservationRefundEvent (Inbound)
+
+```json
+{
+  "eventId": "evt-uuid-4567",
+  "eventType": "RESERVATION_REFUND",
+  "timestamp": "2025-01-16T14:00:00Z",
+  "payload": {
+    "reservationId": 1234567890,
+    "refundAmount": 65000,
+    "reason": "USER_REQUEST"
+  }
+}
+```
+
+#### ReservationPricingCreatedEvent (Outbound)
+
+```json
+{
+  "eventId": "evt-uuid-5678",
+  "eventType": "RESERVATION_PRICING_CREATED",
+  "timestamp": "2025-01-15T10:01:30Z",
+  "payload": {
+    "reservationId": 1234567890,
+    "roomId": 1,
+    "placeId": 100,
+    "totalPrice": 65000,
+    "status": "PENDING",
+    "expiresAt": "2025-01-15T10:11:30Z"
+  }
+}
+```
+
+---
+
+## 6. 비즈니스 규칙
+
+### 6.1 예약 상태 전이
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: 슬롯 예약 (SlotReservedEvent)
+    PENDING --> CONFIRMED: 결제 완료 (PaymentCompletedEvent)
+    PENDING --> CANCELLED: 타임아웃 (10분)
+    CONFIRMED --> CANCELLED: 환불 (ReservationRefundEvent)
+    CANCELLED --> [*]
+    CONFIRMED --> [*]: 이용 완료
+```
+
+### 6.2 상품 Scope별 규칙
+
+| 규칙 | PLACE | ROOM | RESERVATION |
+|------|-------|------|-------------|
+| placeId 필수 | O | O | X |
+| roomId 필수 | X | O | X |
+| 시간대별 재고 관리 | O | O | X |
+| 룸 허용 목록 적용 | O (화이트리스트) | X (자동 허용) | X |
+| 재고 원자적 제어 | O | O | X |
+
+### 6.3 가격 계산 전략
+
+| 전략 | 설명 | 계산 공식 |
+|------|------|-----------|
+| INITIAL_PLUS_ADDITIONAL | 초기+추가 | 첫 1개: initialPrice, 추가: additionalPrice × (n-1) |
+| ONE_TIME | 일회성 | 수량 무관 고정: initialPrice |
+| SIMPLE_STOCK | 단순 재고 | 단가 × 수량: initialPrice × n |
+
+### 6.4 가격 정책 규칙
+
+| 규칙 | 설명 |
 |------|------|
-| GitHub Actions | 자동화된 빌드 및 테스트 |
-| Docker Compose | 로컬 개발 환경 (PostgreSQL, Kafka) |
+| 시간대 중복 방지 | 동일 요일 내 시간 범위 중복 불가 |
+| 시간 순서 검증 | startTime < endTime |
+| 기본 가격 적용 | 시간대별 가격 미설정 시 defaultPrice 적용 |
+| 정책 복사 | 동일 Place 내 Room 간만 가능 |
+
+### 6.5 재고 관리 규칙
+
+| 규칙 | 설명 |
+|------|------|
+| 원자적 예약 | UPDATE 기반 동시성 제어 (Phantom Read 방지) |
+| CHECK 제약 | reserved_quantity <= total_quantity |
+| 롤백 보장 | 예약 실패 시 예약된 재고 자동 해제 |
+| 보상 태스크 | 재고 해제 실패 시 자동 재시도 큐 |
+
+### 6.6 PENDING 타임아웃
+
+| 규칙 | 설명 |
+|------|------|
+| 기본 타임아웃 | 10분 |
+| 만료 처리 | 스케줄러가 만료된 PENDING 예약 자동 취소 |
+| 재고 해제 | 타임아웃 시 예약된 재고 자동 해제 |
 
 ---
 
-## 테스팅
+## 7. 인덱스 설계
 
-### 테스트 전략
+### 7.1 PostgreSQL 인덱스
 
-#### 1. 단위 테스트 (Domain Layer)
+#### pricing_policies 테이블
 
-순수 Java로 작성된 도메인 로직을 빠르게 검증합니다.
+```sql
+-- 룸별 조회 최적화
+CREATE INDEX idx_pricing_policies_room_id
+    ON pricing_policies(room_id);
 
-```java
-@DisplayName("Money Value Object 테스트")
-class MoneyTest {
-
-  @Test
-  @DisplayName("음수 금액으로 생성 시 예외 발생")
-  void createWithNegativeAmount_ShouldThrowException() {
-    // Given
-    BigDecimal negativeAmount = BigDecimal.valueOf(-1000);
-
-    // When & Then
-    assertThatThrownBy(() -> new Money(negativeAmount))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("금액은 0 이상이어야 합니다");
-  }
-
-  @Test
-  @DisplayName("두 금액을 더할 수 있다")
-  void add_ShouldReturnSumOfTwoAmounts() {
-    // Given
-    Money money1 = Money.of(10000);
-    Money money2 = Money.of(5000);
-
-    // When
-    Money result = money1.add(money2);
-
-    // Then
-    assertThat(result.amount()).isEqualByComparingTo("15000");
-  }
-}
+-- 시간대 중복 방지
+CREATE UNIQUE INDEX uq_pricing_policies_room_day_time
+    ON pricing_policies(room_id, day_of_week, start_time, end_time);
 ```
 
-#### 2. 통합 테스트 (Repository Layer)
+#### products 테이블
 
-JPA와 PostgreSQL의 실제 동작을 검증합니다.
+```sql
+-- Scope + PlaceId 복합 조회
+CREATE INDEX idx_products_scope_place_id
+    ON products(scope, place_id)
+    WHERE place_id IS NOT NULL;
 
-```java
-@DataJpaTest
-@DisplayName("PricingPolicy Repository 통합 테스트")
-class PricingPolicyRepositoryAdapterTest {
-
-  @Autowired
-  private PricingPolicyJpaRepository jpaRepository;
-
-  @Test
-  @DisplayName("RoomId로 가격 정책을 조회할 수 있다")
-  void findByRoomId_ShouldReturnPricingPolicy() {
-    // Given
-    PricingPolicyEntity entity = PricingPolicyEntity.builder()
-        .roomId(1L)
-        .placeId(100L)
-        .dayOfWeek("MONDAY")
-        .startTime(LocalTime.of(9, 0))
-        .endTime(LocalTime.of(12, 0))
-        .price(BigDecimal.valueOf(10000))
-        .build();
-    jpaRepository.save(entity);
-
-    // When
-    Optional<PricingPolicyEntity> result = jpaRepository.findByRoomId(1L);
-
-    // Then
-    assertThat(result).isPresent();
-    assertThat(result.get().getRoomId()).isEqualTo(1L);
-  }
-}
+-- RoomId 기준 조회
+CREATE INDEX idx_products_room_id
+    ON products(room_id)
+    WHERE room_id IS NOT NULL;
 ```
 
-#### 3. E2E 테스트 (Testcontainers)
+#### product_time_slot_inventory 테이블
 
-실제 PostgreSQL, Kafka 컨테이너로 전체 플로우를 검증합니다.
+```sql
+-- 상품 + 시간대 조회
+CREATE INDEX idx_product_inventory_product_time
+    ON product_time_slot_inventory(product_id, time_slot);
 
-```java
-@SpringBootTest
-@Testcontainers
-@DisplayName("예약 가격 계산 E2E 테스트")
-class ReservationPricingE2ETest {
-
-  @Container
-  static PostgreSQLContainer<?> postgres =
-      new PostgreSQLContainer<>("postgres:16");
-
-  @Container
-  static KafkaContainer kafka =
-      new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.5.0"));
-
-  @Test
-  @DisplayName("예약 생성부터 확정까지 전체 플로우")
-  void createAndConfirmReservation_ShouldWork() {
-    // Given: 가격 정책 설정
-    // When: 예약 생성 API 호출
-    // Then: 가격 계산 검증
-    // When: 예약 확정 API 호출
-    // Then: 상태 전이 검증
-  }
-}
+-- 과거 데이터 정리용
+CREATE INDEX idx_product_inventory_time_slot
+    ON product_time_slot_inventory(time_slot);
 ```
 
-### 테스트 통계
+#### reservation_pricings 테이블
 
-- **총 테스트 수:** 501개
-- **성공:** 486개
-- **실패:** 15개 (수정 중)
+```sql
+-- 룸 + 상태 복합 조회
+CREATE INDEX idx_reservation_pricings_room_status
+    ON reservation_pricings(room_id, status);
 
-### 테스트 분류
-
-| 계층 | 테스트 수 | 설명 |
-|------|-----------|------|
-| Domain | 180+ | Value Object, Aggregate 로직 |
-| Application | 120+ | Use Case 서비스 |
-| Adapter (In) | 80+ | Controller 통합 테스트 |
-| Adapter (Out) | 80+ | Repository 통합 테스트 |
-| E2E | 40+ | Testcontainers 기반 |
-
-### 테스트 실행
-
-```bash
-# 전체 테스트
-./gradlew test
-
-# 특정 계층 테스트
-./gradlew test --tests "*.domain.*"
-
-# 커버리지 리포트
-./gradlew jacocoTestReport
-open build/reports/jacoco/test/html/index.html
+-- 만료 예약 조회 (스케줄러용)
+CREATE INDEX idx_reservation_pricings_expires_at
+    ON reservation_pricings(expires_at)
+    WHERE status = 'PENDING';
 ```
 
 ---
 
-## 실행 가이드
+## 8. 에러 코드
 
-### 사전 요구사항
+### 8.1 가격 정책 에러
 
-- Java 21 JDK
-- Docker Desktop
-- Git
+| 코드 | HTTP Status | 설명 |
+|------|-------------|------|
+| PRICING_POLICY_NOT_FOUND | 404 | 가격 정책 없음 |
+| DUPLICATE_TIME_RANGE | 400 | 시간대 중복 |
+| INVALID_TIME_RANGE | 400 | 시간 범위 오류 (start >= end) |
+| DIFFERENT_PLACE | 400 | 다른 Place 간 복사 시도 |
 
-### 1. 프로젝트 클론
+### 8.2 상품 에러
+
+| 코드 | HTTP Status | 설명 |
+|------|-------------|------|
+| PRODUCT_NOT_FOUND | 404 | 상품 없음 |
+| INVALID_SCOPE_IDS | 400 | Scope와 ID 조합 오류 |
+| INSUFFICIENT_STOCK | 409 | 재고 부족 |
+| PRODUCT_NOT_ALLOWED | 403 | 룸에서 허용되지 않는 상품 |
+
+### 8.3 예약 가격 에러
+
+| 코드 | HTTP Status | 설명 |
+|------|-------------|------|
+| RESERVATION_PRICING_NOT_FOUND | 404 | 예약 가격 정보 없음 |
+| INVALID_RESERVATION_STATUS | 400 | 잘못된 상태 전환 |
+| RESERVATION_EXPIRED | 410 | PENDING 타임아웃 |
+| ALREADY_CONFIRMED | 409 | 이미 확정됨 |
+| ALREADY_CANCELLED | 409 | 이미 취소됨 |
+
+### 8.4 일반 에러
+
+| 코드 | HTTP Status | 설명 |
+|------|-------------|------|
+| INVALID_MONEY_AMOUNT | 400 | 금액 0 미만 |
+| INVALID_QUANTITY | 400 | 수량 1 미만 |
+| CONCURRENT_MODIFICATION | 409 | 동시 수정 충돌 |
+
+---
+
+## 9. 환경 설정
+
+### 9.1 환경 변수
 
 ```bash
-git clone https://github.com/DDINGJOO/YE_YAK_HAE_YO_SERVICE_SERVER.git
-cd YE_YAK_HAE_YO_SERVICE_SERVER
-```
-
-### 2. 인프라 실행 (Docker Compose)
-
-```bash
-cd springProject
-docker-compose up -d
-```
-
-실행되는 서비스:
-- PostgreSQL 16 (포트: 5432)
-- Kafka 3.6 (포트: 9092)
-- Zookeeper (포트: 2181)
-- Kafka UI (포트: 8090)
-
-상태 확인:
-```bash
-docker-compose ps
-```
-
-### 3. 환경 변수 설정
-
-`.env` 파일이 자동 생성됩니다. 필요 시 수정:
-
-```env
+# Database
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
 DATABASE_NAME=reservation_pricing_db
 DATABASE_USER_NAME=postgres
 DATABASE_PASSWORD=postgres
 
+# Kafka
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 KAFKA_CONSUMER_GROUP_ID=reservation-pricing-service
 
+# Application
 SPRING_PROFILES_ACTIVE=dev
+PENDING_TIMEOUT_MINUTES=10
+
+# Snowflake ID
+SNOWFLAKE_NODE_ID=1
 ```
 
-### 4. 애플리케이션 실행
+### 9.2 Docker Compose
 
-#### Gradle 사용
+```yaml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: reservation-pricing-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: reservation_pricing_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: reservation-pricing-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: reservation-pricing-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: reservation-pricing-kafka-ui
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    depends_on:
+      - kafka
+
+volumes:
+  postgres_data:
+```
+
+### 9.3 실행 방법
+
 ```bash
+# 1. 인프라 실행
+cd springProject
+docker-compose up -d
+
+# 2. 애플리케이션 실행
 ./gradlew bootRun
-```
 
-#### IDE 사용 (IntelliJ IDEA)
-1. `SpringProjectApplication.java` 실행
-2. Active profiles: `dev`
-
-### 5. 동작 확인
-
-#### Health Check
-```bash
+# 3. 헬스 체크
 curl http://localhost:8080/actuator/health
-```
-
-#### Kafka UI 접속
-```
-http://localhost:8090
-```
-
-#### PostgreSQL 접속
-```bash
-docker exec -it reservation-pricing-postgres psql -U postgres -d reservation_pricing_db
-
-# 테이블 목록 확인
-\dt
-
-# 마이그레이션 이력 확인
-SELECT * FROM flyway_schema_history;
-```
-
-### 6. 코드 품질 검사
-
-```bash
-# 모든 품질 검사 실행
-./gradlew codeQuality
-
-# 개별 실행
-./gradlew checkstyleMain
-./gradlew pmdMain
-./gradlew spotbugsMain
-
-# 리포트 확인
-open build/reports/checkstyle/main.html
-open build/reports/pmd/main.html
-open build/reports/spotbugs/main/spotbugs.html
-```
-
-### 7. 빌드
-
-```bash
-# 전체 빌드 (테스트 + 코드 품질 검사 포함)
-./gradlew build
-
-# 빌드만 (테스트 제외)
-./gradlew build -x test
-
-# JAR 파일 확인
-ls -la build/libs/
 ```
 
 ---
 
-## 프로젝트 분석
+## 10. 스케줄링
 
-### 아키텍처 강점
+### 10.1 스케줄 작업
 
-#### 1. 도메인 중심 설계 (Domain-Centric)
+| 작업 | 크론 표현식 | 설명 |
+|------|-------------|------|
+| PENDING 만료 처리 | `0 * * * * ?` | 매분 만료된 PENDING 예약 취소 |
+| 보상 태스크 재시도 | `0 */5 * * * ?` | 5분마다 실패한 재고 해제 재시도 |
+| 파티션 관리 | `0 0 3 * * ?` | 매일 03시 pg_partman 유지보수 |
 
-**강점:**
-- 비즈니스 로직이 Spring, JPA 등의 기술 스택에 의존하지 않음
-- 도메인 레이어는 순수 Java로 작성되어 테스트가 빠르고 쉬움
-- 외부 기술 변경 시 도메인 로직 수정 불필요
+### 10.2 ShedLock 설정
 
-**증거:**
-- `domain/` 패키지에 Spring Annotation 없음
-- Value Object는 record 클래스로 불변성 보장
-- 180개 이상의 도메인 단위 테스트
+```java
+@Scheduled(cron = "0 * * * * ?")
+@SchedulerLock(
+    name = "expirePendingReservations",
+    lockAtMostFor = "50s",
+    lockAtLeastFor = "30s"
+)
+public void expirePendingReservations() {
+    // 만료된 PENDING 예약 취소 및 재고 해제
+}
+```
 
-#### 2. SOLID 원칙 준수
+---
 
-**SRP (Single Responsibility Principle):**
-- 각 Aggregate가 단일 책임만 가짐
-  - PricingPolicy: 가격 정책 관리
-  - Product: 추가상품 관리
-  - ReservationPricing: 예약 가격 스냅샷
+## 11. 디자인 패턴
 
-**OCP (Open-Closed Principle):**
-- PricingStrategy 인터페이스로 새로운 가격 전략 추가 가능
-- 기존 코드 수정 없이 확장
+### 11.1 Factory Pattern
 
-**LSP (Liskov Substitution Principle):**
-- 모든 PricingStrategy 구현체는 대체 가능
+```java
+// 상품 생성 - Scope별 Factory Method
+public class Product {
+    public static Product createPlaceScoped(
+        ProductId id, PlaceId placeId, String name,
+        PricingStrategy strategy, int quantity) { }
 
-**ISP (Interface Segregation Principle):**
-- Use Case별로 분리된 Port 인터페이스
-  - QueryPricingPolicyUseCase
-  - UpdateDefaultPriceUseCase
-  - CopyPricingPolicyUseCase
+    public static Product createRoomScoped(
+        ProductId id, PlaceId placeId, RoomId roomId,
+        String name, PricingStrategy strategy, int quantity) { }
 
-**DIP (Dependency Inversion Principle):**
-- Domain이 Repository 인터페이스 정의
-- Adapter가 구현체 주입
+    public static Product createReservationScoped(
+        ProductId id, String name,
+        PricingStrategy strategy, int quantity) { }
+}
+```
 
-#### 3. 불변성 (Immutability)
+### 11.2 Strategy Pattern
 
-**강점:**
-- 예약 가격 스냅샷이 불변 객체로 저장됨
-- 가격 정책 변경이 과거 예약에 영향 없음
-- 멀티스레드 환경에서 동기화 불필요
+```java
+// 가격 계산 전략
+public interface PricingStrategy {
+    Money calculatePrice(int quantity);
+    PricingType getType();
+}
 
-**구현:**
-- Value Object는 모두 record 클래스 (final 필드)
-- ReservationPricing의 가격 정보는 final
-- 상태 전이만 허용 (PENDING → CONFIRMED → CANCELLED)
+// 초기+추가 전략
+public class InitialPlusAdditionalPricing implements PricingStrategy {
+    private final Money initialPrice;
+    private final Money additionalPrice;
 
-#### 4. 테스트 용이성
+    @Override
+    public Money calculatePrice(int quantity) {
+        if (quantity == 1) return initialPrice;
+        return initialPrice.add(additionalPrice.multiply(quantity - 1));
+    }
+}
+```
 
-**강점:**
-- Domain Layer는 Spring 없이 단위 테스트
-- Testcontainers로 실제 PostgreSQL, Kafka 테스트
-- 501개의 자동화된 테스트
+### 11.3 Repository Pattern
 
-**계층별 테스트 전략:**
-- Domain: Mock 없이 순수 Java 테스트
-- Application: Repository를 Mock으로 대체
-- Adapter: Spring Context로 통합 테스트
-- E2E: Testcontainers로 실제 환경 테스트
+```java
+// Domain Layer - Port 정의
+public interface PricingPolicyRepository {
+    PricingPolicy findByRoomId(RoomId roomId);
+    void save(PricingPolicy pricingPolicy);
+}
 
-### 성능 최적화
+// Adapter Layer - 구현
+@Repository
+public class PricingPolicyRepositoryAdapter
+    implements PricingPolicyRepository {
 
-#### 1. 인덱싱 전략
+    private final PricingPolicyJpaRepository jpaRepository;
 
-- 룸별 조회 최적화: `idx_pricing_policies_room_id`
-- 재고 관리 쿼리 최적화: `idx_reservation_pricings_room_status`
-- Partial Index 활용: PlaceId가 NULL이 아닐 때만 인덱스
+    @Override
+    public PricingPolicy findByRoomId(RoomId roomId) {
+        return jpaRepository.findByRoomId(roomId.value())
+            .map(this::toDomain)
+            .orElseThrow(() -> new PricingPolicyNotFoundException());
+    }
+}
+```
 
-#### 2. Snowflake ID Generator
+### 11.4 Value Object Pattern
 
-- Auto Increment 대비 분산 환경에서 성능 우수
-- 시간 기반 정렬로 인덱스 효율 향상
-- 단일 노드에서 초당 400만개 ID 생성 가능
+```java
+// 불변 금액 객체
+public record Money(BigDecimal amount) {
+    public Money {
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("금액은 0 이상이어야 합니다");
+        }
+    }
 
-#### 3. 비정규화 (Denormalization)
+    public Money add(Money other) {
+        return new Money(this.amount.add(other.amount));
+    }
 
-- ReservationPricing에 PlaceId 중복 저장
-- PlaceId 기준 조회 시 조인 없이 빠른 검색
+    public Money multiply(int multiplier) {
+        return new Money(amount.multiply(BigDecimal.valueOf(multiplier)));
+    }
+}
+```
 
-#### 4. N+1 쿼리 최적화
+---
 
-JPQL Fetch Join을 활용하여 컬렉션 로딩 시 N+1 문제를 해결합니다.
+## 12. 테스팅
 
-**구현 예시 (ReservationPricingJpaRepository):**
+### 12.1 테스트 통계
+
+- **총 테스트 수:** 501개
+- **성공:** 486개
+- **수정 중:** 15개
+
+### 12.2 테스트 분류
+
+| 계층 | 테스트 수 | 프레임워크 | 설명 |
+|------|-----------|------------|------|
+| Domain | 180+ | JUnit 5, AssertJ | 순수 Java, Mock 없음 |
+| Application | 120+ | JUnit 5, Mockito | Service + Mocked Repo |
+| Adapter (In) | 80+ | Spring Test, MockMvc | Controller 통합 |
+| Adapter (Out) | 80+ | DataJpaTest | Repository 통합 |
+| E2E | 40+ | Testcontainers | PostgreSQL, Kafka 실환경 |
+
+### 12.3 테스트 실행
+
+```bash
+# 전체 테스트
+./gradlew test
+
+# 특정 계층
+./gradlew test --tests "*.domain.*"
+
+# 커버리지 리포트
+./gradlew jacocoTestReport
+```
+
+---
+
+## 13. 구현 우선순위
+
+### Phase 1 - 핵심 기능 (완료)
+
+- [x] 가격 정책 CRUD
+- [x] 시간대별 차등 가격
+- [x] 추가상품 3가지 전략
+- [x] 예약 가격 계산
+- [x] 불변 스냅샷 저장
+- [x] Kafka 이벤트 처리
+
+### Phase 2 - 재고 관리 (완료)
+
+- [x] 원자적 재고 예약/해제
+- [x] 시간대별 재고 관리
+- [x] 월별 파티셔닝
+- [x] 동시성 테스트
+
+### Phase 3 - 예약 상태 관리 (완료)
+
+- [x] PENDING 타임아웃
+- [x] 결제 확정 이벤트 처리
+- [x] 환불 취소 이벤트 처리
+- [x] 보상 태스크 큐
+
+### Phase 4 - 고도화 (진행 중)
+
+- [ ] 가격 변경 이력 관리
+- [ ] Redis 캐싱
+- [ ] Outbox 패턴
+- [ ] API 문서화 (Swagger)
+- [ ] Prometheus + Grafana
+
+---
+
+## 14. 참고 사항
+
+### 14.1 Snowflake ID 생성
+
+```
+|-- 1 bit --|-- 41 bits --|-- 10 bits --|-- 12 bits --|
+|   sign    |  timestamp  |  node id    | sequence    |
+```
+
+- **Custom Epoch:** 2024-01-01T00:00:00Z
+- **초당 400만개:** 단일 노드 기준
+- **69년 사용 가능:** 2024년 기준
+
+### 14.2 파티셔닝 전략
+
+```sql
+-- pg_partman 자동 관리
+-- 3개월 선행 파티션 생성
+-- 12개월 후 자동 삭제
+-- 매일 03시 유지보수
+```
+
+### 14.3 N+1 쿼리 최적화
+
 ```java
 @Query("""
     SELECT DISTINCT rp FROM ReservationPricingEntity rp
     LEFT JOIN FETCH rp.slotPrices
     WHERE rp.roomId = :roomId
       AND rp.status = :status
-      AND rp.expiresAt BETWEEN :start AND :end
     """)
-List<ReservationPricingEntity> findByRoomIdAndStatusAndTimePeriodWithSlots(
-    Long roomId, ReservationStatus status,
-    LocalDateTime start, LocalDateTime end);
-```
-
-**최적화 효과:**
-- 2단계 Fetch Join으로 slotPrices와 productPrices 컬렉션 모두 로딩
-- 단일 쿼리로 모든 연관 데이터 조회 (N+1 → 1+1 쿼리)
-- 재고 가용성 조회 시 성능 크게 개선
-
-**적용 위치:**
-- ReservationPricingRepositoryAdapter:163
-- PlaceId/RoomId + 시간 범위 기준 조회
-- 상태별 예약 목록 조회
-
----
-
-## 향후 개선사항
-
-### 단기 (1-2개월)
-
-#### 1. 재고 동시성 제어 강화 ✅ 완료
-
-**현재 상태:**
-- V9: products 테이블에 reserved_quantity 컬럼 추가 (원자적 UPDATE 기반)
-- V10: product_time_slot_inventory 테이블 추가 (ROOM/PLACE Scope 시간대별 재고)
-- 월별 파티셔닝 적용으로 성능 최적화
-- E2E 동시성 테스트 구현 완료
-
-**구현 완료:**
-- 원자적 UPDATE로 동시성 제어 (Phantom Read 방지)
-- CHECK 제약조건으로 재고 오버플로우 방지
-- 롤백 로직 구현 (예약 실패 시 재고 복구)
-
-**관련 Issue:** #145, #146, #157
-
-#### 2. 예약 환불 처리 ✅ 완료
-
-**구현 완료:**
-- ReservationRefundEventHandler 추가
-- CONFIRMED → CANCELLED 상태 전환
-- 하드 락 재고 해제
-- 멱등성 보장 (중복 처리 방지)
-
-**관련 Issue:** #164
-
-#### 3. 이벤트 중복 처리 멱등성 강화
-
-**현재 상태:**
-- 기본적인 멱등성 처리
-
-**개선 방향:**
-- 이벤트 ID 기반 중복 처리 차단
-- Outbox Pattern 적용 고려
-
-**ADR 작성 예정:** ADR-004
-
-### 중기 (3-6개월)
-
-#### 1. 가격 정책 변경 이력 관리
-
-**현재 상태:**
-- 현재 가격 정책만 저장
-
-**개선 방향:**
-- Temporal Table 또는 별도 히스토리 테이블 추가
-- 가격 정책 변경 이력 조회 API
-
-**ADR 작성 예정:** ADR-003
-
-#### 2. 캐싱 전략
-
-**개선 방향:**
-- Redis 캐시 도입
-- 가격 정책 조회 성능 향상
-- TTL 전략 수립
-
-#### 3. API 문서화
-
-**개선 방향:**
-- Swagger UI 추가
-- API 사용 예제 제공
-
-### 장기 (6개월 이상)
-
-#### 1. 동적 가격 정책 (Dynamic Pricing)
-
-**개선 방향:**
-- 수요 예측 기반 가격 자동 조정
-- ML 모델 연동
-
-#### 2. 성능 모니터링
-
-**개선 방향:**
-- Prometheus + Grafana
-- 분산 추적 (Zipkin, Jaeger)
-- 알림 시스템
-
-#### 3. 데이터 아카이빙
-
-**개선 방향:**
-- 오래된 예약 가격 데이터 아카이빙
-- 파티셔닝 전략 수립
-
----
-
-## 문서
-
-### 전체 문서 목록
-
-- [docs/INDEX.md](docs/INDEX.md) - 전체 문서 인덱스 및 읽기 가이드
-- [docs/INFO.md](docs/INFO.md) - 프로젝트 자동화 시스템 개요
-- [docs/ISSUE_GUIDE.md](docs/ISSUE_GUIDE.md) - 이슈 작성 가이드
-- [docs/PROJECT_SETUP.md](docs/PROJECT_SETUP.md) - 프로젝트 설정 가이드
-
-### 요구사항
-
-- [docs/requirements/PROJECT_REQUIREMENTS.md](docs/requirements/PROJECT_REQUIREMENTS.md) - 전체 요구사항 명세
-
-### 아키텍처
-
-- [docs/architecture/ARCHITECTURE_ANALYSIS.md](docs/architecture/ARCHITECTURE_ANALYSIS.md) - 아키텍처 패턴 비교
-- [docs/architecture/DOMAIN_MODEL_DESIGN.md](docs/architecture/DOMAIN_MODEL_DESIGN.md) - 도메인 모델 설계
-- [docs/architecture/TECH_STACK_ANALYSIS.md](docs/architecture/TECH_STACK_ANALYSIS.md) - 기술 스택 분석
-
-### ADR (Architecture Decision Records)
-
-- [docs/adr/ADR_001_ARCHITECTURE_DECISION.md](docs/adr/ADR_001_ARCHITECTURE_DECISION.md) - 최종 아키텍처 결정
-
-### 기능별 상세 문서
-
-- [docs/features/pricing-policy/](docs/features/pricing-policy/) - 가격 정책 기능
-- [docs/features/product/](docs/features/product/) - 추가상품 기능
-- [docs/features/reservation-pricing/](docs/features/reservation-pricing/) - 예약 가격 기능
-- [docs/features/reservation/RESERVATION_FLOW.md](docs/features/reservation/RESERVATION_FLOW.md) - 예약 플로우
-- [docs/features/event-handling/](docs/features/event-handling/) - 이벤트 처리
-
-### 개발 가이드
-
-- [springProject/PACKAGE_STRUCTURE.md](springProject/PACKAGE_STRUCTURE.md) - 패키지 구조 상세
-- [springProject/DATABASE_SCHEMA.md](springProject/DATABASE_SCHEMA.md) - 데이터베이스 스키마
-- [springProject/DOCKER_SETUP.md](springProject/DOCKER_SETUP.md) - Docker 설정 가이드
-
----
-
-## 기여 가이드
-
-1. 이슈 생성 ([ISSUE_GUIDE.md](docs/ISSUE_GUIDE.md) 참조)
-2. 브랜치 생성 (`feature/이슈번호-작업내용`)
-3. 코드 작성
-4. 코드 품질 검사 (`./gradlew codeQuality`)
-5. 테스트 실행 (`./gradlew test`)
-6. PR 생성
-7. CI 통과 확인
-8. 코드 리뷰 후 머지
-
----
-
-## 문제 해결
-
-### Docker 컨테이너 재시작
-
-```bash
-# 전체 재시작
-docker-compose restart
-
-# 특정 서비스만
-docker-compose restart postgres
-docker-compose restart kafka
-```
-
-### 포트 충돌
-
-`docker-compose.yml`에서 포트 변경:
-```yaml
-ports:
-  - "15432:5432"  # PostgreSQL
-  - "19092:9092"  # Kafka
-```
-
-### 데이터 완전 초기화
-
-```bash
-# 컨테이너 및 볼륨 삭제
-docker-compose down -v
-
-# 재시작
-docker-compose up -d
-```
-
-### Gradle 캐시 문제
-
-```bash
-# Gradle 캐시 삭제
-./gradlew clean --refresh-dependencies
+List<ReservationPricingEntity> findWithSlots(Long roomId, ReservationStatus status);
 ```
 
 ---
 
-## 라이선스
+## 15. 문서
 
-이 프로젝트는 상어 프로젝트입니다.
+### 주요 문서
+
+| 문서 | 설명 |
+|------|------|
+| [docs/INDEX.md](docs/INDEX.md) | 전체 문서 인덱스 |
+| [docs/requirements/PROJECT_REQUIREMENTS.md](docs/requirements/PROJECT_REQUIREMENTS.md) | 요구사항 명세 |
+| [docs/architecture/ARCHITECTURE_ANALYSIS.md](docs/architecture/ARCHITECTURE_ANALYSIS.md) | 아키텍처 분석 |
+| [docs/adr/ADR_001_ARCHITECTURE_DECISION.md](docs/adr/ADR_001_ARCHITECTURE_DECISION.md) | 아키텍처 결정 |
+
+### 기능별 문서
+
+| 문서 | 설명 |
+|------|------|
+| [docs/features/pricing-policy/](docs/features/pricing-policy/) | 가격 정책 |
+| [docs/features/product/](docs/features/product/) | 추가상품 |
+| [docs/features/reservation-pricing/](docs/features/reservation-pricing/) | 예약 가격 |
+| [docs/features/event-handling/](docs/features/event-handling/) | 이벤트 처리 |
 
 ---
 
-## 연락처
-
-- Project Lead: @DDINGJOO
-- Repository: https://github.com/DDINGJOO/YE_YAK_HAE_YO_SERVICE_SERVER
-
----
-
-Last Updated: 2025-11-15
+**버전:** 0.0.1-SNAPSHOT
+**최종 업데이트:** 2025-12-29
+**팀:** TeamBiund Development Team
